@@ -4,48 +4,76 @@ import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import {
-  Heartbeat,
-  WarningCircle,
-  Thermometer,
-  Lightning,
-  WifiHigh,
-  Drop,
-  Broadcast,
+  ArrowLeft,
   Clock,
   ShieldCheck,
+  Lightning,
+  Waves,
+  Package,
   Wind,
-  TerminalWindow,
+  Warning,
   Cpu,
-  ArrowLeft
+  TerminalWindow,
+  SlidersHorizontal,
+  Flame,
+  ArrowRight,
+  ArrowsClockwise,
+  Radio,
+  CheckCircle,
 } from "@phosphor-icons/react";
-import { DoubleBezel } from "@/components/DoubleBezel";
+import { HudPanel } from "@/components/HudPanel";
+import { HeartbeatDot } from "@/components/HeartbeatDot";
+import { TelemetryValue } from "@/components/TelemetryValue";
+import { TopographicBg } from "@/components/TopographicBg";
+import { INITIAL_VITALS, STATION_CONSTANTS, SystemHealthState } from "@/lib/telemetry";
 
-// --- Mock Data Feeds ---
-const LOGS = [
-  { time: "12:44:02", level: "INFO", src: "SYS_CORE", msg: "Telemetry sync established with INSAT-3DR." },
-  { time: "12:44:15", level: "INFO", src: "GEN_CTRL", msg: "Generator 2 auto-throttle engaged. Load balanced." },
-  { time: "12:45:01", level: "WARN", src: "ENV_MON",  msg: "Katabatic wind spike detected: Sector North." },
-  { time: "12:45:18", level: "INFO", src: "HYD_SYS",  msg: "Trace heat cycle complete on Priyadarshini Line segment B." },
-  { time: "12:46:05", level: "INFO", src: "SYS_CORE", msg: "Edge buffer flushed to satellite uplink." },
+const INITIAL_LOGS = [
+  { time: "12:44:02", level: "INFO", src: "SYS_CORE", prov: "SENSOR", msg: "Lossless telemetry synchronization confirmed via INSAT-3DR." },
+  { time: "12:44:15", level: "INFO", src: "GEN_CTRL", prov: "OFFICIAL", msg: "Generator 'Ravi' governor nominal. Phase balance: 415.2V @ 50.04 Hz." },
+  { time: "12:45:01", level: "WARN", src: "ENV_MON",  prov: "SENSOR", msg: "Katabatic wind acceleration detected on northern ridgeline: 48.6 kts." },
+  { time: "12:45:18", level: "WARN", src: "HYD_SYS",  prov: "SENSOR", msg: "Trace heat circuit #2 current draw 6.2A vs 8.0A nominal. Inspection flagged." },
+  { time: "12:46:05", level: "INFO", src: "THERMAL",  prov: "SIMULATED", msg: "Thermodynamic twin recalculated: freeze horizon safe at 140 min." },
 ];
 
-const GENERATORS = [
-  { id: "G-1", status: "ONLINE", load: 78, temp: 85, freq: 50.01 },
-  { id: "G-2", status: "STANDBY", load: 0, temp: 15, freq: 0 },
-  { id: "G-3", status: "ONLINE", load: 64, temp: 82, freq: 50.02 },
-  { id: "G-4", status: "MAINT", load: 0, temp: -5, freq: 0 },
-];
-
-export default function MissionConsole() {
+export default function DashboardPage() {
   const [utcTime, setUtcTime] = useState("");
-  const [logs, setLogs] = useState(LOGS);
+  const [stormMode, setStormMode] = useState(false);
+  const [logs, setLogs] = useState(INITIAL_LOGS);
+  const [activeGenTab, setActiveGenTab] = useState<"Ravi" | "Surya" | "Aditya">("Ravi");
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Clock tick
+  // UTC clock ticker
   useEffect(() => {
     const tick = () => setUtcTime(new Date().toUTCString().slice(17, 25) + " UTC");
     tick();
     const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Periodic log stream
+  useEffect(() => {
+    const stream = [
+      { level: "INFO", src: "PLC_NODE", prov: "SENSOR", msg: "Day-tank #1 level verified: 88% full." },
+      { level: "INFO", src: "SAT_ISRO", prov: "OFFICIAL", msg: "Uplink packet SNR: 18.4 dB. Zero packet drop." },
+      { level: "WARN", src: "ENV_STRESS", prov: "SIMULATED", msg: "Convective heat loss index increased by 8.4%." },
+      { level: "INFO", src: "BIO_DIGEST", prov: "SENSOR", msg: "Anaerobic digester temperature steady at 36.8°C." },
+      { level: "INFO", src: "LIFE_SUP", prov: "SIMULATED", msg: "Internal habitat air quality index: CO2 480ppm nominal." },
+    ];
+
+    const id = setInterval(() => {
+      const nextItem = stream[Math.floor(Math.random() * stream.length)];
+      setLogs((prev) => [
+        ...prev.slice(-24),
+        {
+          time: new Date().toUTCString().slice(17, 25),
+          level: nextItem.level,
+          src: nextItem.src,
+          prov: nextItem.prov,
+          msg: nextItem.msg,
+        },
+      ]);
+    }, 4500);
+
     return () => clearInterval(id);
   }, []);
 
@@ -56,384 +84,483 @@ export default function MissionConsole() {
     }
   }, [logs]);
 
-  // Simulate incoming logs
-  useEffect(() => {
-    const msgs = ["Edge cache verifying...", "Ping ISRO NOC: 45ms", "Heater manifold active.", "Analyzing structural hum.", "GPS sync drift: 0.02ms"];
-    const id = setInterval(() => {
-      setLogs(prev => {
-        const newLog = {
-          time: new Date().toUTCString().slice(17, 25),
-          level: Math.random() > 0.85 ? "WARN" : "INFO",
-          src: "SYS_CORE",
-          msg: msgs[Math.floor(Math.random() * msgs.length)]
-        };
-        return [...prev.slice(-20), newLog];
-      });
-    }, 3800);
-    return () => clearInterval(id);
-  }, []);
+  // Derived telemetry based on storm mode toggle
+  const currentTemp = stormMode ? -44.2 : INITIAL_VITALS.externalTemp.value;
+  const currentWind = stormMode ? 92.5 : INITIAL_VITALS.windSpeed.value;
+  const currentDemand = stormMode ? 56.4 : INITIAL_VITALS.totalPowerDemand.value;
+  const currentTraceHeat = stormMode ? 28.6 : 18.4;
+  const freezeHorizon = stormMode ? 34 : 140;
+  const overallStatus: SystemHealthState = stormMode ? "CRITICAL" : "NORMAL";
 
-  const easeOut = [0.32, 0.72, 0, 1] as any;
+  const easeEng = [0.32, 0.72, 0, 1] as const;
 
   return (
-    <main className="min-h-[100dvh] w-full bg-[#020305] text-white selection:bg-cyan-500/30 overflow-x-hidden font-sans p-4 md:p-8 pt-32 md:pt-40 relative">
-      
-      {/* Cinematic Photorealistic Image Background (Tied to Homepage) */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20 mix-blend-luminosity"
-          style={{ backgroundImage: "url('/hero-bg.jpg')", filter: "contrast(1.2) grayscale(0.5)" }}
-        />
-        {/* Deep Black Gradient Overlays for blending */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#020305] via-[#020305]/80 to-[#020305]/95" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,#020305_100%)]" />
-        {/* Subtle grid and noise */}
-        <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay" style={{ backgroundImage: "url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E')" }} />
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:64px_64px]" />
-      </div>
+    <div className="relative min-h-screen w-full flex flex-col bg-[#06090E] text-[#F8FAFC] px-4 sm:px-6 lg:px-10 py-6 max-w-[1600px] mx-auto">
+      <TopographicBg showRadarRings={false} />
 
-      <div className="relative z-10 max-w-[1600px] mx-auto flex flex-col gap-8">
-        
-        {/* TOP COMMAND BAR */}
-        <motion.header initial={{ opacity:0, y:-20 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6, ease:easeOut }} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#0a0d14]/60 backdrop-blur-2xl border border-white/[0.08] p-5 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative overflow-hidden">
-          {/* Subtle top glare & animated scanline */}
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
-          <motion.div animate={{ x: ["-100%", "200%"] }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }} className="absolute top-0 bottom-0 w-[20%] bg-gradient-to-r from-transparent via-white/[0.02] to-transparent skew-x-12" />
-          
-          <div className="flex items-center gap-5 relative z-10">
-            <Link href="/" className="w-10 h-10 rounded-full bg-white/[0.02] hover:bg-white/[0.08] border border-white/[0.1] flex items-center justify-center transition-all duration-300 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]">
-              <ArrowLeft size={16} className="text-zinc-400 group-hover:text-white" />
+      {/* ═══ TOP COMMAND BAR / COCKPIT HEADER ═══ */}
+      <motion.header
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: easeEng }}
+        className="bezel-shell p-1 mb-6 relative z-10"
+      >
+        <div className="bezel-core p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          {/* Left: Station Identity & Back Link */}
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="w-9 h-9 rounded-md bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] flex items-center justify-center transition-all text-[#94A3B8] hover:text-[#FFFFFF]"
+              aria-label="Return to Overview"
+            >
+              <ArrowLeft size={16} />
             </Link>
             <div>
               <div className="flex items-center gap-3">
-                <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse shadow-[0_0_12px_rgba(244,63,94,0.8)]" />
-                <h1 className="text-base font-bold tracking-[0.2em] uppercase text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400">Mission Console</h1>
+                <HeartbeatDot
+                  size="md"
+                  status={overallStatus}
+                  label={stormMode ? "CRITICAL // STORM OVERRIDE ENGAGED" : "NOMINAL TELEMETRY // 1Hz SYNCHRONIZED"}
+                  pulse={true}
+                />
               </div>
-              <span className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase mt-1 block">Maitri Digital Twin · Schirmacher Oasis</span>
+              <div className="flex items-center gap-2 mt-1 font-mono text-[10px] text-[#64748B] uppercase tracking-wider">
+                <span className="text-[#94A3B8] font-medium">{STATION_CONSTANTS.STATION_NAME} STATION ({STATION_CONSTANTS.STATION_CODE})</span>
+                <span>•</span>
+                <span>{STATION_CONSTANTS.COORDINATES_DISPLAY}</span>
+                <span>•</span>
+                <span className="text-[#64748B]">SCHIRMACHER OASIS</span>
+              </div>
             </div>
           </div>
-          
-          <div className="flex flex-wrap items-center gap-8 relative z-10">
-            <div className="flex items-center gap-3 bg-black/50 px-4 py-2 rounded-lg border border-white/[0.05] shadow-inner">
-              <Clock size={14} className="text-cyan-500 animate-pulse" />
-              <span className="text-xs font-mono text-zinc-200 tracking-widest">{utcTime}</span>
+
+          {/* Center: System Clock & Autonomy Metric */}
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-mono">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#06090E]/80 border border-white/[0.08]">
+              <Clock size={14} className="text-[#94A3B8]" />
+              <span className="text-[#F8FAFC] tracking-wider">{utcTime || "12:00:00 UTC"}</span>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500">Survivability Index</span>
-              <div className="relative group cursor-default">
-                <div className="absolute inset-0 bg-emerald-500/20 blur-md rounded-full group-hover:bg-emerald-500/40 transition-all" />
-                <span className="relative px-4 py-1.5 rounded-full text-xs font-mono font-bold tracking-wider bg-[#0a0d14] text-emerald-400 border border-emerald-500/30 flex items-center gap-2">
-                  <ShieldCheck size={14} weight="fill" />
-                  142 DAYS TTCF
+
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#06090E]/80 border border-white/[0.08]">
+              <ShieldCheck size={14} className="text-[#10B981]" weight="fill" />
+              <span className="text-[#64748B]">AUTONOMY:</span>
+              <span className="text-[#F8FAFC] font-semibold">142 DAYS</span>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#06090E]/80 border border-white/[0.08]">
+              <span className="text-[#64748B]">RESUPPLY:</span>
+              <span className="text-[#F8FAFC] font-semibold">T-214 DAYS</span>
+            </div>
+          </div>
+
+          {/* Right: What-If Storm Trigger Toggle Switch */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setStormMode(!stormMode)}
+              className={`px-4 py-2 rounded-md font-mono text-xs tracking-wider uppercase flex items-center gap-2.5 border transition-all duration-300 ${
+                stormMode
+                  ? "bg-[#EF4444]/15 border-[#EF4444]/50 text-[#FCA5A5] shadow-[0_0_20px_rgba(239,68,68,0.2)] font-semibold"
+                  : "bg-white/[0.03] border-white/[0.08] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-white/20 hover:bg-white/[0.06]"
+              }`}
+            >
+              <SlidersHorizontal size={14} className={stormMode ? "text-[#EF4444] animate-pulse" : "text-[#64748B]"} />
+              <span>{stormMode ? "Storm Override Active" : "Simulate Katabatic Storm"}</span>
+              <span
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  stormMode ? "bg-[#EF4444] shadow-[0_0_8px_#EF4444]" : "bg-[#475569]"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </motion.header>
+
+      {/* ═══ ROW 1: FOUR DOMAIN SUMMARY HUD CARDS ═══ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 relative z-10">
+        {/* Domain 1: Energy & Microgrid */}
+        <HudPanel
+          tag="// SYS-01"
+          title="Microgrid & Generation"
+          status={stormMode ? "WATCH" : "LIVE"}
+          href="/energy"
+          hoverEffect={true}
+        >
+          <div className="space-y-3">
+            <div className="flex items-baseline justify-between">
+              <span className="text-[10px] font-mono uppercase text-[#64748B]">Primary Demand</span>
+              <TelemetryValue value={currentDemand} unit="kW" size="lg" isLive={true} />
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/[0.06] text-[10px] font-mono text-[#64748B]">
+              <div>ACTIVE: <span className="text-[#F8FAFC]">GEN-01 (Ravi)</span></div>
+              <div>FREQ: <span className="text-[#F8FAFC]">50.04 Hz</span></div>
+              <div>VOLTAGE: <span className="text-[#94A3B8]">415.2 V</span></div>
+              <div>STANDBY: <span className="text-[#64748B]">Aditya, Surya</span></div>
+            </div>
+          </div>
+        </HudPanel>
+
+        {/* Domain 2: Infrastructure & Hydrology */}
+        <HudPanel
+          tag="// SYS-02"
+          title="Priyadarshini Hydrology"
+          status={stormMode ? "CRITICAL" : "WATCH"}
+          href="/infrastructure"
+          hoverEffect={true}
+        >
+          <div className="space-y-3">
+            <div className="flex items-baseline justify-between">
+              <span className="text-[10px] font-mono uppercase text-[#64748B]">Freeze Horizon</span>
+              <TelemetryValue
+                value={freezeHorizon}
+                unit="min"
+                size="lg"
+                status={stormMode ? "CRITICAL" : "NORMAL"}
+                isLive={true}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/[0.06] text-[10px] font-mono text-[#64748B]">
+              <div>INTAKE TEMP: <span className="text-[#F8FAFC]">+1.4°C</span></div>
+              <div>TRACE HEAT: <span className={stormMode ? "text-[#EF4444]" : "text-[#F59E0B]"}>{currentTraceHeat} kW</span></div>
+              <div>FLOW RATE: <span className="text-[#F8FAFC]">42.8 L/m</span></div>
+              <div>STORAGE: <span className="text-[#94A3B8]">8,400 L</span></div>
+            </div>
+          </div>
+        </HudPanel>
+
+        {/* Domain 3: Logistics & Fuel Autonomy */}
+        <HudPanel
+          tag="// SYS-03"
+          title="Fuel Farm & Consumables"
+          status="LIVE"
+          href="/logistics"
+          hoverEffect={true}
+        >
+          <div className="space-y-3">
+            <div className="flex items-baseline justify-between">
+              <span className="text-[10px] font-mono uppercase text-[#64748B]">Bulk Jet A-1</span>
+              <TelemetryValue value={84620} unit="L" size="lg" isLive={true} />
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/[0.06] text-[10px] font-mono text-[#64748B]">
+              <div>AUTONOMY: <span className="text-[#10B981]">142 Days</span></div>
+              <div>BURN RATE: <span className="text-[#F8FAFC]">{stormMode ? "580" : "412"} L/d</span></div>
+              <div>RATION BUFFER: <span className="text-[#94A3B8]">180 Days</span></div>
+              <div>SPARES: <span className="text-[#10B981]">96% Ready</span></div>
+            </div>
+          </div>
+        </HudPanel>
+
+        {/* Domain 4: Environmental Stress */}
+        <HudPanel
+          tag="// SYS-04"
+          title="Meteorological Stress"
+          status={stormMode ? "CRITICAL" : "LIVE"}
+          href="/environment"
+          hoverEffect={true}
+        >
+          <div className="space-y-3">
+            <div className="flex items-baseline justify-between">
+              <span className="text-[10px] font-mono uppercase text-[#64748B]">Katabatic Gale</span>
+              <TelemetryValue
+                value={currentWind}
+                unit="kts"
+                size="lg"
+                status={stormMode ? "CRITICAL" : "WATCH"}
+                isLive={true}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/[0.06] text-[10px] font-mono text-[#64748B]">
+              <div>AMBIENT: <span className="text-[#F8FAFC]">{currentTemp}°C</span></div>
+              <div>WIND CHILL: <span className={stormMode ? "text-[#EF4444]" : "text-[#F59E0B]"}>{stormMode ? "-68" : "-46.8"}°C</span></div>
+              <div>BAROMETER: <span className="text-[#94A3B8]">986.2 hPa</span></div>
+              <div>SOLAR UV: <span className="text-[#64748B]">0.0 (Night)</span></div>
+            </div>
+          </div>
+        </HudPanel>
+      </div>
+
+      {/* ═══ ROW 2: DEEP TELEMETRY & SYSTEM DETAILS ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6 relative z-10">
+        
+        {/* Left: 3× Kirloskar Generator Matrix (Span 7) */}
+        <div className="lg:col-span-7 flex flex-col">
+          <HudPanel
+            tag="// PWR-01"
+            title="Kirloskar 62.5 kVA Diesel Generator Subsystem"
+            subtitle="Powerhouse configuration: Three primary alternators under automated load sharing and thermal rotation"
+            status="LIVE"
+            hoverEffect={false}
+            className="h-full"
+          >
+            {/* Generator Selection Tabs */}
+            <div className="flex items-center gap-2 mb-4 border-b border-white/[0.06] pb-3">
+              {(["Ravi", "Surya", "Aditya"] as const).map((name) => {
+                const isActive = activeGenTab === name;
+                const isOnline = name === "Ravi" || (stormMode && name === "Surya");
+                return (
+                  <button
+                    key={name}
+                    onClick={() => setActiveGenTab(name)}
+                    className={`px-3.5 py-1.5 rounded-md font-mono text-xs tracking-wider uppercase transition-all flex items-center gap-2 border ${
+                      isActive
+                        ? "bg-white/[0.08] border-white/25 text-[#FFFFFF] font-medium shadow-[0_1px_4px_rgba(0,0,0,0.5)]"
+                        : "bg-white/[0.02] border-white/[0.06] text-[#94A3B8] hover:text-[#FFFFFF] hover:border-white/10"
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        isOnline ? "bg-[#10B981] shadow-[0_0_6px_#10B981]" : "bg-[#475569]"
+                      }`}
+                    />
+                    <span>Gen-Set {name}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Active Generator Telemetry Gauges */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-lg bg-[#06090E]/90 border border-white/[0.06] mb-4">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-mono text-[#64748B] uppercase">Alternator Load</span>
+                <TelemetryValue
+                  value={activeGenTab === "Ravi" ? (stormMode ? 86 : 74) : stormMode && activeGenTab === "Surya" ? 62 : 0}
+                  unit="%"
+                  size="md"
+                  isLive={activeGenTab === "Ravi" || (stormMode && activeGenTab === "Surya")}
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-[10px] font-mono text-[#64748B] uppercase">Coolant Temp</span>
+                <TelemetryValue
+                  value={activeGenTab === "Ravi" ? 84.5 : 38.0}
+                  unit="°C"
+                  size="md"
+                  isLive={activeGenTab === "Ravi"}
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-[10px] font-mono text-[#64748B] uppercase">Oil Pressure</span>
+                <TelemetryValue
+                  value={activeGenTab === "Ravi" ? 395 : 0}
+                  unit="kPa"
+                  size="md"
+                  isLive={activeGenTab === "Ravi"}
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-[10px] font-mono text-[#64748B] uppercase">Fuel Burn Rate</span>
+                <TelemetryValue
+                  value={activeGenTab === "Ravi" ? (stormMode ? 18.2 : 16.4) : 0}
+                  unit="L/h"
+                  size="md"
+                  isLive={activeGenTab === "Ravi"}
+                />
+              </div>
+            </div>
+
+            {/* Alternator Diagnostics details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
+              <div className="p-3 rounded-md bg-white/[0.02] border border-white/[0.06] flex justify-between items-center">
+                <span className="text-[#64748B]">HOURS SINCE OVERHAUL:</span>
+                <span className="text-[#F8FAFC] font-semibold">
+                  {activeGenTab === "Ravi" ? "2,840 h" : activeGenTab === "Surya" ? "120 h" : "4,190 h"}
                 </span>
               </div>
+              <div className="p-3 rounded-md bg-white/[0.02] border border-white/[0.06] flex justify-between items-center">
+                <span className="text-[#64748B]">VIBRATION AMPLITUDE:</span>
+                <span className="text-[#10B981] font-semibold">1.8 mm/sec (NOMINAL)</span>
+              </div>
             </div>
-          </div>
-        </motion.header>
+          </HudPanel>
+        </div>
 
-        {/* MAIN TACTICAL GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
-          {/* COLUMN 1: Vital Overviews & Logs (Span 4) */}
-          <div className="lg:col-span-4 flex flex-col gap-8">
-            
-            {/* Global Vitals */}
-            <motion.div initial={{ opacity:0, x:-20 }} animate={{ opacity:1, x:0 }} transition={{ duration:0.6, delay:0.1, ease:easeOut }} className="grid grid-cols-2 gap-4">
-              <div className="bg-[#0a0d14]/60 backdrop-blur-xl border border-white/[0.08] p-5 rounded-2xl flex flex-col justify-between gap-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] relative overflow-hidden group hover:border-cyan-500/30 transition-colors">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-cyan-500/10 to-transparent rounded-bl-[100px] pointer-events-none" />
-                <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-500 flex items-center gap-2 group-hover:text-cyan-400 transition-colors"><Thermometer size={14} className="text-cyan-400"/> Outside Temp</span>
-                <div>
-                  <span className="text-3xl font-mono font-bold text-white tracking-tighter drop-shadow-md">-24.8°C</span>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-[9px] font-mono uppercase tracking-widest text-cyan-400 flex items-center gap-1.5"><Heartbeat size={12} weight="fill" className="animate-pulse" /> Stable</span>
-                    <span className="text-[9px] font-mono text-zinc-600">MIN -42°C</span>
-                  </div>
-                </div>
+        {/* Right: Priyadarshini Heated Pipeline Schematic (Span 5) */}
+        <div className="lg:col-span-5 flex flex-col">
+          <HudPanel
+            tag="// HYD-02"
+            title="Heated Lake Pipeline Schematic"
+            subtitle="2.5 km trace-heated intake line from Lake Priyadarshini to station buffer tanks"
+            status={stormMode ? "CRITICAL" : "WATCH"}
+            hoverEffect={false}
+            className="h-full"
+          >
+            {/* Visual Pipeline Bar */}
+            <div className="p-4 rounded-lg bg-[#06090E]/90 border border-white/[0.06] mb-4">
+              <div className="flex justify-between text-[10px] font-mono text-[#64748B] mb-2 uppercase">
+                <span>Intake: <span className="text-[#F8FAFC]">+1.4°C</span></span>
+                <span>Trace Heat: <span className={stormMode ? "text-[#EF4444]" : "text-[#F59E0B]"}>{currentTraceHeat} kW</span></span>
+                <span>Habitat: <span className="text-[#F8FAFC]">+8.2°C</span></span>
               </div>
-              <div className="bg-[#0a0d14]/60 backdrop-blur-xl border border-white/[0.08] p-5 rounded-2xl flex flex-col justify-between gap-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-indigo-500/10 to-transparent rounded-bl-[100px] pointer-events-none" />
-                <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-500 flex items-center gap-2 group-hover:text-indigo-400 transition-colors"><Wind size={14} className="text-indigo-400"/> Katabatic</span>
-                <div>
-                  <span className="text-3xl font-mono font-bold text-white tracking-tighter drop-shadow-md">42 <span className="text-lg text-zinc-500">km/h</span></span>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-[9px] font-mono uppercase tracking-widest text-amber-400 flex items-center gap-1.5"><WarningCircle size={12} weight="fill" /> Rising</span>
-                    <span className="text-[9px] font-mono text-zinc-600">MAX 180</span>
-                  </div>
-                </div>
+
+              {/* Heated pipe progress line with tick marks */}
+              <div className="relative h-3 bg-white/[0.05] rounded-full overflow-hidden border border-white/[0.08] p-[1px]">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${
+                    stormMode
+                      ? "bg-gradient-to-r from-[#38BDF8] via-[#F59E0B] to-[#EF4444]"
+                      : "bg-gradient-to-r from-[#38BDF8] via-[#10B981] to-[#38BDF8]"
+                  }`}
+                  style={{ width: "100%" }}
+                />
               </div>
-            </motion.div>
 
-            {/* Tactical Log Terminal */}
-            <motion.div initial={{ opacity:0, x:-20 }} animate={{ opacity:1, x:0 }} transition={{ duration:0.6, delay:0.2, ease:easeOut }} className="flex-1 min-h-[380px] flex flex-col">
-              <div className="flex items-center justify-between mb-3 px-1">
-                 <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-400 flex items-center gap-2">
-                    <TerminalWindow size={14} className="text-cyan-500" />
-                    Live Telemetry Stream
-                  </span>
-                  <div className="flex gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-700" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-700" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" />
-                  </div>
+              <div className="flex justify-between text-[9px] font-mono text-[#64748B] mt-2">
+                <span>0.0 km (Lake Submersible)</span>
+                <span>1.2 km (Junction BJ-04)</span>
+                <span>2.5 km (Boiler Header)</span>
               </div>
-              <DoubleBezel innerClassName="h-full bg-[#020202] flex flex-col relative overflow-hidden shadow-[inset_0_0_40px_rgba(0,0,0,0.9)] border-white/5">
-                
-                {/* Terminal Header */}
-                <div className="flex items-center gap-4 px-5 py-3 border-b border-white/[0.05] bg-[#050505] relative z-10">
-                  <div className="flex gap-2">
-                    <div className="w-2 h-2 rounded-full bg-rose-500/50" />
-                    <div className="w-2 h-2 rounded-full bg-amber-500/50" />
-                    <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
-                  </div>
-                  <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">Sys_Core / dev/ttyUSB0</span>
-                  <div className="h-px flex-1 bg-gradient-to-r from-zinc-800 to-transparent" />
-                </div>
-
-                <div ref={scrollRef} className="flex-1 p-5 overflow-y-auto space-y-2.5 scroll-smooth scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent relative z-10">
-                  <AnimatePresence initial={false}>
-                    {logs.map((log, i) => (
-                      <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-start gap-3 font-mono text-[11px] leading-relaxed group">
-                        <span className="text-zinc-600 shrink-0 select-none group-hover:text-zinc-400 transition-colors">[{log.time}]</span>
-                        <span className={`shrink-0 w-8 ${log.level === 'WARN' ? 'text-amber-400' : 'text-cyan-400'}`}>{log.level}</span>
-                        <span className="text-zinc-500 shrink-0 w-[4.5rem] uppercase tracking-wider">{log.src}</span>
-                        <span className={`${log.level === 'WARN' ? 'text-amber-200' : 'text-zinc-300'} drop-shadow-md`}>
-                          {log.msg}
-                          {/* Blinking cursor on the last log */}
-                          {i === logs.length - 1 && (
-                            <motion.span animate={{ opacity: [1, 0] }} transition={{ repeat: Infinity, duration: 0.8 }} className="inline-block w-2 h-3 bg-cyan-400 ml-2 align-middle" />
-                          )}
-                        </span>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-
-                {/* Retro CRT Glass reflections & Scanlines */}
-                <div className="absolute inset-0 pointer-events-none bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,0,0,0.3)_2px,rgba(0,0,0,0.3)_4px)] z-20" />
-                <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-white/[0.03] to-transparent h-1/2 z-20" />
-                <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.6)_100%)] z-20" />
-              </DoubleBezel>
-            </motion.div>
-
-          </div>
-
-          {/* COLUMN 2: Deep Systems (Span 8) */}
-          <div className="lg:col-span-8 flex flex-col gap-8">
-            
-            {/* Row 1: Power & Comms */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              
-              {/* Power Core */}
-              <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6, delay:0.3, ease:easeOut }} className="flex flex-col">
-                <div className="flex items-center justify-between mb-3 px-1">
-                  <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-400 flex items-center gap-2">
-                    <Lightning size={14} className="text-amber-400" />
-                    Primary Power Core
-                  </span>
-                  <span className="px-2 py-0.5 rounded text-[9px] font-mono tracking-widest bg-amber-500/10 border border-amber-500/20 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.2)]">118 kW LOAD</span>
-                </div>
-                <DoubleBezel innerClassName="p-6 bg-[#0a0d14]/70 backdrop-blur-xl h-full flex flex-col shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] relative overflow-hidden group hover:border-amber-500/20 transition-colors">
-                  
-                  {/* Subtle grid bg inside card */}
-                  <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:20px_20px] pointer-events-none opacity-50" />
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 flex-1 relative z-10">
-                    {GENERATORS.map(gen => (
-                      <div key={gen.id} className="bg-[#050608]/80 border border-white/[0.05] rounded-xl p-4 flex flex-col items-center justify-between gap-4 relative overflow-hidden group/gen hover:border-white/[0.1] transition-colors shadow-inner">
-                        
-                        <div className="w-full flex justify-between items-center">
-                          <span className={`text-[11px] font-mono font-bold tracking-widest ${gen.status==='ONLINE'?'text-white':gen.status==='MAINT'?'text-rose-500':'text-zinc-600'}`}>{gen.id}</span>
-                          <div className={`w-1.5 h-1.5 rounded-full ${gen.status==='ONLINE'?'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]':gen.status==='MAINT'?'bg-rose-500':'bg-zinc-700'}`} />
-                        </div>
-                        
-                        <div className="flex w-full items-end justify-center gap-3">
-                          {/* Left Stats */}
-                          <div className="flex flex-col gap-2 pb-2">
-                             <div className="flex flex-col">
-                               <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest leading-none">FREQ</span>
-                               <span className={`text-[9px] font-mono font-medium ${gen.status==='ONLINE'?'text-zinc-300':'text-zinc-700'}`}>{gen.freq.toFixed(2)}</span>
-                             </div>
-                             <div className="flex flex-col">
-                               <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest leading-none">TEMP</span>
-                               <span className={`text-[9px] font-mono font-medium ${gen.status==='ONLINE'?'text-zinc-300':'text-zinc-700'}`}>{gen.temp}°C</span>
-                             </div>
-                          </div>
-
-                          {/* Custom High-End Meter */}
-                          <div className="w-8 h-32 bg-black rounded-sm relative overflow-hidden border border-white/[0.05] shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)] shrink-0">
-                            {/* Segments background */}
-                            <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(255,255,255,0.05)_2px,rgba(255,255,255,0.05)_4px)]" />
-                            
-                            <motion.div 
-                              initial={{ height: 0 }}
-                              animate={{ height: `${gen.load}%` }}
-                              transition={{ duration: 2, ease: "easeOut" }}
-                              className={`absolute bottom-0 w-full flex flex-col justify-end ${gen.status==='ONLINE' ? 'bg-gradient-to-t from-amber-600 to-amber-300 shadow-[0_0_20px_rgba(251,191,36,0.6)]' : 'bg-transparent'}`}
-                            >
-                              {/* Segments foreground overlay to make it look like separate LEDs */}
-                              <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,rgba(0,0,0,0.7),rgba(0,0,0,0.7)_2px,transparent_2px,transparent_4px)] mix-blend-overlay" />
-                            </motion.div>
-                          </div>
-                        </div>
-                        
-                        <div className="text-center w-full pt-1 border-t border-white/[0.05]">
-                          <span className={`block text-[13px] font-mono font-bold mb-0.5 ${gen.status==='ONLINE'?'text-white':'text-zinc-700'}`}>{gen.load}<span className="text-[9px] text-zinc-500">%</span></span>
-                          <span className={`block text-[8px] font-mono tracking-widest uppercase ${gen.status==='ONLINE'?'text-emerald-400':gen.status==='MAINT'?'text-rose-500':'text-zinc-600'}`}>{gen.status}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </DoubleBezel>
-              </motion.div>
-
-              {/* Satellite Link */}
-              <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6, delay:0.4, ease:easeOut }} className="flex flex-col">
-                <div className="flex items-center justify-between mb-3 px-1">
-                  <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-400 flex items-center gap-2">
-                    <WifiHigh size={14} className="text-sky-400" />
-                    Orbital Uplink
-                  </span>
-                  <span className="px-2 py-0.5 rounded text-[9px] font-mono tracking-widest bg-sky-500/10 border border-sky-500/20 text-sky-400">ISRO SYNCED</span>
-                </div>
-                <DoubleBezel innerClassName="p-8 bg-[#0a0d14]/70 backdrop-blur-xl h-full flex flex-col gap-6 relative overflow-hidden group hover:border-sky-500/20 transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                  
-                  {/* Decorative animated radar rings */}
-                  <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full border border-sky-500/10 pointer-events-none flex items-center justify-center">
-                    <div className="w-56 h-56 rounded-full border border-sky-500/10 flex items-center justify-center">
-                       <div className="w-32 h-32 rounded-full border border-sky-500/5" />
-                    </div>
-                    {/* Rotating radar sweep */}
-                    <motion.div 
-                      animate={{ rotate: 360 }} 
-                      transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                      className="absolute inset-0"
-                    >
-                      <div className="absolute top-1/2 left-1/2 w-[50%] h-[1px] origin-left bg-gradient-to-r from-sky-500/40 to-transparent" />
-                      {/* Trailing wedge */}
-                      <div className="absolute top-1/2 left-1/2 w-[50%] h-[50%] origin-top-left bg-[conic-gradient(from_90deg_at_0_0,transparent_0deg,rgba(14,165,233,0.1)_90deg)]" />
-                    </motion.div>
-                  </div>
-
-                  <div className="flex-1 flex flex-col justify-center relative z-10 mt-4">
-                    <div className="flex items-baseline gap-3 mb-2">
-                      <span className="text-6xl font-mono font-bold text-white tracking-tighter drop-shadow-lg">42</span>
-                      <span className="text-[11px] font-mono tracking-widest uppercase text-sky-400">ms latency</span>
-                    </div>
-                    
-                    <div className="space-y-6 mt-8">
-                      <div>
-                        <div className="flex justify-between text-[10px] font-mono tracking-widest uppercase mb-2">
-                          <span className="text-zinc-400">Edge NVMe Buffer</span>
-                          <span className="text-sky-400 font-bold">12% Used</span>
-                        </div>
-                        <div className="h-2 w-full bg-black border border-white/[0.05] rounded-full overflow-hidden shadow-[inset_0_1px_3px_rgba(0,0,0,0.8)] p-[1px]">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: "12%" }}
-                            transition={{ duration: 1.5, ease: easeOut }}
-                            className="h-full bg-gradient-to-r from-sky-600 to-sky-400 rounded-full relative overflow-hidden"
-                          >
-                             {/* Barber pole animation */}
-                             <motion.div 
-                               animate={{ backgroundPosition: ["0px 0px", "20px 0px"] }}
-                               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                               className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.2)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.2)_50%,rgba(255,255,255,0.2)_75%,transparent_75%,transparent)] bg-[length:20px_20px] w-[200%]" 
-                             />
-                          </motion.div>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-[#050608]/80 border border-white/[0.05] rounded-xl p-4 flex items-center justify-between group-hover:bg-white/[0.02] transition-colors shadow-inner">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                            <Broadcast size={14} className="text-emerald-400 animate-pulse" />
-                          </div>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-500">Next Sat Window</span>
-                            <span className="text-sm font-mono font-bold tracking-wider text-white">INSAT-3DS</span>
-                          </div>
-                        </div>
-                        <div className="text-right flex flex-col gap-0.5">
-                          <span className="text-[10px] font-mono tracking-widest uppercase text-emerald-400">T-Minus</span>
-                          <span className="text-xs font-mono font-bold text-white">45:00</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </DoubleBezel>
-              </motion.div>
-
             </div>
 
-            {/* Row 2: Hydrology & Freeze Horizon */}
-            <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6, delay:0.5, ease:easeOut }} className="flex flex-col">
-              <div className="flex items-center justify-between mb-3 px-1">
-                  <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-400 flex items-center gap-2">
-                    <Drop size={14} className="text-cyan-400" weight="fill" />
-                    Hydrology: Priyadarshini Line
-                  </span>
-                  <div className="flex gap-4">
-                     <span className="text-[9px] font-mono tracking-widest text-zinc-500">HEAT: <span className="text-amber-400">18kW</span></span>
-                     <span className="text-[9px] font-mono tracking-widest text-zinc-500">FLOW: <span className="text-white">42.8 L/m</span></span>
-                  </div>
+            {/* Waste & Ecological Subsystems */}
+            <div className="space-y-2 text-xs font-mono">
+              <div className="p-3 rounded-md bg-white/[0.02] border border-white/[0.06] flex justify-between items-center">
+                <span className="text-[#64748B]">ANAEROBIC DIGESTER TEMP:</span>
+                <span className="text-[#F8FAFC] font-semibold">36.8°C (THERMALLY COUPLED)</span>
               </div>
-              <DoubleBezel innerClassName="p-8 bg-[#0a0d14]/70 backdrop-blur-xl flex flex-col shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-cyan-500/20 transition-colors">
-                
-                {/* Advanced Pipeline visualizer */}
-                <div className="relative h-32 mt-2 bg-[#050608] border border-white/[0.05] rounded-2xl overflow-hidden flex items-center px-8 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)]">
-                  
-                  {/* Technical Background Pattern */}
-                  <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:32px_32px]" />
-                  <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(255,255,255,0.01)_2px,rgba(255,255,255,0.01)_4px)]" />
-                  
-                  <div className="relative w-full h-4 bg-black border border-white/[0.1] rounded-full p-[1.5px] shadow-[inset_0_1px_3px_rgba(0,0,0,0.8)]">
-                    {/* Heated segment */}
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: "85%" }}
-                      transition={{ duration: 2.5, ease: easeOut, delay: 0.2 }}
-                      className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-cyan-500 via-amber-400 to-amber-500 rounded-full overflow-hidden shadow-[0_0_20px_rgba(245,158,11,0.5)]"
-                    >
-                      {/* Flowing water/heat animation inside the pipe */}
-                      <motion.div 
-                        animate={{ x: ["-100%", "100%"] }}
-                        transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-                        className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.7),transparent)] w-1/3"
-                      />
-                      {/* Bubbles / particles */}
-                      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPjxjaXJjbGUgY3g9IjMiIGN5PSIzIiByPSIxIiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMykiLz48L3N2Zz4=')] opacity-50 mix-blend-overlay" />
-                    </motion.div>
-                    
-                    {/* Pipeline markers with labels underneath */}
-                    <div className="absolute top-1/2 -translate-y-1/2 left-[10%] z-10 flex flex-col items-center">
-                      <div className="w-5 h-5 rounded-full bg-[#050608] border-[4px] border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.5)] flex items-center justify-center">
-                        <div className="w-1.5 h-1.5 rounded-full bg-cyan-200" />
-                      </div>
-                      <span className="absolute top-8 text-[9px] font-mono tracking-widest text-cyan-400 bg-[#050608]/80 px-2 py-1 rounded backdrop-blur whitespace-nowrap border border-cyan-500/20 shadow-md">PUMP A</span>
-                    </div>
-                    
-                    <div className="absolute top-1/2 -translate-y-1/2 left-[50%] z-10 flex flex-col items-center">
-                      <div className="w-5 h-5 rounded-full bg-[#050608] border-[4px] border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.5)] flex items-center justify-center">
-                        <div className="w-1.5 h-1.5 rounded-full bg-amber-200" />
-                      </div>
-                      <span className="absolute top-8 text-[9px] font-mono tracking-widest text-amber-400 bg-[#050608]/80 px-2 py-1 rounded backdrop-blur whitespace-nowrap border border-amber-500/20 shadow-md">HTR JUNC</span>
-                    </div>
-                    
-                    <div className="absolute top-1/2 -translate-y-1/2 left-[85%] z-10 flex flex-col items-center">
-                      <div className="w-5 h-5 rounded-full bg-[#050608] border-[4px] border-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)] flex items-center justify-center animate-pulse">
-                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-200" />
-                      </div>
-                      <span className="absolute top-8 text-[9px] font-mono tracking-widest text-emerald-400 bg-[#050608]/80 px-2 py-1 rounded backdrop-blur whitespace-nowrap border border-emerald-500/20 shadow-md">STATION INT</span>
-                    </div>
-                  </div>
-                </div>
-              </DoubleBezel>
-            </motion.div>
-
-          </div>
+              <div className="p-3 rounded-md bg-white/[0.02] border border-white/[0.06] flex justify-between items-center">
+                <span className="text-[#64748B]">INCINERATOR RESIDUE ASH:</span>
+                <span className="text-[#F8FAFC] font-semibold">42.5 kg (TREATY RETENTION)</span>
+              </div>
+            </div>
+          </HudPanel>
         </div>
 
       </div>
-    </main>
+
+      {/* ═══ ROW 3: CROSS-DOMAIN CASCADE & FORENSIC LOG STREAM ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
+        
+        {/* Left: Cross-Domain Cascade Engine (Span 6) */}
+        <div className="lg:col-span-6 flex flex-col">
+          <HudPanel
+            tag="// CASCADE-01"
+            title="Cross-Domain Failure Propagation Graph"
+            subtitle="Physics-informed failure cascade sequence modeled across power, thermal, and hydraulic systems"
+            status="LIVE"
+            hoverEffect={false}
+            className="h-full"
+          >
+            <div className="space-y-3">
+              {[
+                {
+                  step: "01",
+                  title: "Generator 1 (Ravi) Sheds 20% Capacity",
+                  impact: "Microgrid voltage sags to 398V. Automatic transfer switch isolates non-essential auxiliary loads.",
+                  status: "TRIGGER",
+                  badge: "bg-white/[0.06] text-[#CBD5E1] border-white/10",
+                },
+                {
+                  step: "02",
+                  title: "Switchboard B Sheds Trace Heat Circuit #2",
+                  impact: "Pipeline segment BJ-04 loses convective compensation. Heat loss rate accelerates to 1.8°C/hr.",
+                  status: "CASCADE",
+                  badge: "bg-[#F59E0B]/10 text-[#FBBF24] border-[#F59E0B]/30",
+                },
+                {
+                  step: "03",
+                  title: "Lake Intake Freeze Horizon: 34 Minutes",
+                  impact: "Freshwater intake halts if unaddressed. Emergency glycol backflush protocol armed.",
+                  status: stormMode ? "URGENT" : "PROJECTED",
+                  badge: stormMode ? "bg-[#EF4444]/15 text-[#FCA5A5] border-[#EF4444]/40" : "bg-white/[0.04] text-[#94A3B8] border-white/[0.08]",
+                },
+              ].map((c) => (
+                <div
+                  key={c.step}
+                  className="p-3.5 rounded-md border border-white/[0.06] bg-[#06090E]/60 flex items-start gap-3"
+                >
+                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-white/[0.06] text-[#94A3B8] border border-white/[0.08]">
+                    {c.step}
+                  </span>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-headline text-xs font-semibold text-[#FFFFFF]">
+                        {c.title}
+                      </h4>
+                      <span className={`font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded border ${c.badge}`}>
+                        {c.status}
+                      </span>
+                    </div>
+                    <p className="font-body text-[11px] text-[#94A3B8] mt-1 leading-relaxed">
+                      {c.impact}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs font-mono">
+              <span className="text-[#64748B]">PREVENTIVE AUTOMATION:</span>
+              <span className="text-[#10B981] font-medium flex items-center gap-1.5">
+                <CheckCircle size={14} weight="bold" />
+                SURYA AUTO-START AT 15 MIN HORIZON
+              </span>
+            </div>
+          </HudPanel>
+        </div>
+
+        {/* Right: Live Telemetry Terminal Stream (Span 6) */}
+        <div className="lg:col-span-6 flex flex-col">
+          <HudPanel
+            tag="// LOGS-01"
+            title="Forensic Data Stream (1Hz)"
+            subtitle="Raw packet stream with NCPOR cryptographic provenance validation"
+            status="LIVE"
+            hoverEffect={false}
+            className="h-full flex flex-col"
+          >
+            <div
+              ref={scrollRef}
+              className="flex-1 min-h-[260px] max-h-[320px] overflow-y-auto space-y-2 p-3 rounded-md bg-[#04060A] border border-white/[0.06] font-mono text-[11px] select-text"
+            >
+              <AnimatePresence initial={false}>
+                {logs.map((log, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, x: -4 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="flex items-start gap-2.5 leading-relaxed"
+                  >
+                    <span className="text-[#64748B] shrink-0 select-none">
+                      [{log.time}]
+                    </span>
+                    <span
+                      className={`shrink-0 font-medium ${
+                        log.level === "WARN" ? "text-[#F59E0B]" : "text-[#CBD5E1]"
+                      }`}
+                    >
+                      {log.level}
+                    </span>
+                    <span className="px-1 py-0.5 rounded bg-white/[0.04] text-[9px] text-[#64748B] border border-white/[0.04] shrink-0">
+                      {log.prov}
+                    </span>
+                    <span className="text-[#94A3B8] shrink-0 uppercase tracking-wider">
+                      {log.src}:
+                    </span>
+                    <span
+                      className={
+                        log.level === "WARN" ? "text-[#FBBF24]/90" : "text-[#E2E8F0]/90"
+                      }
+                    >
+                      {log.msg}
+                    </span>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between text-[10px] font-mono text-[#64748B]">
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                ISRO TELEMETRY LINK LOCKED
+              </span>
+              <span>NVMe BUFFER: 12% UTILIZATION</span>
+            </div>
+          </HudPanel>
+        </div>
+
+      </div>
+    </div>
   );
 }
