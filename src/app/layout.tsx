@@ -1,21 +1,26 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/Navigation";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const plusJakarta = Plus_Jakarta_Sans({
+  variable: "--font-sans",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Maitri Digital Twin",
-  description: "Advanced operational dashboard for Maitri Research Station",
+  title: "MAITRI // Digital Twin — Antarctic Research Station",
+  description:
+    "Live operational telemetry, predictive twin, and life support monitoring for Maitri Station (70°45′57″S, 11°44′09″E).",
 };
 
 export default function RootLayout({
@@ -24,11 +29,27 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} antialiased dark`}>
-      <body className="min-h-[100dvh] flex flex-col bg-[#050505] text-[#ededed] font-sans relative">
-        <div className="bg-mesh pointer-events-none" />
+    <html
+      lang="en"
+      className={`${plusJakarta.variable} ${jetbrainsMono.variable} antialiased dark`}
+    >
+      <body className="min-h-screen flex flex-col bg-[#03060E] text-[#EBF5FC] font-sans relative selection:bg-[#0DB9D0]/20 selection:text-[#EBF5FC]">
+        {/*
+         * ── ATMOSPHERIC BACKGROUND LAYERS ─────────────────────────────
+         * All fixed, pointer-events: none, z-index 0.
+         * Rendered once globally so every page has the Antarctic sky.
+         */}
+        {/* 2. Antarctic Snowdrift — CSS diagonal blizzard */}
+        <div className="polar-snow z-20" aria-hidden="true" />
+        {/* 3. Film-grain noise — kills flat-black banding */}
+        <div className="polar-noise" aria-hidden="true" />
+        {/* 4. Edge vignette — dark corners for cinematic depth */}
+        <div className="polar-vignette" aria-hidden="true" />
+
         <Navigation />
-        {children}
+        <main className="relative flex-1 flex flex-col">
+          {children}
+        </main>
       </body>
     </html>
   );
