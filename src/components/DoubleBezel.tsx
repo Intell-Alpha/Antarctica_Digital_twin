@@ -12,13 +12,13 @@ export function DoubleBezel({
   return (
     <div
       className={cn(
-        "bg-white/5 border border-white/10 p-1.5 rounded-[2rem]",
+        "bezel-shell p-1 relative overflow-hidden transition-all duration-300",
         className
       )}
     >
       <div
         className={cn(
-          "h-full w-full bg-[#0a0a0a]/90 backdrop-blur-xl rounded-[calc(2rem-0.375rem)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] overflow-hidden",
+          "bezel-core h-full w-full overflow-hidden",
           innerClassName
         )}
       >
