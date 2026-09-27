@@ -58,7 +58,7 @@ const SUBSYSTEM_ITEMS = [
 ];
 
 const NAV_LINKS = [
-  { href: "/", label: "Station", icon: House },
+  { href: "/", label: "Home", icon: House },
   { href: "/simulations", label: "Twin Sim", icon: Cpu },
 ];
 
