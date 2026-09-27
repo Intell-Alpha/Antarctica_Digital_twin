@@ -7,13 +7,15 @@ import { Heartbeat, WarningCircle } from "@phosphor-icons/react";
 
 export default function DashboardOverview() {
   const [stationData, setStationData] = useState<any>(null);
+  const [summaryData, setSummaryData] = useState<any>(null);
 
   useEffect(() => {
     // In a real app, this would be determined by a global station selector state
     api.getStationMetadata("MAITRI").then(setStationData);
+    api.getDashboardSummary("MAITRI").then(setSummaryData);
   }, []);
 
-  if (!stationData) {
+  if (!stationData || !summaryData) {
     return (
       <div className="flex items-center justify-center h-full text-[#0DB9D0] font-mono text-sm uppercase tracking-widest animate-pulse">
         Initializing Cockpit Data Link...
@@ -51,35 +53,47 @@ export default function DashboardOverview() {
       </div>
 
       {/* TRAFFIC LIGHT MATRIX */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* We will map the 6 domains here in Phase 3 */}
-        {["Energy & Power", "Water & Infrastructure", "Logistics & Supply", "Environment", "Communications", "Waste Management"].map((domain) => (
-          <div key={domain} className="bezel-shell p-0.5">
-            <div className="bezel-core p-5 flex flex-col justify-between h-[120px]">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {summaryData.domains.map((domain: any) => (
+          <div key={domain.name} className={`bezel-shell p-0.5 ${domain.borderColor || ''}`}>
+            <div className="bezel-core p-5 flex flex-col justify-between h-[110px]">
               <div className="flex justify-between items-start">
-                <span className="font-mono text-[10px] uppercase tracking-widest text-[#4A7A8E]">
-                  {domain}
+                <span className="font-mono text-[10px] uppercase tracking-widest text-[#4A7A8E] max-w-[70%]">
+                  {domain.name}
                 </span>
-                <ProvenanceBadge type="LIVE_SENSOR" />
+                <div className="w-1.5 h-1.5 rounded-full bg-[#0DB9D0] shadow-[0_0_8px_#0DB9D0]" title="LIVE_SENSOR" />
               </div>
               <div>
-                <span className="font-bold text-lg text-white">NOMINAL</span>
+                <span className={`font-bold text-lg ${domain.color || 'text-white'}`}>{domain.status}</span>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* ACTIVE ALERTS STUB */}
+      {/* ACTIVE ALERTS */}
       <div className="flex-1 min-h-[200px] border border-[#D93030]/20 bg-[#D93030]/[0.02] rounded-2xl p-6 flex flex-col">
-        <div className="flex items-center gap-3 mb-6">
-          <WarningCircle size={20} className="text-[#D93030]" weight="fill" />
-          <h2 className="font-mono text-sm uppercase tracking-widest text-[#D93030] font-bold">
-            Active Priority Alerts (0)
-          </h2>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <WarningCircle size={20} className="text-[#D93030]" weight="fill" />
+            <h2 className="font-mono text-sm uppercase tracking-widest text-[#D93030] font-bold">
+              Active Priority Alerts ({summaryData.activeAlerts}) · Predictive Risks ({summaryData.predictiveRisks})
+            </h2>
+          </div>
         </div>
-        <div className="flex-1 flex items-center justify-center border border-dashed border-[#0D3040] rounded-xl text-[#3A6A7A] font-mono text-[11px] uppercase tracking-widest">
-          No active threshold breaches.
+        
+        <div className="space-y-3">
+          {summaryData.alertsList.map((alert: any, i: number) => (
+            <div key={i} className="flex items-start gap-4 p-4 rounded-xl bg-[#D93030]/10 border border-[#D93030]/20">
+              <span className="mt-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-[#D93030] bg-[#D93030]/10 px-2 py-0.5 rounded">
+                {alert.type}
+              </span>
+              <div>
+                <h3 className="text-white text-sm font-semibold mb-1">{alert.title}</h3>
+                <p className="text-[#EBF5FC] text-sm">{alert.desc}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

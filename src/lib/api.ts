@@ -17,6 +17,29 @@ export const api = {
     };
   },
 
+  // 16.2 Central Dashboard Summary
+  async getDashboardSummary(station: Station) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    return {
+      domains: [
+        { name: "Energy & Power", status: "NORMAL" },
+        { name: "Fuel & Reserves", status: "72%" },
+        { name: "Water Systems", status: "NORMAL" },
+        { name: "Infrastructure", status: "NORMAL" },
+        { name: "Logistics", status: "ATTENTION", color: "text-[#D49020]", borderColor: "border-[#D49020]/30" },
+        { name: "Environment", status: "NORMAL" },
+        { name: "Communications", status: "DEGRADED", color: "text-[#D49020]", borderColor: "border-[#D49020]/30" },
+        { name: "Waste Management", status: "NORMAL" }
+      ],
+      activeAlerts: 2,
+      predictiveRisks: 3,
+      alertsList: [
+        { title: "Communications Degraded", desc: "ISRO C-Band uplink dropping packets. Edge buffering active.", type: "THRESHOLD" },
+        { title: "Logistics Warning", desc: "Logistics supply window tightening. TTCF autonomy dropping.", type: "PREDICTIVE" }
+      ]
+    };
+  },
+
   // 4.3 Infrastructure Twin
   async getInfrastructure(station: Station) {
     return {

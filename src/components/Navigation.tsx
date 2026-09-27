@@ -104,6 +104,10 @@ export function Navigation() {
 
   const isSubsystemActive = SUBSYSTEM_ITEMS.some((i) => pathname === i.href);
 
+  if (pathname?.startsWith("/dashboard")) {
+    return null;
+  }
+
   return (
     <header className="fixed top-0 inset-x-0 z-50 pointer-events-none flex justify-center px-4 pt-4">
 
