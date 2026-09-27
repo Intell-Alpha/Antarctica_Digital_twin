@@ -1,299 +1,587 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import {
   ArrowUpRight,
-  Thermometer,
-  WifiHigh,
-  Waves,
-  Lightning,
-  Globe,
-  Flask,
-  SlidersHorizontal,
-  ShieldCheck,
-  Wind,
-  Sparkle,
-  Crosshair,
-  Cube,
-  Database,
-  TreeStructure,
-  HardDrives,
-  Warning,
-  Radio,
-  House,
-  CaretDown,
-  CalendarCheck,
-  Sun,
-  MoonStars,
-  Broadcast,
-  BatteryCharging,
   ArrowRight,
+  Lightning,
+  Waves,
+  SlidersHorizontal,
+  Cpu,
+  Warning,
+  CheckCircle,
+  Flask,
+  Globe,
+  Database,
+  GasPump,
+  Broadcast,
 } from "@phosphor-icons/react";
-import { DoubleBezel } from "@/components/DoubleBezel";
+import { TopographicBg } from "@/components/TopographicBg";
 
-interface SystemNode {
-  id: string; label: string; tag: string; x: number; y: number; icon: any;
-  color: string; primary: string; primaryLabel: string; secondary: string; rate: string;
-  status: "nominal" | "warning" | "alert";
+/*
+ * ANTARCTIC DESIGN SYSTEM
+ * ─────────────────────────────────────────────────────
+ * Polar Night Base:    #03060E / #05101C / #07141F
+ * Glacier Ice Teal:    #0DB9D0  (compressed glacial meltwater)
+ * Aurora Green:        #00D4A0  (Aurora Australis primary band)
+ * Aurora Violet:       #7B5EC8  (southern aurora edge glow)
+ * Polar Amber:         #D49020  (low polar sun on the horizon)
+ * Ice-Station Red:     #D93030  (emergency alert / critical system)
+ * Blizzard White:      #EBF5FC  (cold, blue-tinted white — not pure white)
+ * Glacial Muted:       #4A7A8E  (text on dark — like ice in shadow)
+ * Deep Polar Slate:    #1E3A48  (subdued borders, label text)
+ * ─────────────────────────────────────────────────────
+ */
+
+// ─── Shared Motion Variants ───────────────────────────────────────────────────
+const EASE = [0.32, 0.72, 0, 1] as const;
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 32 },
+  visible: (i = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.8, delay: i * 0.12, ease: EASE },
+  }),
+};
+
+const fadeIn = {
+  hidden: { opacity: 0 },
+  visible: (i = 0) => ({
+    opacity: 1,
+    transition: { duration: 0.9, delay: i * 0.1, ease: EASE },
+  }),
+};
+
+// ─── Section Label ─────────────────────────────────────────────────────────────
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 mb-5">
+      <span className="h-px w-8 bg-[#0DB9D0]/40" />
+      <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#3A6A7A]">
+        {children}
+      </span>
+    </div>
+  );
 }
 
-const NODES: SystemNode[] = [
-  { id: "gen",    label: "Powerhouse",         tag: "Energy",    x: 48, y: 50, icon: Lightning,       color: "amber",   primary: "118.4 kW",  primaryLabel: "Microgrid Load",  secondary: "415V · 50.02 Hz", rate: "64% Capacity",      status: "nominal" },
-  { id: "water",  label: "Priyadarshini Line",  tag: "Hydrology", x: 20, y: 28, icon: Waves,           color: "cyan",    primary: "+3.6°C",    primaryLabel: "Intake Temp",     secondary: "42.8 L/min",      rate: "Trace Heat: 18.2 kW", status: "nominal" },
-  { id: "habitat",label: "Habitat Module",      tag: "Habitat",   x: 66, y: 40, icon: House,           color: "indigo",  primary: "+21.4°C",   primaryLabel: "Internal HVAC",   secondary: "480 ppm CO2",     rate: "25 Crew Safe",      status: "nominal" },
-  { id: "fuel",   label: "Fuel Farm",           tag: "Reserves",  x: 78, y: 68, icon: BatteryCharging, color: "emerald", primary: "142,800 L", primaryLabel: "Arctic HSD",      secondary: "248 Days",        rate: "91% Tank Level",    status: "nominal" },
-  { id: "sat",    label: "Sat Gateway",         tag: "Network",   x: 40, y: 74, icon: WifiHigh,        color: "sky",     primary: "SYNCED",    primaryLabel: "Mainland State",  secondary: "0 Queue",         rate: "< 40ms Latency",    status: "nominal" },
-];
-
-const SAT_WINDOWS = [
-  { sat: "INSAT-3DR", window: "01:14-01:32 UTC", quality: "STRONG",   color: "emerald" },
-  { sat: "INSAT-3DS", window: "03:47-04:02 UTC", quality: "MODERATE", color: "amber"   },
-  { sat: "EDUSAT",    window: "06:22-06:38 UTC", quality: "STRONG",   color: "emerald" },
-  { sat: "INSAT-3DR", window: "09:58-10:14 UTC", quality: "WEAK",     color: "rose"    },
-  { sat: "INSAT-3DS", window: "13:31-13:49 UTC", quality: "STRONG",   color: "emerald" },
-  { sat: "EDUSAT",    window: "16:05-16:21 UTC", quality: "MODERATE", color: "amber"   },
-  { sat: "INSAT-3DR", window: "19:44-20:00 UTC", quality: "STRONG",   color: "emerald" },
-  { sat: "INSAT-3DS", window: "22:18-22:34 UTC", quality: "WEAK",     color: "rose"    },
-];
-
-const CAPABILITIES = [
-  { icon: HardDrives,  color: "cyan",    tag: "Edge Autonomy",  title: "90-Day Offline Edge Survivability",  desc: "Katabatic blizzards sever satellite links. The NVMe edge buffer sustains complete autonomous twin operations and re-syncs with zero data loss on reconnection." },
-  { icon: ShieldCheck, color: "emerald", tag: "Provenance",     title: "Source-Aware Data Model",            desc: "Every data point carries a provenance tag: OFFICIAL (NCPOR logbooks), LIVE_SENSOR (PLCs), DOCUMENTARY (visual walk-through), or SIMULATED (physics engine)." },
-  { icon: Flask,       color: "rose",    tag: "Counterfactual", title: "Physics-Coupled What-If Engine",     desc: "Monte Carlo blizzard stress tests calculate wind-chill, trace-heat demand, diesel burn, and freeze-horizon before any storm arrives at the station." },
-];
-
-const MILESTONES = [
-  { year: "1981", title: "First Indian Antarctic Expedition", badge: "Foundation",       desc: "Launched under Dr. S.Z. Qasim, inaugurating India's permanent polar research." },
-  { year: "1989", title: "Maitri Station Commissioned",       badge: "Permanent Outpost",desc: "Built on Schirmacher Oasis. Operating continuously for 37+ years." },
-  { year: "2006", title: "Lake Priyadarshini Intake",         badge: "Life-Support",     desc: "2.5 km trace-heated pipeline securing year-round freshwater survival supply." },
-  { year: "2026", title: "Cyber-Physical Living Twin",        badge: "Current",          desc: "NCPOR / MoES IoT edge telemetry, physics simulation, offline-autonomous twin." },
-];
+// ─── Stat Block (Act II) ───────────────────────────────────────────────────────
+function StatBlock({
+  value,
+  unit,
+  label,
+  accent,
+  delay,
+}: {
+  value: string;
+  unit?: string;
+  label: string;
+  accent: string;
+  delay?: number;
+}) {
+  return (
+    <motion.div
+      variants={fadeUp}
+      custom={delay ?? 0}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-60px" }}
+      className="flex flex-col gap-2 p-6 rounded-2xl bg-white/[0.02] border border-white/[0.04] shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] hover:bg-white/[0.04] hover:border-white/[0.08] transition-all duration-300"
+    >
+      <div className={`font-mono text-4xl sm:text-5xl font-bold tracking-tight drop-shadow-md ${accent}`}>
+        {value}
+        {unit && (
+          <span className="text-2xl sm:text-3xl ml-1 opacity-60">{unit}</span>
+        )}
+      </div>
+      <p className="text-[13px] text-[#4A7A8E] font-sans leading-relaxed">
+        {label}
+      </p>
+    </motion.div>
+  );
+}
 
 export default function LandingPage() {
-  const [utcTime, setUtcTime]           = useState("");
-  const [activeNode, setActiveNode]     = useState<SystemNode>(NODES[0]);
-  const [cockpitFilter, setCockpitFilter] = useState<"all"|"energy"|"hydrology"|"network">("all");
-  const [mousePos, setMousePos]         = useState({ x: 0, y: 0 });
-  const [simTemp, setSimTemp]           = useState(-24);
-  const [simWind, setSimWind]           = useState(85);
-  const [simGens, setSimGens]           = useState(2);
-  const [activeProvenance, setActiveProvenance] = useState<"OFFICIAL"|"LIVE_SENSOR"|"DOCUMENTARY"|"SIMULATED">("OFFICIAL");
-  const mainRef = useRef<HTMLElement>(null);
+  const [pipeTripped, setPipeTripped] = useState(false);
+  const [freezeTemp, setFreezeTemp] = useState(1.4);
+  const [timeLeft, setTimeLeft] = useState(45 * 60); // 45 minutes
 
-  const getPolarStatus = () => {
-    const now = new Date();
-    const day = Math.floor((now.getTime() - new Date(now.getUTCFullYear(), 0, 0).getTime()) / 86400000);
-    const inNight = day >= 140 && day <= 203;
-    return {
-      inNight,
-      label: inNight ? "Polar Night Active" : "Antarctic Daylight",
-      detail: inNight ? `${203 - day}d until sunrise` : `${day < 140 ? 140 - day : 365 - day + 140}d to polar night`,
-    };
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (pipeTripped) {
+      // Simulate dramatic rapid drop
+      interval = setInterval(() => {
+        setFreezeTemp((t) => Math.max(-40.0, t - 0.5));
+        setTimeLeft((time) => Math.max(0, time - 32)); // Drops roughly ~5 mins per second for drama
+      }, 100);
+    } else {
+      setFreezeTemp(1.4);
+      setTimeLeft(45 * 60);
+    }
+    return () => clearInterval(interval);
+  }, [pipeTripped]);
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
+  const heroRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const tick = () => setUtcTime(new Date().toUTCString().slice(17, 25) + " UTC");
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"],
+  });
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (mainRef.current) {
-        const r = mainRef.current.getBoundingClientRect();
-        setMousePos({ x: e.clientX - r.left, y: e.clientY - r.top });
-      }
-    };
-    window.addEventListener("mousemove", handler);
-    return () => window.removeEventListener("mousemove", handler);
-  }, []);
-
-  const windChill  = Math.round(13.12 + 0.6215 * simTemp - 11.37 * Math.pow(Math.max(simWind,5),0.16) + 0.3965 * simTemp * Math.pow(Math.max(simWind,5),0.16));
-  const traceHeat  = Math.round(Math.max(8, 12 + Math.abs(simTemp)*0.45 + (simWind/30)*4));
-  const fuelBurn   = Math.round(520 + Math.abs(simTemp)*6.5 + (simWind/20)*12 + simGens*80);
-  const freezeMins = Math.max(18, Math.round(140 - Math.abs(simTemp)*2.2 - simWind*0.45));
-  const critical   = freezeMins < 45 || simGens === 0;
-
-  const filteredNodes = NODES.filter(n =>
-    cockpitFilter === "all"      ? true :
-    cockpitFilter === "energy"   ? ["gen","fuel"].includes(n.id) :
-    cockpitFilter === "hydrology"? ["water","habitat"].includes(n.id) :
-    ["sat","habitat"].includes(n.id)
-  );
-
-  const polar    = getPolarStatus();
-  const easeOut  = [0.32, 0.72, 0, 1] as any;
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
+  const heroDrift = useTransform(scrollYProgress, [0, 0.6], [0, -60]);
 
   return (
-    <main ref={mainRef} className="min-h-[100dvh] w-full bg-[#050507] text-white selection:bg-cyan-500/30 overflow-x-hidden">
+    <div className="relative w-full min-h-screen bg-transparent text-[#EBF5FC] font-sans overflow-x-hidden selection:bg-[#0DB9D0]/20">
+      <TopographicBg showRadarRings={false} />
 
-      {/* Ambient glow */}
-      <div className="pointer-events-none fixed inset-0 z-0" style={{ background: `radial-gradient(ellipse 900px 600px at ${mousePos.x}px ${mousePos.y}px, rgba(34,211,238,0.055) 0%, rgba(99,102,241,0.03) 50%, transparent 80%)` }} />
-      {/* Dot grid */}
-      <div className="pointer-events-none fixed inset-0 z-0 opacity-[0.055]" style={{ backgroundImage: "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.7) 1px, transparent 1px)", backgroundSize: "48px 48px" }} />
-
-      {/* ═══ HERO (Cinematic Immersive) ═══ */}
-      <section className="relative w-full h-[100dvh] flex flex-col justify-center overflow-hidden">
-        
-        {/* Cinematic Photorealistic Image Background */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          {/* Base Image */}
-          <div 
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-60"
-            style={{ backgroundImage: "url('/hero-bg.jpg')" }}
-          />
-          
-          {/* Deep Black Gradient Overlays for blending */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#050507] via-transparent to-[#050507]/80" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#050507] via-transparent to-[#050507]" />
-          
-          {/* Subtle noise over the image to tie it to the UI */}
-          <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay" style={{ backgroundImage: "url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E')" }} />
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* ACT I — THE VOID                                              */}
+      {/* Full-bleed cinematic hero. Antarctica. Silence. The scale.   */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      
+      {/* Hero Photographic Background (Fades into black) */}
+      <div className="absolute top-0 left-0 w-full h-[100vh] z-0 pointer-events-none select-none overflow-hidden">
+        <img
+          src="/backgrounds/antarctic-bg.jpg"
+          alt=""
+          className="w-full h-full object-cover object-[center_75%] opacity-[0.85] mix-blend-screen"
+          style={{ 
+            maskImage: "linear-gradient(to bottom, rgba(0,0,0,1) 85%, transparent 100%)", 
+            WebkitMaskImage: "linear-gradient(to bottom, rgba(0,0,0,1) 85%, transparent 100%)" 
+          }}
+        />
+        <div className="absolute inset-0 bg-[#0DB9D0]/5 mix-blend-color-dodge" />
+      </div>
+      <section
+        ref={heroRef}
+        className="relative z-10 min-h-[100dvh] flex flex-col justify-center px-6 sm:px-10 lg:px-16 py-24 max-w-7xl mx-auto"
+      >
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+          <div className="polar-snow opacity-40" aria-hidden="true" />
         </div>
-
-        <div className="relative z-10 flex flex-col items-center justify-center text-center px-5 max-w-[1440px] mx-auto w-full mt-[-10vh]">
-          
-          <motion.div initial={{ opacity:0, y:-20 }} animate={{ opacity:1, y:0 }} transition={{ duration:1, ease:easeOut }} className="flex items-center gap-3 mb-8">
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
-            </span>
-            <span className="text-xs md:text-sm font-mono tracking-[0.3em] uppercase text-cyan-400 font-semibold drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">
-              Maitri Digital Twin
-            </span>
-            <span className="text-xs font-mono text-zinc-500 tracking-widest hidden sm:inline">· 70°45′58″ S</span>
+        <motion.div
+          style={{ opacity: heroOpacity, y: heroDrift }}
+          className="flex flex-col"
+        >
+          {/* Eyebrow */}
+          <motion.div
+            variants={fadeUp}
+            custom={0}
+            initial="hidden"
+            animate="visible"
+            className="flex flex-wrap items-center gap-3 sm:gap-4 mb-10 font-mono text-[10px] sm:text-[11px] tracking-[0.25em] uppercase text-[#7ABBD4]"
+          >
+            <div className="flex items-center gap-2">
+              {/* Technical block instead of a circle */}
+              <span className="w-1.5 h-3.5 bg-[#0DB9D0] shadow-[0_0_8px_rgba(13,185,208,0.6)] animate-pulse" />
+              <span className="font-semibold text-[#EBF5FC]">NCPOR · MoES</span>
+            </div>
+            <div className="hidden sm:block w-8 h-px bg-[#0DB9D0]/30" />
+            <span className="text-[#3A7A8A]">44th ISEA Mission</span>
           </motion.div>
 
-          <motion.h1 initial={{ opacity:0, y:30, filter: "blur(10px)" }} animate={{ opacity:1, y:0, filter: "blur(0px)" }} transition={{ duration:1.2, delay:0.2, ease:easeOut }} className="text-[3.5rem] sm:text-[5rem] md:text-[6.5rem] lg:text-[8.5rem] font-bold tracking-[-0.04em] leading-[0.9] text-white mix-blend-plus-lighter">
-            Absolute <br className="md:hidden" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-zinc-200 to-zinc-700">Awareness.</span>
-          </motion.h1>
+          {/* Cinematic staggered headline */}
+          <div className="overflow-hidden mb-2">
+            <motion.h1
+              variants={fadeUp}
+              custom={0.5}
+              initial="hidden"
+              animate="visible"
+              className="text-[clamp(2.8rem,7.5vw,6.8rem)] font-semibold tracking-[-0.04em] leading-[1.04] text-[#EBF5FC]"
+            >
+              India&apos;s Antarctic
+            </motion.h1>
+          </div>
+          <div className="overflow-hidden mb-2">
+            <motion.h1
+              variants={fadeUp}
+              custom={0.65}
+              initial="hidden"
+              animate="visible"
+              className="text-[clamp(2.8rem,7.5vw,6.8rem)] font-semibold tracking-[-0.04em] leading-[1.04] text-[#EBF5FC]"
+            >
+              research stations —
+            </motion.h1>
+          </div>
+          <div className="overflow-hidden mb-10">
+            <motion.h1
+              variants={fadeUp}
+              custom={0.8}
+              initial="hidden"
+              animate="visible"
+              className="text-[clamp(2.8rem,7.5vw,6.8rem)] font-semibold tracking-[-0.04em] leading-[1.04] text-[#EBF5FC] opacity-90"
+            >
+              now virtualized.
+            </motion.h1>
+          </div>
 
-          <motion.p initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration:1, delay:0.4, ease:easeOut }} className="mt-8 text-base md:text-lg lg:text-xl text-zinc-400 max-w-2xl font-light leading-relaxed">
-            11,000 km from civilization. Surviving −40°C blizzards through <strong className="text-zinc-200 font-medium">IoT telemetry</strong> and <strong className="text-zinc-200 font-medium">physics prediction</strong>.
+          {/* Sub-copy */}
+          <motion.p
+            variants={fadeUp}
+            custom={1.1}
+            initial="hidden"
+            animate="visible"
+            className="text-[15px] sm:text-[17px] text-[#7ABBD4] font-light leading-relaxed max-w-2xl mb-12 opacity-80"
+          >
+            A real-time Digital Twin of{" "}
+            <strong className="text-[#EBF5FC] font-medium">Maitri</strong> and{" "}
+            <strong className="text-[#EBF5FC] font-medium">Bharati</strong>{" "}
+            research stations. Predict microgrid failures, freeze cascades, and
+            fuel runways — from 11,000 km away.
           </motion.p>
 
-          <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration:1, delay:0.6, ease:easeOut }} className="mt-12 flex flex-col sm:flex-row items-center gap-4">
-            <Link href="/dashboard" className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-white text-black font-semibold text-sm transition-all duration-500 hover:scale-[1.02] active:scale-[0.98] overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-white via-cyan-100 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <span className="relative z-10">Initialize Console</span>
-              <span className="relative z-10 w-6 h-6 rounded-full bg-black/10 flex items-center justify-center transition-transform duration-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
-                <ArrowUpRight size={13} weight="bold" />
+          {/* CTA Row */}
+          <motion.div
+            variants={fadeUp}
+            custom={1.3}
+            initial="hidden"
+            animate="visible"
+            className="flex flex-col sm:flex-row items-start sm:items-center gap-4"
+          >
+            <Link
+              href="/dashboard"
+              className="group inline-flex items-center gap-0 pl-6 pr-2 py-2 rounded-full bg-[#0DB9D0]/15 backdrop-blur-md border border-[#0DB9D0]/30 text-white font-mono text-xs uppercase tracking-widest hover:bg-[#0DB9D0]/25 hover:border-[#0DB9D0]/50 transition-all duration-300 active:scale-[0.97] shadow-[0_0_20px_rgba(13,185,208,0.15)] hover:shadow-[0_0_30px_rgba(13,185,208,0.3)]"
+            >
+              <span className="mr-5 font-semibold">Enter the Cockpit</span>
+              <span className="w-8 h-8 rounded-full bg-[#0DB9D0]/20 group-hover:bg-[#0DB9D0]/40 flex items-center justify-center transition-all text-white">
+                <ArrowUpRight
+                  size={14}
+                  weight="bold"
+                  className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                />
               </span>
             </Link>
-            <a href="#simulator" className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] text-white font-medium text-sm transition-all duration-500 backdrop-blur-md">
-              <Flask size={16} /> Run Simulations
-            </a>
+
+            <Link
+              href="/simulations"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-[#0DB9D0]/20 bg-[#0DB9D0]/5 hover:bg-[#0DB9D0]/15 hover:border-[#0DB9D0]/40 text-[#7ABBD4] hover:text-white font-mono text-xs uppercase tracking-widest transition-all duration-300 backdrop-blur-sm shadow-[0_0_15px_rgba(13,185,208,0.0)] hover:shadow-[0_0_20px_rgba(13,185,208,0.1)]"
+            >
+              <Flask size={13} weight="duotone" />
+              <span className="font-semibold">Simulate a Crisis</span>
+            </Link>
           </motion.div>
-        </div>
-
-        {/* Bottom Glass Vitals Bar */}
-        <motion.div initial={{ opacity:0, y:40 }} animate={{ opacity:1, y:0 }} transition={{ duration:1, delay:0.8, ease:easeOut }} className="absolute bottom-6 left-5 right-5 md:left-10 md:right-10 z-20">
-          <div className="max-w-[1440px] mx-auto rounded-3xl bg-black/40 backdrop-blur-3xl border border-white/10 p-4 md:p-6 flex flex-col lg:flex-row items-center justify-between gap-6 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
-            
-            {/* Left: Polar Status & Time */}
-            <div className="flex items-center gap-6 w-full lg:w-auto justify-between lg:justify-start">
-              <div className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl border font-mono text-[10px] md:text-xs ${polar.inNight ? "bg-indigo-950/40 border-indigo-500/25 text-indigo-200" : "bg-amber-950/30 border-amber-500/20 text-amber-200"}`}>
-                {polar.inNight ? <MoonStars size={16} className="text-indigo-400" weight="fill" /> : <Sun size={16} className="text-amber-400" weight="fill" />}
-                <div className="flex flex-col">
-                  <span className="uppercase tracking-wider font-semibold">{polar.label}</span>
-                  <span className="opacity-70 text-[9px]">{polar.detail}</span>
-                </div>
-              </div>
-              <div className="flex flex-col text-right lg:text-left">
-                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">System Clock</span>
-                <span className="text-sm font-mono text-zinc-300">{utcTime}</span>
-              </div>
-            </div>
-
-            <div className="hidden lg:block w-px h-10 bg-white/10" />
-
-            {/* Right: Key Vitals */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-8 w-full lg:w-auto flex-1">
-              {([
-                { Icon: Thermometer, color: "text-cyan-400",   label: "Ambient", val: "−18.4°C" },
-                { Icon: Wind,        color: "text-indigo-400", label: "Katabatic", val: "64 km/h"  },
-                { Icon: Lightning,   color: "text-amber-400",  label: "Microgrid", val: "118 kW"   },
-                { Icon: Waves,       color: "text-sky-400",    label: "Hydrology", val: "42.8 L/m" },
-              ] as const).map(({ Icon, color, label, val }) => (
-                <div key={label} className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center ${color} shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]`}>
-                    <Icon size={18} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">{label}</span>
-                    <span className="text-sm md:text-base font-mono font-semibold text-white">{val}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-          </div>
         </motion.div>
 
+        {/* Scroll hint */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 2.5, duration: 1 }}
+          className="absolute bottom-10 left-6 sm:left-10 lg:left-16 flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest text-[#1E3A48]"
+        >
+          <motion.div
+            animate={{ y: [0, 6, 0] }}
+            transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
+            className="w-px h-8 bg-gradient-to-b from-transparent via-[#0DB9D0]/40 to-transparent"
+          />
+          Scroll to explore
+        </motion.div>
       </section>
 
-      {/* ═══ CAPABILITIES ═══ */}
-      <section className="relative z-10 py-28 px-5 md:px-10 max-w-[1440px] mx-auto">
-        <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true,margin:"-80px"}} transition={{duration:0.7,ease:easeOut}} className="mb-12">
-          <div className="flex items-center gap-2 mb-3"><span className="h-px w-8 bg-indigo-400" /><span className="text-[10px] font-mono uppercase tracking-[0.2em] text-indigo-400">Core Capabilities</span></div>
-          <h2 className="text-3xl md:text-5xl font-semibold tracking-[-0.025em] text-white max-w-3xl leading-[1.08]">
-            Engineered Beyond<br /><span className="text-zinc-500">Traditional SCADA.</span>
-          </h2>
-        </motion.div>
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* ACT II — THE STAKES                                           */}
+      {/* The brutal physics of polar survival.                        */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      <section className="relative z-10 py-32 px-6 sm:px-10 lg:px-16 max-w-7xl mx-auto border-t border-[#0D3040]/60">
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+          <div className="polar-snow opacity-40" aria-hidden="true" />
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-          <motion.div initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} viewport={{once:true,margin:"-60px"}} transition={{duration:0.7,ease:easeOut}} className="md:col-span-7">
-            <DoubleBezel innerClassName="p-8 md:p-10 h-full flex flex-col gap-8 bg-gradient-to-br from-indigo-950/25 via-[#070810] to-cyan-950/20 min-h-[340px]">
-              <div>
-                <div className="flex items-start justify-between gap-4 mb-6">
-                  <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
-                    <TreeStructure size={26} weight="fill" />
-                  </div>
-                  <span className="px-3 py-1 rounded-full text-[9px] font-mono uppercase tracking-wider bg-white/[0.04] border border-white/[0.08] text-zinc-400">Semantic Graph</span>
-                </div>
-                <h3 className="text-2xl md:text-3xl font-semibold text-white tracking-[-0.02em] mb-4">Continuous Cross-Domain<br />Dependency Tracking</h3>
-                <p className="text-zinc-400 text-sm md:text-base leading-relaxed max-w-xl">
-                  Unlike isolated SCADA alarms, the twin models the entire station as one interconnected organism. When Generator 2 sheds load, it instantly traces: Switchboard B depower → Trace Heating Circuit B offline → Lake Priyadarshini water freeze-up in{" "}
-                  <span className="text-white font-medium">45 minutes</span>.
-                </p>
-              </div>
-              <div className="mt-auto">
-                <span className="text-[9px] font-mono uppercase text-zinc-600 mb-3 block">Live Cascade Sequence</span>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { step:"01", title:"Gen-Set 2 Trip",      c:"border-rose-500/25 text-rose-400"     },
-                    { step:"02", title:"Switchboard B Shed",  c:"border-amber-500/25 text-amber-400"   },
-                    { step:"03", title:"Trace Heat Rerouted", c:"border-emerald-500/25 text-emerald-400"},
-                  ].map(({step,title,c})=>(
-                    <div key={step} className={`p-3 rounded-xl border text-left bg-white/[0.02] ${c.split(" ")[0]}`}>
-                      <span className="text-[9px] text-zinc-600 font-mono block">{step}</span>
-                      <span className={`text-xs font-semibold mt-1 block ${c.split(" ")[1]}`}>{title}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </DoubleBezel>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-start mb-24">
+
+          {/* Left: Narrative */}
+          <motion.div
+            variants={fadeUp}
+            custom={0}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+          >
+            <SectionLabel>Act II — The Stakes</SectionLabel>
+            <h2 className="text-[clamp(2rem,4.5vw,3.6rem)] font-semibold tracking-[-0.03em] leading-[1.1] text-white mb-6">
+              Operating at the edge<br />
+              of what&apos;s survivable.
+            </h2>
+            <div className="relative pl-6 border-l-2 border-[#0DB9D0]/15 space-y-6 mt-8">
+              <div className="absolute top-0 -left-[2px] w-[2px] h-12 bg-gradient-to-b from-[#0DB9D0] to-transparent" />
+              <p className="text-[15px] sm:text-[16px] text-[#7ABBD4] leading-relaxed max-w-lg font-light">
+                Maitri station at 70°S is not simply remote — it is categorically
+                isolated. From March to November, katabatic winds lock the
+                continent in total darkness. <strong className="text-white font-medium">No aircraft. No ships. No rescue.</strong>
+              </p>
+              <p className="text-[15px] sm:text-[16px] text-[#7ABBD4] leading-relaxed max-w-lg font-light">
+                23 crew members must operate every critical system — power, water,
+                heat, comms — with zero external support for 240 days. <strong className="text-[#FF9090] font-medium">One failure cascades into the next.</strong>
+              </p>
+            </div>
           </motion.div>
 
-          <div className="md:col-span-5 flex flex-col gap-4">
-            {CAPABILITIES.map((cap,i) => {
-              const Icon = cap.icon;
+          {/* Right: Physics Stats */}
+          <div className="flex flex-col pt-4 lg:pt-0">
+            <div className="flex items-center gap-3 mb-5 pl-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#0DB9D0] animate-pulse shadow-[0_0_8px_rgba(13,185,208,0.8)]" />
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#3A6A7A]">Environmental Threat Matrix</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <StatBlock value="45" unit="min" label="Before 2.5 km water conduit freezes after power loss" accent="text-[#D93030]" delay={0} />
+              <StatBlock value="−40" unit="°C" label="Ambient permafrost temperature along the lake pipeline" accent="text-[#0DB9D0]" delay={0.1} />
+              <StatBlock value="240" unit="days" label="Winter isolation with zero mainland supply lines" accent="text-[#D49020]" delay={0.2} />
+              <StatBlock value="95" unit="kts" label="Peak katabatic gale severing satellite uplink to India" accent="text-[#7B5EC8]" delay={0.3} />
+            </div>
+          </div>
+        </div>
+
+        {/* Interactive Freeze Simulator */}
+        <motion.div
+          variants={fadeUp}
+          custom={0}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          className={`bezel-shell p-1 transition-all duration-700 ${
+            pipeTripped ? "shadow-[0_0_50px_rgba(217,48,48,0.15)] border-[#D93030]/30" : ""
+          }`}
+        >
+          <div className={`bezel-core p-6 sm:p-8 transition-colors duration-700 ${
+            pipeTripped ? "bg-[#0A0202]" : ""
+          }`}>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 pb-5 border-b border-[#0D3040]/60">
+              <div>
+                <span className="font-mono text-[10px] text-[#3A6A7A] uppercase tracking-widest block mb-1">
+                  Interactive Simulation · Lake Priyadarshini Conduit
+                </span>
+                <h3 className="text-xl font-semibold text-white">
+                  The 45-Minute Freeze Window
+                </h3>
+              </div>
+              <button
+                onClick={() => setPipeTripped((v) => !v)}
+                className={`shrink-0 flex items-center gap-3 px-5 py-2.5 rounded-lg font-mono text-[11px] font-bold uppercase tracking-widest border transition-all duration-500 ${
+                  pipeTripped
+                    ? "bg-[#D93030]/10 border-[#D93030]/40 text-[#FF9090] shadow-[0_0_30px_rgba(217,48,48,0.2)] hover:bg-[#D93030]/20"
+                    : "bg-[#0DB9D0]/10 border-[#0DB9D0]/25 text-[#5DD8EC] hover:bg-[#0DB9D0]/20 hover:border-[#0DB9D0]/40"
+                }`}
+              >
+                <div className={`w-2 h-2 rounded-full transition-all duration-500 ${pipeTripped ? "bg-[#FF9090] shadow-[0_0_10px_#FF9090] animate-pulse" : "bg-[#5DD8EC]"}`} />
+                {pipeTripped ? "RESTORE HEAT CIRCUIT" : "SIMULATE CIRCUIT TRIP"}
+              </button>
+            </div>
+
+            {/* Pipeline visualization */}
+            <div className="space-y-4 mb-8">
+              <div className="flex justify-between items-end px-1">
+                <div className="flex flex-col">
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-[#3A6A7A] mb-1">Lake Source</span>
+                  <span className="font-mono text-[13px] text-[#EBF5FC]">+4.0°C</span>
+                </div>
+                
+                <div className="flex flex-col items-center">
+                  <span 
+                    className="font-mono text-[10px] uppercase tracking-widest text-[#D93030] mb-1 transition-opacity duration-300" 
+                    style={{ opacity: pipeTripped ? 1 : 0 }}
+                  >
+                    Freeze Countdown
+                  </span>
+                  <span className={`font-mono text-3xl font-bold tracking-tight transition-colors duration-300 ${
+                    pipeTripped ? "text-[#FF9090] drop-shadow-[0_0_10px_rgba(255,144,144,0.5)]" : "text-[#4A7A8E]"
+                  }`}>
+                    {pipeTripped ? formatTime(timeLeft) : "45:00"}
+                  </span>
+                </div>
+
+                <div className="flex flex-col items-end">
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-[#3A6A7A] mb-1">Station Header</span>
+                  <span className={`font-mono text-[14px] font-bold transition-colors duration-300 ${
+                    pipeTripped ? "text-[#FF9090]" : "text-[#0DB9D0]"
+                  }`}>
+                    {freezeTemp > 0 ? "+" : ""}{freezeTemp.toFixed(1)}°C
+                  </span>
+                </div>
+              </div>
+              
+              <div className="relative h-6 rounded-full bg-[#030812] border border-[#0D3040]/50 overflow-hidden shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
+                <motion.div
+                  animate={{
+                    width: pipeTripped ? "15%" : "100%",
+                    backgroundColor: pipeTripped ? "#D93030" : "#0DB9D0",
+                    boxShadow: pipeTripped
+                      ? "inset 0 2px 4px rgba(255,255,255,0.2), 0 0 15px rgba(217,48,48,0.6)"
+                      : "inset 0 2px 4px rgba(255,255,255,0.3), 0 0 15px rgba(13,185,208,0.4)",
+                  }}
+                  transition={{ duration: 1.5, ease: [0.32, 0.72, 0, 1] }}
+                  className="h-full rounded-full border border-white/20"
+                />
+              </div>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {pipeTripped ? (
+                <motion.div
+                  key="tripped"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.35 }}
+                  className="flex items-start gap-4 p-5 rounded-xl bg-[#D93030]/10 border border-[#D93030]/30 text-sm font-sans text-[#FF9090] shadow-[0_4px_24px_rgba(217,48,48,0.1)]"
+                >
+                  <Warning size={22} weight="fill" className="shrink-0 mt-0.5 text-[#D93030] animate-bounce" />
+                  <div className="leading-relaxed">
+                    <span className="font-bold text-[#D93030] tracking-wide">CRITICAL ALARM:</span>{" "}
+                    Convective heat loss at 1.84 kW/km. With ambient temperature plummeting to -40°C in a 48 kt gale, 
+                    ice nucleation will seal the intake before the 45-minute window expires. 
+                    <br/><br/>
+                    <strong className="text-white">Digital Twin Action:</strong> Recommend immediate generator failover or emergency line drain protocol.
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="nominal"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.35 }}
+                  className="flex items-start gap-4 p-5 rounded-xl bg-[#0DB9D0]/[0.06] border border-[#0DB9D0]/15 text-sm font-sans text-[#5DD8EC]"
+                >
+                  <CheckCircle size={22} weight="fill" className="shrink-0 mt-0.5 text-[#0DB9D0]" />
+                  <div className="leading-relaxed">
+                    <span className="font-bold text-[#0DB9D0] tracking-wide">SYSTEM NOMINAL:</span>{" "}
+                    Trace-heat circuit drawing 48.6 kW from Kirloskar HA694
+                    &apos;Ravi&apos;. Flow maintained at 18.2 L/min. Continuous heating prevents ice nucleation. 
+                    <br/><br/>
+                    <strong className="text-white">Convective margin:</strong> 140 minutes buffer under current conditions.
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* ACT III — THE INTELLIGENCE                                    */}
+      {/* Digital Twin: how it sees, predicts, acts.                   */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      <section className="relative z-10 py-32 px-6 sm:px-10 lg:px-16 max-w-7xl mx-auto border-t border-[#0D3040]/60">
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
+          <div className="w-full h-full" style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(13,185,208,0.08) 0%, transparent 60%)' }} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
+
+          {/* Left sticky copy */}
+          <motion.div
+            variants={fadeUp}
+            custom={0}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            className="lg:col-span-5 lg:sticky lg:top-28"
+          >
+            <SectionLabel>Act III — The Intelligence</SectionLabel>
+            <div className="relative mb-8">
+              <h2 className="text-[clamp(1.8rem,4vw,3.2rem)] font-semibold tracking-[-0.03em] leading-[1.12] text-white">
+                A cyber-physical twin<br />
+                that never sleeps.
+              </h2>
+              <div className="absolute -left-6 top-2 bottom-2 w-[2px] bg-gradient-to-b from-transparent via-[#0DB9D0]/50 to-transparent hidden sm:block" />
+            </div>
+
+            <div className="space-y-6">
+              <div className="bg-[#03060E]/60 border border-[#0DB9D0]/15 p-6 rounded-xl max-w-lg shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] backdrop-blur-sm">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#0DB9D0] animate-pulse shadow-[0_0_8px_#0DB9D0]" />
+                  <span className="font-mono text-[10px] text-[#0DB9D0] uppercase tracking-widest">System Architecture</span>
+                </div>
+                <p className="text-[14px] sm:text-[15px] text-[#7ABBD4] leading-relaxed font-light">
+                  A real-time intelligence engine that mirrors every physical subsystem. It continuously analyzes high-frequency telemetry to 
+                  <strong className="text-white font-medium"> catch and preempt cascading failures before they happen.</strong>
+                </p>
+              </div>
+
+              <div className="bg-[#03060E]/60 border border-[#00D4A0]/15 p-6 rounded-xl max-w-lg shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] backdrop-blur-sm">
+                <div className="flex items-center gap-3 mb-4">
+                  <Cpu size={14} className="text-[#00D4A0]" weight="duotone" />
+                  <span className="font-mono text-[10px] text-[#00D4A0] uppercase tracking-widest">Deployment Topology</span>
+                </div>
+                <p className="text-[14px] sm:text-[15px] text-[#7ABBD4] leading-relaxed font-light">
+                  Built for extreme isolation. The twin runs autonomously on local edge-compute nodes to survive communication blackouts, 
+                  <strong className="text-[#00D4A0] font-medium"> seamlessly synchronizing with the mainland whenever satellite uplinks are restored.</strong>
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Right: 3-step cards */}
+          <div className="lg:col-span-7 flex flex-col gap-4">
+            {[
+              {
+                step: "01", verb: "OBSERVE",
+                title: "Live Telemetry Fusion",
+                body: "Aggregates thousands of raw sensor streams—from alternator voltages to trace-heat thermal signatures—into a single, unified view of the station at 1 Hz resolution.",
+                accent: "text-[#0DB9D0]", border: "border-[#0DB9D0]/20", iconBg: "bg-[#0DB9D0]/[0.06]",
+                icon: Database, delay: 0,
+              },
+              {
+                step: "02", verb: "PREDICT",
+                title: "Predictive Horizon Modeling",
+                body: "Moves beyond static dashboards to compute exact depletion curves. It predicts exactly when fuel reserves, battery buffers, or pipeline temperatures will breach critical thresholds.",
+                accent: "text-[#00D4A0]", border: "border-[#00D4A0]/20", iconBg: "bg-[#00D4A0]/[0.06]",
+                icon: Globe, delay: 0.1,
+              },
+              {
+                step: "03", verb: "SIMULATE",
+                title: "Crisis Sandbox",
+                body: "Rehearse catastrophes in software before they happen on the ice. The engine simulates 95-knot blizzards and multi-generator failures to generate optimal response strategies.",
+                accent: "text-[#7B5EC8]", border: "border-[#7B5EC8]/20", iconBg: "bg-[#7B5EC8]/[0.06]",
+                icon: Flask, delay: 0.2,
+              },
+            ].map((card) => {
+              const Icon = card.icon;
               return (
-                <motion.div key={cap.tag} initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true,margin:"-40px"}} transition={{duration:0.6,delay:i*0.08,ease:easeOut}}>
-                  <DoubleBezel innerClassName="p-6 flex flex-col gap-4 bg-[#06070d]">
-                    <div className="flex items-start justify-between">
-                      <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.07] flex items-center justify-center text-zinc-400"><Icon size={20} weight="fill" /></div>
-                      <span className="px-2.5 py-1 rounded-full text-[9px] font-mono uppercase bg-white/[0.04] border border-white/[0.07] text-zinc-500">{cap.tag}</span>
+                <motion.div
+                  key={card.step}
+                  variants={fadeUp}
+                  custom={card.delay}
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, margin: "-60px" }}
+                  className="group relative"
+                >
+                  {/* Subtle glow behind the card on hover */}
+                  <div className={`absolute inset-0 rounded-2xl blur-xl opacity-0 group-hover:opacity-[0.15] transition-opacity duration-700 bg-current ${card.accent}`} />
+                  
+                  <div className={`relative p-7 sm:p-8 rounded-2xl border ${card.border} bg-white/[0.01] backdrop-blur-md flex flex-col sm:flex-row gap-6 hover:bg-white/[0.03] transition-all duration-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]`}>
+                    <div
+                      className={`shrink-0 w-12 h-12 rounded-xl border ${card.border} ${card.iconBg} flex items-center justify-center ${card.accent} shadow-[inset_0_1px_4px_rgba(255,255,255,0.1)] group-hover:scale-110 transition-transform duration-500`}
+                    >
+                      <Icon size={24} weight="duotone" />
                     </div>
                     <div>
-                      <h3 className="text-base font-semibold text-white tracking-[-0.015em] mb-1.5">{cap.title}</h3>
-                      <p className="text-zinc-500 text-xs leading-relaxed">{cap.desc}</p>
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className={`font-mono text-[11px] font-bold ${card.accent}`}>
+                          {card.step}
+                        </span>
+                        <span className="w-4 h-[1px] bg-[#1A3040]" />
+                        <span className={`font-mono text-[11px] uppercase tracking-[0.2em] ${card.accent} opacity-80`}>
+                          {card.verb}
+                        </span>
+                      </div>
+                      <h4 className="text-[18px] sm:text-[19px] font-semibold text-white mb-3 tracking-tight group-hover:text-white transition-colors">
+                        {card.title}
+                      </h4>
+                      <p className="text-[14px] text-[#4A7A8E] leading-relaxed font-light group-hover:text-[#7ABBD4] transition-colors">
+                        {card.body}
+                      </p>
                     </div>
-                  </DoubleBezel>
+                  </div>
                 </motion.div>
               );
             })}
@@ -301,221 +589,285 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══ SIMULATOR ═══ */}
-      <section id="simulator" className="relative z-10 py-28 px-5 md:px-10 max-w-[1440px] mx-auto">
-        <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true,margin:"-80px"}} transition={{duration:0.7,ease:easeOut}} className="mb-12">
-          <div className="flex items-center gap-2 mb-3"><span className="h-px w-8 bg-rose-400" /><span className="text-[10px] font-mono uppercase tracking-[0.2em] text-rose-400">Interactive Engine</span></div>
-          <h2 className="text-3xl md:text-5xl font-semibold tracking-[-0.025em] text-white max-w-3xl leading-[1.08]">Stress-Test Extreme<br /><span className="text-zinc-500">Antarctic Storms. Live.</span></h2>
-          <p className="text-zinc-500 text-sm md:text-base mt-4 max-w-xl">Drag the sliders. The physics engine recalculates wind-chill, trace-heating demand, diesel burn, and freeze horizon in real time.</p>
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* ACT IV — THE DOMAINS                                          */}
+      {/* Four subsystem portals. Asymmetric bento — not repeating.    */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      <section className="relative z-10 py-32 px-6 sm:px-10 lg:px-16 max-w-7xl mx-auto border-t border-[#0D3040]/60">
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
+          <div className="w-full h-full" style={{ backgroundImage: 'radial-gradient(circle at 100% 0%, rgba(0,212,160,0.05) 0%, transparent 50%)' }} />
+        </div>
+
+        <motion.div
+          variants={fadeUp}
+          custom={0}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          className="mb-16"
+        >
+          <SectionLabel>Act IV — The Domains</SectionLabel>
+          <h2 className="text-[clamp(1.8rem,4vw,3.2rem)] font-semibold tracking-[-0.03em] text-white leading-[1.1] mb-4">
+            Four domains. One unified twin.
+          </h2>
+          <p className="text-[15px] text-[#4A7A8E] max-w-xl">
+            Each subsystem is modeled independently, but the twin tracks
+            cross-domain dependencies — a microgrid fault triggers water freeze
+            risk, which cascades to habitat survivability.
+          </p>
         </motion.div>
 
-        <motion.div initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} viewport={{once:true,margin:"-60px"}} transition={{duration:0.75,ease:easeOut}}>
-          <DoubleBezel innerClassName="p-8 md:p-12 bg-gradient-to-tr from-rose-950/15 via-[#070810] to-indigo-950/15">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-              <div className="flex flex-col gap-7">
-                <div className="flex items-center justify-between pb-4 border-b border-white/[0.06]">
-                  <span className="text-xs font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-2"><SlidersHorizontal size={14} className="text-rose-400" />Environmental Variables</span>
-                  <button onClick={()=>{setSimTemp(-35);setSimWind(150);setSimGens(1);}} className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 underline transition-colors">Preset: Severe Blizzard</button>
-                </div>
-                {[
-                  { label:"Ambient Temperature", unit:`${simTemp}°C`,     min:-45, max:5,   val:simTemp, set:setSimTemp, lo:"-45°C Extreme Winter", hi:"+5°C Summer",            accent:"accent-cyan-400"   },
-                  { label:"Katabatic Wind Speed", unit:`${simWind} km/h`, min:0,   max:220, val:simWind, set:setSimWind, lo:"Calm",                 hi:"220 km/h Catastrophic",  accent:"accent-indigo-400" },
-                ].map(s=>(
-                  <div key={s.label} className="space-y-2.5">
-                    <div className="flex justify-between text-xs font-mono"><span className="text-zinc-400">{s.label}</span><span className="text-white font-semibold">{s.unit}</span></div>
-                    <input type="range" min={s.min} max={s.max} step={1} value={s.val} onChange={e=>s.set(Number(e.target.value))} className={`w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer ${s.accent}`} />
-                    <div className="flex justify-between text-[10px] font-mono text-zinc-600"><span>{s.lo}</span><span>{s.hi}</span></div>
-                  </div>
-                ))}
-                <div className="space-y-2.5">
-                  <div className="flex justify-between text-xs font-mono"><span className="text-zinc-400">Active Cummins Gen-Sets</span><span className="text-white font-semibold">{simGens} / 4 Online</span></div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[1,2,3,4].map(n=>(
-                      <button key={n} onClick={()=>setSimGens(n)} className={`py-2.5 rounded-xl border text-[10px] font-mono transition-all duration-300 ${simGens===n?"bg-white/[0.12] border-white/20 text-white font-bold":"bg-white/[0.02] border-white/[0.06] text-zinc-500 hover:text-white"}`}>
-                        {n===1?"1 EM":`${n}×`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col gap-4">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">Twin Physics Prognosis</span>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { label:"Wind Chill",    val:`${windChill}°C`,    sub:"Surface convection",    color:"text-cyan-300",                                              bg:"" },
-                    { label:"Trace Heat",    val:`${traceHeat} kW`,   sub:"Pipeline thermal req.", color:"text-amber-300",                                             bg:"" },
-                    { label:"Freeze Horizon",val:`${freezeMins} min`, sub:critical?"URGENT: Pipe freeze":"Safe fluid flow", color:critical?"text-rose-400":"text-emerald-400", bg:critical?"bg-rose-950/25":"" },
-                    { label:"Fuel Burn",     val:`${fuelBurn} L/d`,   sub:`~${Math.round(142800/fuelBurn)}d autonomy`,  color:"text-white",                         bg:"" },
-                  ].map(({label,val,sub,color,bg})=>(
-                    <div key={label} className={`p-5 rounded-2xl border border-white/[0.06] flex flex-col gap-2 bg-white/[0.02] ${bg}`}>
-                      <span className="text-[10px] font-mono text-zinc-500">{label}</span>
-                      <span className={`text-3xl font-mono font-semibold ${color}`}>{val}</span>
-                      <span className="text-[10px] font-mono text-zinc-500">{sub}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex justify-end pt-2">
-                  <Link href="/simulations" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/10 border border-white/[0.08] text-xs font-mono text-white transition-all duration-300">
-                    <Flask size={13} /><span>Full Simulation Studio</span><ArrowRight size={11} />
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </DoubleBezel>
-        </motion.div>
-      </section>
+        {/* Asymmetric Bento */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
 
-      {/* ═══ PROVENANCE + HERITAGE ═══ */}
-      <section className="relative z-10 py-28 px-5 md:px-10 max-w-[1440px] mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <motion.div initial={{opacity:0,x:-20}} whileInView={{opacity:1,x:0}} viewport={{once:true,margin:"-60px"}} transition={{duration:0.7,ease:easeOut}}>
-            <DoubleBezel innerClassName="p-8 md:p-10 h-full flex flex-col gap-7 bg-gradient-to-br from-emerald-950/20 via-[#06080d] to-black">
-              <div>
-                <div className="flex items-center gap-2 mb-4"><span className="h-px w-6 bg-emerald-400" /><span className="text-[10px] font-mono uppercase tracking-[0.2em] text-emerald-400">Data Model</span></div>
-                <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-[-0.02em] mb-4">Source-Aware Provenance</h2>
-                <p className="text-zinc-500 text-sm leading-relaxed">Every data point carries a forensic tag — no ambiguity about where values originate, crucial for Antarctic Treaty compliance and crew safety decisions.</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {(["OFFICIAL","LIVE_SENSOR","DOCUMENTARY","SIMULATED"] as const).map(tag=>(
-                  <button key={tag} onClick={()=>setActiveProvenance(tag)} className={`p-4 rounded-2xl border text-left transition-all duration-300 ${activeProvenance===tag?"bg-emerald-500/15 border-emerald-500/40 text-emerald-300":"bg-white/[0.02] border-white/[0.05] text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04]"}`}>
-                    <span className="text-[9px] font-mono uppercase tracking-wider block mb-1.5 opacity-70">{tag.replace("_"," ")}</span>
-                    <span className="text-xs font-medium block">
-                      {tag==="OFFICIAL"    && "NCPOR logbooks & audit docs"}
-                      {tag==="LIVE_SENSOR" && "PLC & power-meter feeds"}
-                      {tag==="DOCUMENTARY" && "Expedition visual records"}
-                      {tag==="SIMULATED"   && "Physics engine output"}
+          {/* Energy — large left card (7 cols) */}
+          <motion.div
+            variants={fadeUp}
+            custom={0}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-60px" }}
+            className="md:col-span-7 bezel-shell p-1"
+          >
+            <Link href="/energy" className="group relative block bezel-core p-7 sm:p-9 h-full flex flex-col justify-between min-h-[260px] overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#D49020]/0 to-[#D49020]/0 group-hover:from-[#D49020]/[0.08] transition-colors duration-700 pointer-events-none" />
+              <div className="relative z-10">
+                <div className="flex items-start justify-between mb-8">
+                  <div className="w-12 h-12 rounded-xl border border-[#D49020]/25 bg-[#D49020]/[0.07] flex items-center justify-center text-[#D49020] shadow-[0_0_15px_rgba(212,144,32,0.15)] group-hover:scale-110 transition-transform duration-500">
+                    <Lightning size={24} weight="duotone" />
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="font-mono text-[10px] uppercase tracking-widest text-[#D49020] opacity-80 mb-1">
+                      SYS-01
                     </span>
-                  </button>
-                ))}
+                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#00D4A0] animate-pulse shadow-[0_0_5px_#00D4A0]" />
+                      <span className="font-mono text-[9px] uppercase tracking-widest text-[#00D4A0]">Live Feed</span>
+                    </div>
+                  </div>
+                </div>
+                <h3 className="text-[1.5rem] sm:text-[1.85rem] font-semibold text-white mb-3 tracking-tight leading-tight group-hover:text-[#F3D599] transition-colors">
+                  Microgrid &amp; Power Distribution
+                </h3>
+                <p className="text-[14px] text-[#3A6A7A] leading-relaxed max-w-lg group-hover:text-[#4A7A8E] transition-colors">
+                  Three 62.5 kVA Kirloskar HA694 alternators, 4-tier PLC load
+                  shedding, BESS battery backup, and real-time electrical
+                  harmonic tracking.
+                </p>
               </div>
-              <AnimatePresence mode="wait">
-                <motion.div key={activeProvenance} initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-6}} transition={{duration:0.2}} className="p-4 rounded-xl bg-white/[0.025] border border-white/[0.05] text-xs text-zinc-400 leading-relaxed">
-                  {activeProvenance==="OFFICIAL"    && "Extracted from NCPOR operational logbooks, MoES reports, and Antarctic Treaty audit documents. Treated as immutable 100% ground truth within the twin."}
-                  {activeProvenance==="LIVE_SENSOR" && "Calibrated real-time streams from PLCs, power meters, weather masts, and ultrasonic level sensors — validated against physics-model bounds before ingestion."}
-                  {activeProvenance==="DOCUMENTARY" && "Visual evidence from expedition walk-throughs, crew maintenance logbooks, and photogrammetric structural scans of station modules."}
-                  {activeProvenance==="SIMULATED"   && "Physics-coupled thermodynamic, electrical, and hydraulic state models stress-testing failure combinations for anticipatory risk mitigation."}
-                </motion.div>
-              </AnimatePresence>
-            </DoubleBezel>
+              <div className="flex items-center justify-between pt-6 border-t border-[#0D3040]/50">
+                <span className="font-mono text-[11px] text-[#D49020] opacity-70">
+                  3× Gen · BESS · 4-Tier PLC
+                </span>
+                <div className="w-9 h-9 rounded-full border border-[#0DB9D0]/20 bg-[#0DB9D0]/[0.04] group-hover:bg-[#0DB9D0] group-hover:border-[#0DB9D0] flex items-center justify-center transition-all duration-300">
+                  <ArrowRight
+                    size={14}
+                    className="text-[#3A6A7A] group-hover:text-[#03060E] transition-colors"
+                  />
+                </div>
+              </div>
+            </Link>
           </motion.div>
 
-          <motion.div initial={{opacity:0,x:20}} whileInView={{opacity:1,x:0}} viewport={{once:true,margin:"-60px"}} transition={{duration:0.7,delay:0.08,ease:easeOut}}>
-            <DoubleBezel innerClassName="p-8 md:p-10 h-full flex flex-col gap-7 bg-gradient-to-br from-cyan-950/15 via-[#06080d] to-black">
-              <div>
-                <div className="flex items-center gap-2 mb-4"><span className="h-px w-6 bg-cyan-400" /><span className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400">National Heritage</span></div>
-                <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-[-0.02em] mb-4">Four Decades of Evolution</h2>
-                <p className="text-zinc-500 text-sm leading-relaxed">From the pioneering 1981 expedition to today's digital twin, Maitri represents India's enduring technological resilience in Antarctica.</p>
-              </div>
-              <div className="flex flex-col gap-1">
-                {MILESTONES.map((m,i)=>(
-                  <motion.div key={m.year} initial={{opacity:0,x:12}} whileInView={{opacity:1,x:0}} viewport={{once:true}} transition={{duration:0.5,delay:i*0.08,ease:easeOut}} className="flex gap-4 p-4 rounded-xl hover:bg-white/[0.03] transition-all duration-300 group">
-                    <div className="flex flex-col items-center gap-1 shrink-0">
-                      <span className="text-lg font-mono font-bold text-white group-hover:text-cyan-300 transition-colors">{m.year}</span>
-                      {i<MILESTONES.length-1 && <div className="w-px flex-1 bg-white/[0.06] mt-1" />}
-                    </div>
-                    <div className="pt-0.5">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <span className="text-sm font-semibold text-white">{m.title}</span>
-                        <span className="px-2 py-0.5 rounded-full text-[8px] font-mono uppercase bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0">{m.badge}</span>
-                      </div>
-                      <p className="text-xs text-zinc-500 leading-relaxed">{m.desc}</p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </DoubleBezel>
-          </motion.div>
-        </div>
-      </section>
+          {/* Right stack: Infrastructure + Simulation (5 cols) */}
+          <div className="md:col-span-5 flex flex-col gap-4">
 
-      {/* ═══ DOMAIN EXPLORER ═══ */}
-      <section className="relative z-10 py-28 px-5 md:px-10 max-w-[1440px] mx-auto">
-        <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true,margin:"-80px"}} transition={{duration:0.7,ease:easeOut}} className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-12">
-          <div>
-            <div className="flex items-center gap-2 mb-3"><span className="h-px w-8 bg-zinc-600" /><span className="text-[10px] font-mono uppercase tracking-[0.2em] text-zinc-500">Operational Modules</span></div>
-            <h2 className="text-3xl md:text-5xl font-semibold tracking-[-0.025em] text-white leading-[1.08]">Explore Specialized<br /><span className="text-zinc-500">Domains.</span></h2>
+            <motion.div
+              variants={fadeUp}
+              custom={0.1}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              className="bezel-shell p-1 flex-1"
+            >
+              <Link href="/infrastructure" className="group relative block bezel-core p-6 sm:p-7 h-full flex flex-col justify-between min-h-[120px] overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#0DB9D0]/0 to-[#0DB9D0]/0 group-hover:from-[#0DB9D0]/[0.08] transition-colors duration-700 pointer-events-none" />
+                <div className="flex items-start justify-between relative z-10">
+                  <div>
+                    <div className="w-10 h-10 rounded-xl border border-[#0DB9D0]/25 bg-[#0DB9D0]/[0.06] flex items-center justify-center text-[#0DB9D0] mb-4 shadow-[0_0_10px_rgba(13,185,208,0.1)] group-hover:scale-110 transition-transform duration-500">
+                      <Waves size={20} weight="duotone" />
+                    </div>
+                    <h3 className="text-[1.1rem] font-semibold text-[#EBF5FC] mb-1.5 tracking-tight group-hover:text-white transition-colors">
+                      Water &amp; Habitat Life Support
+                    </h3>
+                    <p className="text-[13px] text-[#3A6A7A] group-hover:text-[#4A9AAE] transition-colors">
+                      2.5 km trace-heated conduit · Lake Priyadarshini · 4-zone climate
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="font-mono text-[9px] uppercase tracking-widest text-[#0DB9D0] opacity-80 mb-2">SYS-02</span>
+                    <div className="shrink-0 w-8 h-8 rounded-full border border-[#0DB9D0]/20 bg-[#0DB9D0]/[0.04] group-hover:bg-[#0DB9D0] flex items-center justify-center transition-all duration-300">
+                      <ArrowRight
+                        size={12}
+                        className="text-[#3A6A7A] group-hover:text-[#03060E]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+
+            <motion.div
+              variants={fadeUp}
+              custom={0.2}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              className="bezel-shell p-1 flex-1"
+            >
+              <Link href="/logistics" className="group relative block bezel-core p-6 sm:p-7 h-full flex flex-col justify-between min-h-[120px] overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#00D4A0]/0 to-[#00D4A0]/0 group-hover:from-[#00D4A0]/[0.08] transition-colors duration-700 pointer-events-none" />
+                <div className="flex items-start justify-between relative z-10">
+                  <div>
+                    <div className="w-10 h-10 rounded-xl border border-[#00D4A0]/25 bg-[#00D4A0]/[0.06] flex items-center justify-center text-[#00D4A0] mb-4 shadow-[0_0_10px_rgba(0,212,160,0.1)] group-hover:scale-110 transition-transform duration-500">
+                      <GasPump size={20} weight="duotone" />
+                    </div>
+                    <h3 className="text-[1.1rem] font-semibold text-[#EBF5FC] mb-1.5 tracking-tight group-hover:text-white transition-colors">
+                      Logistics &amp; Fuel Reserves
+                    </h3>
+                    <p className="text-[13px] text-[#3A6A7A] group-hover:text-[#52C7A8] transition-colors">
+                      ATF burn rates · Winter stock depletion · Emission tracking
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="font-mono text-[9px] uppercase tracking-widest text-[#00D4A0] opacity-80 mb-2">SYS-03</span>
+                    <div className="shrink-0 w-8 h-8 rounded-full border border-[#00D4A0]/20 bg-[#00D4A0]/[0.04] group-hover:bg-[#00D4A0] flex items-center justify-center transition-all duration-300">
+                      <ArrowRight
+                        size={12}
+                        className="text-[#3A6A7A] group-hover:text-[#03060E]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+
           </div>
-          <Link href="/dashboard" className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 uppercase tracking-wider flex items-center gap-1.5 shrink-0 transition-colors"><span>Open Central Overview</span><ArrowRight size={12} /></Link>
-        </motion.div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {([
-            { href:"/infrastructure", icon:Cube,     tag:"3D Spatial",    title:"Infrastructure & Spaces",  desc:"CAD layouts, living modules, boiler rooms, structural integrity." },
-            { href:"/energy",         icon:Lightning, tag:"4× 62.5 kVA",  title:"Energy & Microgrid",        desc:"Gen-sets, switchboards, fuel burn telemetry, heat recovery." },
-            { href:"/logistics",      icon:Database,  tag:"142,800 L HSD",title:"Logistics & Fuel Farm",     desc:"Bulk diesel tanks, spare parts, winter autonomy projection." },
-            { href:"/environment",    icon:Wind,      tag:"−40°C Rating", title:"Environment & Meteorology", desc:"Lake water levels, katabatic wind, ambient chill sensors." },
-            { href:"/network",        icon:WifiHigh,  tag:"QoS Priority", title:"Edge Network & Satellite",  desc:"3-tier packet queuing, NVMe buffering, uplink health." },
-            { href:"/simulations",    icon:Flask,     tag:"Monte Carlo",  title:"What-If Simulation Studio", desc:"Blizzard stress tests, generator trips, emergency runbooks." },
-          ] as const).map((item,i)=>{
-            const Icon = item.icon;
-            return (
-              <motion.div key={item.href} initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true,margin:"-40px"}} transition={{duration:0.55,delay:i*0.06,ease:easeOut}}>
-                <Link href={item.href} className="group block h-full">
-                  <DoubleBezel innerClassName="p-6 h-full flex flex-col gap-4 bg-white/[0.015] group-hover:bg-white/[0.04] transition-all duration-500">
-                    <div className="flex items-center justify-between">
-                      <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.07] flex items-center justify-center text-zinc-400 group-hover:text-cyan-300 group-hover:border-cyan-500/30 transition-all duration-300"><Icon size={18} /></div>
-                      <span className="text-[9px] font-mono uppercase text-zinc-600 px-2 py-1 rounded-full bg-white/[0.03] border border-white/[0.05]">{item.tag}</span>
+
+          {/* Communications — full width bottom */}
+          <motion.div
+            variants={fadeUp}
+            custom={0.3}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-60px" }}
+            className="md:col-span-12 bezel-shell p-1"
+          >
+            <Link href="/communications" className="group relative block bezel-core p-6 sm:p-8 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-[#7B5EC8]/0 via-transparent to-[#0DB9D0]/0 group-hover:from-[#7B5EC8]/[0.05] group-hover:to-[#0DB9D0]/[0.05] transition-colors duration-700 pointer-events-none" />
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative z-10">
+                <div className="flex items-center gap-6">
+                  <div className="w-14 h-14 rounded-xl border border-[#7B5EC8]/25 bg-[#7B5EC8]/[0.06] flex items-center justify-center text-[#7B5EC8] shrink-0 shadow-[0_0_15px_rgba(123,94,200,0.1)] group-hover:scale-110 transition-transform duration-500">
+                    <Broadcast size={26} weight="duotone" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="font-mono text-[10px] text-[#7B5EC8] uppercase tracking-widest">
+                        SYS-04 · COMMUNICATIONS
+                      </span>
+                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ml-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#00D4A0] animate-pulse shadow-[0_0_5px_#00D4A0]" />
+                        <span className="font-mono text-[9px] uppercase tracking-widest text-[#0DB9D0]">Uplink Nominal</span>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h4 className="text-base font-semibold text-white group-hover:text-cyan-200 transition-colors duration-300 mb-1.5">{item.title}</h4>
-                      <p className="text-xs text-zinc-600 leading-relaxed">{item.desc}</p>
-                    </div>
-                    <div className="flex items-center gap-1 text-[10px] font-mono text-zinc-600 group-hover:text-zinc-300 transition-colors duration-300">
-                      <span>Inspect Domain</span><ArrowRight size={10} className="group-hover:translate-x-0.5 transition-transform duration-300" />
-                    </div>
-                  </DoubleBezel>
-                </Link>
-              </motion.div>
-            );
-          })}
+                    <h3 className="text-[1.3rem] font-semibold text-[#EBF5FC] tracking-tight group-hover:text-white transition-colors">
+                      Network &amp; Edge Compute Integrity
+                    </h3>
+                    <p className="text-[14px] text-[#3A6A7A] mt-1.5 max-w-2xl group-hover:text-[#9A7DF0] transition-colors">
+                      Satellite uplink telemetry, latency tracking to mainland India, and local edge-compute failover statuses during zero-visibility katabatic storms.
+                    </p>
+                  </div>
+                </div>
+                <div className="shrink-0 inline-flex items-center gap-0 pl-5 pr-2 py-2 rounded-full bg-[#7B5EC8]/[0.08] group-hover:bg-[#7B5EC8] border border-[#7B5EC8]/25 group-hover:border-[#7B5EC8] transition-all duration-300">
+                  <span className="mr-4 font-mono text-[11px] text-[#9A7DF0] group-hover:text-[#03060E] uppercase tracking-wider transition-colors">
+                    Inspect Node
+                  </span>
+                  <span className="w-7 h-7 rounded-full bg-[#7B5EC8]/10 group-hover:bg-[#03060E]/10 flex items-center justify-center transition-all">
+                    <ArrowRight
+                      size={13}
+                      weight="bold"
+                      className="text-[#9A7DF0] group-hover:text-[#03060E] transition-all group-hover:translate-x-0.5"
+                    />
+                  </span>
+                </div>
+              </div>
+            </Link>
+          </motion.div>
+
         </div>
       </section>
 
-      {/* ═══ FINAL CTA ═══ */}
-      <section className="relative z-10 py-28 px-5 md:px-10 max-w-[1440px] mx-auto">
-        <motion.div initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} viewport={{once:true,margin:"-60px"}} transition={{duration:0.8,ease:easeOut}}>
-          <DoubleBezel innerClassName="p-12 md:p-20 text-center flex flex-col items-center gap-8 bg-gradient-to-tr from-cyan-950/25 via-[#08090f] to-indigo-950/25 relative overflow-hidden">
-            <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-cyan-500/[0.04] blur-3xl pointer-events-none" />
-            <div className="absolute bottom-0 right-1/4 w-96 h-96 rounded-full bg-indigo-500/[0.04] blur-3xl pointer-events-none" />
-            <div className="relative">
-              <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-cyan-400 block mb-5">National Polar Cyber-Physical System</span>
-              <h2 className="text-4xl sm:text-5xl md:text-6xl font-semibold tracking-[-0.03em] text-white leading-[1.05] max-w-3xl mx-auto">
-                Ready to Command<br /><span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 via-sky-200 to-indigo-300">Maitri Digital Twin?</span>
-              </h2>
-              <p className="text-zinc-500 text-sm md:text-base mt-6 max-w-xl mx-auto leading-relaxed">Step into the operational cockpit. Real-time telemetry, interactive cutaways, and predictive winter autonomy ready for execution.</p>
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* ACT V — THE GATEWAY                                           */}
+      {/* Quiet, confident CTA. Story ends; mission begins.            */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      <section className="relative z-10 pb-32 px-6 sm:px-10 lg:px-16 max-w-7xl mx-auto border-t border-[#0D3040]/60 pt-32">
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
+          <div className="w-full h-full" style={{ backgroundImage: 'radial-gradient(circle at 50% 100%, rgba(13,185,208,0.06) 0%, transparent 60%)' }} />
+        </div>
+
+        <motion.div
+          variants={fadeUp}
+          custom={0}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          className="bezel-shell p-1"
+        >
+          <div className="bezel-core p-10 sm:p-16 flex flex-col md:flex-row items-center justify-between gap-10">
+            <div className="text-center md:text-left max-w-xl">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#1E3A48] block mb-4">
+                NCPOR Mission Command · 44th Indian Scientific Expedition to Antarctica
+              </span>
+              <h3 className="text-[clamp(1.6rem,3.5vw,2.8rem)] font-semibold text-[#EBF5FC] tracking-tight mb-4 leading-[1.1]">
+                The twin is live.<br />
+                The station awaits.
+              </h3>
+              <p className="text-[14px] text-[#4A7A8E] leading-relaxed">
+                Connect to real-time 1 Hz telemetry from Maitri. Inspect every
+                subsystem. Run a blizzard simulation. The cockpit is operational.
+              </p>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              <Link href="/dashboard" className="group inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white text-black font-semibold text-sm transition-all duration-500 hover:bg-zinc-100 active:scale-[0.97] shadow-[0_0_40px_rgba(255,255,255,0.25)]">
-                <span>Open Mission Console</span>
-                <span className="w-7 h-7 rounded-full bg-black/10 flex items-center justify-center group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-500"><ArrowUpRight size={15} weight="bold" /></span>
+
+            <div className="flex flex-col gap-3 items-center md:items-end shrink-0">
+              <Link
+                href="/dashboard"
+                className="group inline-flex items-center gap-0 pl-6 pr-2 py-2 rounded-full bg-[#0DB9D0] text-[#03060E] font-mono text-xs uppercase tracking-wider font-bold shadow-[0_0_50px_rgba(13,185,208,0.25)] hover:bg-[#0FCEE8] transition-all duration-300 active:scale-[0.97]"
+              >
+                <span className="mr-5">Launch Cockpit</span>
+                <span className="w-8 h-8 rounded-full bg-[#03060E]/15 group-hover:bg-[#03060E]/25 flex items-center justify-center transition-all">
+                  <ArrowUpRight
+                    size={14}
+                    weight="bold"
+                    className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  />
+                </span>
               </Link>
-              <Link href="/about" className="inline-flex items-center gap-2.5 px-8 py-4 rounded-full bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.09] text-white font-medium text-sm transition-all duration-500">
-                <Cube size={16} /><span>System Architecture</span>
+              <Link
+                href="/simulations"
+                className="font-mono text-[11px] text-[#1E3A48] hover:text-[#0DB9D0] transition-colors uppercase tracking-wider"
+              >
+                or run a simulation →
               </Link>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-6 pt-4 border-t border-white/[0.06] w-full">
-              {["NCPOR Validated","Antarctic Treaty Compliant","MoES Programme","IoT Edge-Native","Offline-Survivable"].map(t=>(
-                <span key={t} className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider">{t}</span>
-              ))}
-            </div>
-          </DoubleBezel>
+          </div>
+        </motion.div>
+
+        {/* Colophon */}
+        <motion.div
+          variants={fadeIn}
+          custom={0}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="mt-16 pt-8 border-t border-[#0D3040]/40 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[11px] text-[#1A3040]"
+        >
+          <span>GOVERNMENT OF INDIA · MINISTRY OF EARTH SCIENCES · NCPOR</span>
+          <span>70°45′57″S · 11°44′09″E · ANTARCTIC TREATY PRESERVE</span>
+          <span className="hidden sm:inline">BHARATI · 69°24′S · COMMISSIONED 2012</span>
         </motion.div>
       </section>
 
-      {/* ═══ FOOTER ═══ */}
-      <footer className="relative z-10 border-t border-white/[0.06] py-12 px-5 md:px-10 max-w-[1440px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-[10px] font-mono text-zinc-600">
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          <span className="text-zinc-300 font-medium">Maitri Research Station</span>
-          <span className="hidden sm:inline">·</span>
-          <span>Indian Antarctic Programme · NCPOR / MoES</span>
-          <span className="hidden sm:inline">·</span>
-          <span>70°45′58″ S, 11°43′56″ E</span>
-        </div>
-        <div className="flex items-center gap-6">
-          {([{href:"/about",label:"Architecture"},{href:"/dashboard",label:"Dashboard"},{href:"/simulations",label:"Simulations"},{href:"/network",label:"Network"}] as const).map(({href,label})=>(
-            <Link key={href} href={href} className="hover:text-zinc-300 transition-colors">{label}</Link>
-          ))}
-        </div>
-      </footer>
-    </main>
+    </div>
   );
 }
