@@ -18,9 +18,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MAITRI // Digital Twin — Antarctic Research Station",
+  title: "Antarctic Digital Twin",
   description:
-    "Live operational telemetry, predictive twin, and life support monitoring for Maitri Station (70°45′57″S, 11°44′09″E).",
+    "Live operational telemetry, predictive twin, and life support monitoring for India's Antarctic research stations: Maitri and Bharati.",
 };
 
 export default function RootLayout({
@@ -39,8 +39,6 @@ export default function RootLayout({
          * All fixed, pointer-events: none, z-index 0.
          * Rendered once globally so every page has the Antarctic sky.
          */}
-        {/* 2. Antarctic Snowdrift — CSS diagonal blizzard */}
-        <div className="polar-snow z-20" aria-hidden="true" />
         {/* 3. Film-grain noise — kills flat-black banding */}
         <div className="polar-noise" aria-hidden="true" />
         {/* 4. Edge vignette — dark corners for cinematic depth */}

@@ -93,7 +93,7 @@ body {
 /* ─── Realistic Parallax Snowfall ──────────────────────────────── */
 /* 3 layers of distinct snowflakes falling at different speeds/depths */
 .polar-snow, .polar-snow::before, .polar-snow::after {
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 20;
