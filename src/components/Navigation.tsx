@@ -20,6 +20,7 @@ import {
   List,
   X,
   Radio,
+  WarningCircle,
 } from "@phosphor-icons/react";
 
 const SUBSYSTEM_ITEMS = [
@@ -62,6 +63,14 @@ const SUBSYSTEM_ITEMS = [
     tag: "NETWORK",
     status: "P0 Priority",
     icon: Radio,
+  },
+  {
+    href: "/dashboard/alerts",
+    label: "Active Priority Alerts",
+    shortLabel: "Active Alerts",
+    tag: "CRITICAL",
+    status: "Priority",
+    icon: WarningCircle,
   },
 ];
 
@@ -264,7 +273,7 @@ export function Navigation() {
           href="/dashboard"
           className="group mr-1.5 flex items-center gap-1.5 pl-3.5 pr-2.5 h-8 rounded-full bg-[#0DB9D0] hover:bg-[#0FCEE8] text-[#03060E] font-mono text-[10px] uppercase tracking-wider font-bold transition-all duration-200 shadow-[0_0_20px_rgba(13,185,208,0.35)] hover:shadow-[0_0_28px_rgba(13,185,208,0.5)] active:scale-95"
         >
-          <span>Cockpit</span>
+          <span>Dashboard</span>
           <ArrowUpRight size={11} weight="bold" className="group-hover:translate-x-px group-hover:-translate-y-px transition-transform" />
         </Link>
 

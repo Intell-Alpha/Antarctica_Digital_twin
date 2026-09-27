@@ -32,7 +32,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-[#03060E] text-[#EBF5FC] font-sans flex">
       {/* ── SIDEBAR ── */}
-      <aside className="w-64 border-r border-[#0DB9D0]/10 bg-[#040A15]/80 flex flex-col pt-6 pb-4 shrink-0 relative z-20">
+      <aside className="w-64 border-r border-[#0DB9D0]/10 bg-[#040A15]/80 flex flex-col pt-4 pb-4 shrink-0 relative z-20">
+        <div className="px-4 mb-6">
+          <Link 
+            href="/" 
+            className="flex items-center gap-2 px-3 py-2 bg-[#0D3040]/30 hover:bg-[#0DB9D0]/20 text-[#7ABBD4] hover:text-[#0DB9D0] border border-[#0D3040]/50 hover:border-[#0DB9D0]/50 rounded-lg transition-all duration-300 font-mono text-[10px] uppercase tracking-wider w-fit group"
+          >
+            <CaretLeft size={14} className="group-hover:-translate-x-1 transition-transform" /> 
+            Back to Home
+          </Link>
+        </div>
+
         <div className="px-6 mb-8 flex flex-col">
           <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#0DB9D0] mb-1">
             NCPOR Mission Command
@@ -68,12 +78,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             );
           })}
         </nav>
-
-        <div className="px-4 mt-auto">
-          <Link href="/" className="flex items-center gap-2 px-3 py-2 text-[#4A7A8E] hover:text-white transition-colors font-mono text-[10px] uppercase tracking-wider">
-            <CaretLeft size={14} /> Exit Cockpit
-          </Link>
-        </div>
       </aside>
 
       {/* ── MAIN CONTENT AREA ── */}

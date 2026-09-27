@@ -29,29 +29,60 @@ export default function EnvironmentDashboard() {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bezel-shell p-0.5">
-          <div className="bezel-core p-8 flex flex-col justify-between h-full bg-gradient-to-br from-[#040A15] to-[#0A1A2E]">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-xs text-[#3A6A7A] uppercase tracking-widest">External Temp</span>
-              <ThermometerCold size={24} className="text-[#0DB9D0]" />
-            </div>
-            <div className="mt-8">
-              <span className="text-6xl font-bold text-white tracking-tighter">{data.tempC}</span>
-              <span className="text-2xl text-[#7ABBD4] ml-2">°C</span>
-            </div>
-          </div>
-        </div>
+        <MetricCard 
+          label="External Temp" 
+          value={data.tempC} 
+          unit="°C" 
+          icon={ThermometerCold} 
+          iconColor="text-[#0DB9D0]" 
+        />
+        <MetricCard 
+          label="Wind Speed (Katabatic)" 
+          value={data.windSpeedKmh} 
+          unit="km/h" 
+          icon={Wind} 
+          iconColor="text-[#D49020]" 
+        />
+        <MetricCard 
+          label="Radiation (Gamma)" 
+          value={data.radiationGammaNgyh} 
+          unit="nGy/h" 
+          icon={Barcode} 
+          iconColor="text-[#00D4A0]" 
+        />
+        <MetricCard 
+          label="Magnetic Field" 
+          value={data.magneticFieldnT} 
+          unit="nT" 
+          icon={Barcode} 
+          iconColor="text-[#7B5EC8]" 
+        />
+      </div>
+    </div>
+  );
+}
 
-        <div className="bezel-shell p-0.5">
-          <div className="bezel-core p-8 flex flex-col justify-between h-full bg-gradient-to-br from-[#040A15] to-[#0A1A2E]">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-xs text-[#3A6A7A] uppercase tracking-widest">Wind Speed (Katabatic)</span>
-              <Wind size={24} className="text-[#D49020]" />
-            </div>
-            <div className="mt-8">
-              <span className="text-6xl font-bold text-white tracking-tighter">{data.windSpeedKmh}</span>
-              <span className="text-2xl text-[#7ABBD4] ml-2">km/h</span>
-            </div>
+function MetricCard({ label, value, unit, icon: Icon, iconColor }: any) {
+  return (
+    <div className="bezel-shell p-0.5 transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_4px_20px_rgba(13,185,208,0.1)] group">
+      <div className="bezel-core p-8 flex flex-col justify-between h-full bg-gradient-to-br from-[#040A15] to-[#0A1A2E] group-hover:bg-[#03060E] transition-colors relative overflow-hidden">
+        {/* Subtle scanline overlay */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.02] group-hover:opacity-[0.05] bg-[linear-gradient(transparent_50%,rgba(0,0,0,1)_50%)] bg-[length:100%_4px]" />
+        
+        <div className="flex items-center justify-between relative z-10">
+          <span className="font-mono text-xs text-[#3A6A7A] uppercase tracking-widest group-hover:text-[#4A7A8E] transition-colors">{label}</span>
+          <Icon size={24} className={iconColor} />
+        </div>
+        
+        <div className="mt-8 font-mono relative z-10">
+          <div className="flex items-baseline font-bold drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_20px_rgba(13,185,208,0.3)] transition-all">
+            <span className="text-6xl text-white tracking-tighter">
+              {value}
+            </span>
+            <span className="text-2xl text-[#7ABBD4] ml-2">{unit}</span>
+          </div>
+          <div className="h-1 w-16 bg-white/10 mt-4 rounded-full overflow-hidden">
+            <div className={`h-full w-2/3 ${iconColor.replace('text-', 'bg-')} shadow-[0_0_8px_currentColor]`} />
           </div>
         </div>
       </div>

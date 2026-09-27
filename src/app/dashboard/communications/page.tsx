@@ -74,28 +74,36 @@ export default function CommunicationsDashboard() {
             <div className="text-right">Buffer Size</div>
           </div>
           
-          <QueueRow priority="P0" title="Emergency / Safety Alerts" status={data.queues.P0.status} size={data.queues.P0.size} color="text-[#D93030]" bg="bg-[#D93030]/10" />
-          <QueueRow priority="P1" title="Critical Infrastructure Telemetry" status={data.queues.P1.status} size={data.queues.P1.size} color="text-[#0DB9D0]" bg="bg-[#0DB9D0]/10" />
-          <QueueRow priority="P2" title="Operational State Logs" status={data.queues.P2.status} size={data.queues.P2.size} color="text-[#D49020]" bg="bg-[#D49020]/10" />
-          <QueueRow priority="P3" title="Scientific Telemetry Stream" status={data.queues.P3.status} size={data.queues.P3.size} color="text-[#7B5EC8]" bg="bg-[#7B5EC8]/10" />
-          <QueueRow priority="P4" title="Bulk / Non-critical Video" status={data.queues.P4.status} size={data.queues.P4.size} color="text-[#3A6A7A]" bg="bg-[#3A6A7A]/10" />
+          <div className="divide-y divide-[#0D3040]/30">
+            <QueueRow priority="P0" title="Emergency / Safety Alerts" status={data.queues.P0.status} size={data.queues.P0.size} color="text-[#D93030]" bg="bg-[#D93030]/10" delay="0ms" />
+            <QueueRow priority="P1" title="Critical Infrastructure Telemetry" status={data.queues.P1.status} size={data.queues.P1.size} color="text-[#0DB9D0]" bg="bg-[#0DB9D0]/10" delay="100ms" />
+            <QueueRow priority="P2" title="Operational State Logs" status={data.queues.P2.status} size={data.queues.P2.size} color="text-[#D49020]" bg="bg-[#D49020]/10" delay="200ms" />
+            <QueueRow priority="P3" title="Scientific Telemetry Stream" status={data.queues.P3.status} size={data.queues.P3.size} color="text-[#7B5EC8]" bg="bg-[#7B5EC8]/10" delay="300ms" />
+            <QueueRow priority="P4" title="Bulk / Non-critical Video" status={data.queues.P4.status} size={data.queues.P4.size} color="text-[#3A6A7A]" bg="bg-[#3A6A7A]/10" delay="400ms" />
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function QueueRow({ priority, title, status, size, color, bg }: { priority: string, title: string, status: string, size: string, color: string, bg: string }) {
+function QueueRow({ priority, title, status, size, color, bg, delay }: { priority: string, title: string, status: string, size: string, color: string, bg: string, delay: string }) {
   return (
-    <div className="grid grid-cols-4 px-6 py-4 border-b border-[#0D3040]/30 last:border-0 hover:bg-white/[0.02] transition-colors items-center">
+    <div 
+      className="grid grid-cols-4 px-6 py-4 hover:bg-white/[0.04] transition-colors items-center animate-in slide-in-from-right-4 fade-in duration-500 fill-mode-backwards"
+      style={{ animationDelay: delay }}
+    >
       <div className="flex items-center gap-2">
-        <span className={`font-mono font-bold text-xs ${color} ${bg} px-2 py-0.5 rounded`}>{priority}</span>
+        <span className={`font-mono font-bold text-xs ${color} ${bg} px-2 py-0.5 rounded shadow-[0_0_8px_currentColor] opacity-80`}>{priority}</span>
       </div>
       <div className="text-white text-sm">{title}</div>
-      <div className="font-mono text-xs">
+      <div className="font-mono text-xs flex items-center gap-2">
+        {status === "SYNCING" && (
+          <div className="w-1.5 h-1.5 rounded-full bg-[#0DB9D0] shadow-[0_0_8px_#0DB9D0] animate-pulse" />
+        )}
         <span className={
           status === "SYNCED" ? "text-[#00D4A0]" : 
-          status === "SYNCING" ? "text-[#0DB9D0] animate-pulse" : 
+          status === "SYNCING" ? "text-[#0DB9D0]" : 
           status === "BUFFERING" ? "text-[#D49020]" : "text-[#4A7A8E]"
         }>
           {status}

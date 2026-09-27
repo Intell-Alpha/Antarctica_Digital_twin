@@ -34,27 +34,32 @@ export default function InfrastructureDashboard() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-4 relative z-10">
         {data.assets.map((asset: any) => (
-          <div key={asset.id} className="bezel-shell p-0.5">
-            <div className="bezel-core p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#4A7A8E]">
+          <div key={asset.id} className="bezel-shell p-0.5 hover:-translate-y-1 transition-transform duration-300 group">
+            <div className="bezel-core p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#03060E] group-hover:bg-gradient-to-br from-[#040A15] to-[#0D3040]/20 transition-colors relative overflow-hidden">
+              
+              {/* Subtle Blueprint Grid Pattern on Card */}
+              <div className="absolute inset-0 pointer-events-none opacity-[0.03] group-hover:opacity-10 transition-opacity" 
+                style={{ backgroundImage: 'linear-gradient(#0DB9D0 1px, transparent 1px), linear-gradient(90deg, #0DB9D0 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-[#4A7A8E] group-hover:border-[#0DB9D0]/50 group-hover:text-[#0DB9D0] group-hover:shadow-[0_0_15px_rgba(13,185,208,0.2)] transition-all">
                   <Buildings size={24} weight="duotone" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">{asset.name}</h3>
+                  <h3 className="text-lg font-semibold text-white group-hover:text-[#EBF5FC]">{asset.name}</h3>
                   <span className="font-mono text-[10px] uppercase tracking-widest text-[#3A6A7A]">Asset ID: {asset.id}</span>
                 </div>
               </div>
               
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-6 relative z-10">
                 <div className="flex flex-col items-end">
                   <span className="font-mono text-[10px] uppercase tracking-widest text-[#3A6A7A] mb-1">Status</span>
                   <div className={`px-3 py-1 rounded font-mono text-xs font-bold uppercase tracking-widest ${
-                    asset.condition === 'NORMAL' ? 'bg-[#00D4A0]/10 text-[#00D4A0] border border-[#00D4A0]/30' :
-                    asset.condition === 'WATCH' ? 'bg-[#D49020]/10 text-[#D49020] border border-[#D49020]/30' :
-                    'bg-[#D93030]/10 text-[#D93030] border border-[#D93030]/30'
+                    asset.condition === 'NORMAL' ? 'bg-[#00D4A0]/10 text-[#00D4A0] border border-[#00D4A0]/30 shadow-[0_0_10px_rgba(0,212,160,0.2)]' :
+                    asset.condition === 'WATCH' ? 'bg-[#D49020]/10 text-[#D49020] border border-[#D49020]/30 shadow-[0_0_10px_rgba(212,144,32,0.2)]' :
+                    'bg-[#D93030]/10 text-[#D93030] border border-[#D93030]/30 shadow-[0_0_15px_rgba(217,48,48,0.4)] animate-pulse'
                   }`}>
                     {asset.condition}
                   </div>
