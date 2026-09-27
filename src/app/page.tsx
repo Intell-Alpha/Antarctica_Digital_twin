@@ -104,30 +104,6 @@ function StatBlock({
 }
 
 export default function LandingPage() {
-  const [pipeTripped, setPipeTripped] = useState(false);
-  const [freezeTemp, setFreezeTemp] = useState(1.4);
-  const [timeLeft, setTimeLeft] = useState(45 * 60); // 45 minutes
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (pipeTripped) {
-      // Simulate dramatic rapid drop
-      interval = setInterval(() => {
-        setFreezeTemp((t) => Math.max(-40.0, t - 0.5));
-        setTimeLeft((time) => Math.max(0, time - 32)); // Drops roughly ~5 mins per second for drama
-      }, 100);
-    } else {
-      setFreezeTemp(1.4);
-      setTimeLeft(45 * 60);
-    }
-    return () => clearInterval(interval);
-  }, [pipeTripped]);
-
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  };
   const heroRef = useRef<HTMLDivElement>(null);
 
   const { scrollYProgress } = useScroll({
@@ -339,128 +315,72 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Interactive Freeze Simulator */}
+        {/* Source & Evidence Model */}
         <motion.div
           variants={fadeUp}
           custom={0}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
-          className={`bezel-shell p-1 transition-all duration-700 ${
-            pipeTripped ? "shadow-[0_0_50px_rgba(217,48,48,0.15)] border-[#D93030]/30" : ""
-          }`}
+          className="bezel-shell p-1"
         >
-          <div className={`bezel-core p-6 sm:p-8 transition-colors duration-700 ${
-            pipeTripped ? "bg-[#0A0202]" : ""
-          }`}>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 pb-5 border-b border-[#0D3040]/60">
+          <div className="bezel-core p-6 sm:p-10">
+            <div className="flex flex-col sm:flex-row items-start justify-between gap-6 mb-8 border-b border-[#0D3040]/60 pb-6">
               <div>
-                <span className="font-mono text-[10px] text-[#3A6A7A] uppercase tracking-widest block mb-1">
-                  Interactive Simulation · Lake Priyadarshini Conduit
+                <span className="font-mono text-[10px] text-[#3A6A7A] uppercase tracking-widest block mb-2">
+                  System Architecture · Provenance Engine
                 </span>
-                <h3 className="text-xl font-semibold text-white">
-                  The 45-Minute Freeze Window
+                <h3 className="text-2xl font-semibold text-white tracking-tight">
+                  Source-Aware Digital Representation
                 </h3>
               </div>
-              <button
-                onClick={() => setPipeTripped((v) => !v)}
-                className={`shrink-0 flex items-center gap-3 px-5 py-2.5 rounded-lg font-mono text-[11px] font-bold uppercase tracking-widest border transition-all duration-500 ${
-                  pipeTripped
-                    ? "bg-[#D93030]/10 border-[#D93030]/40 text-[#FF9090] shadow-[0_0_30px_rgba(217,48,48,0.2)] hover:bg-[#D93030]/20"
-                    : "bg-[#0DB9D0]/10 border-[#0DB9D0]/25 text-[#5DD8EC] hover:bg-[#0DB9D0]/20 hover:border-[#0DB9D0]/40"
-                }`}
-              >
-                <div className={`w-2 h-2 rounded-full transition-all duration-500 ${pipeTripped ? "bg-[#FF9090] shadow-[0_0_10px_#FF9090] animate-pulse" : "bg-[#5DD8EC]"}`} />
-                {pipeTripped ? "RESTORE HEAT CIRCUIT" : "SIMULATE CIRCUIT TRIP"}
-              </button>
+              <p className="text-[14px] text-[#7ABBD4] leading-relaxed max-w-sm font-light">
+                The platform does not treat all data as absolute truth. Every asset, telemetry stream, and prediction is tagged with a transparent provenance layer to ensure operational trust.
+              </p>
             </div>
-
-            {/* Pipeline visualization */}
-            <div className="space-y-4 mb-8">
-              <div className="flex justify-between items-end px-1">
-                <div className="flex flex-col">
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-[#3A6A7A] mb-1">Lake Source</span>
-                  <span className="font-mono text-[13px] text-[#EBF5FC]">+4.0°C</span>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Official */}
+              <div className="flex flex-col p-5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-2 h-2 rounded-full bg-[#00D4A0] shadow-[0_0_8px_#00D4A0]" />
+                  <span className="font-mono text-[11px] font-bold tracking-widest text-[#EBF5FC]">OFFICIAL</span>
                 </div>
-                
-                <div className="flex flex-col items-center">
-                  <span 
-                    className="font-mono text-[10px] uppercase tracking-widest text-[#D93030] mb-1 transition-opacity duration-300" 
-                    style={{ opacity: pipeTripped ? 1 : 0 }}
-                  >
-                    Freeze Countdown
-                  </span>
-                  <span className={`font-mono text-3xl font-bold tracking-tight transition-colors duration-300 ${
-                    pipeTripped ? "text-[#FF9090] drop-shadow-[0_0_10px_rgba(255,144,144,0.5)]" : "text-[#4A7A8E]"
-                  }`}>
-                    {pipeTripped ? formatTime(timeLeft) : "45:00"}
-                  </span>
-                </div>
-
-                <div className="flex flex-col items-end">
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-[#3A6A7A] mb-1">Station Header</span>
-                  <span className={`font-mono text-[14px] font-bold transition-colors duration-300 ${
-                    pipeTripped ? "text-[#FF9090]" : "text-[#0DB9D0]"
-                  }`}>
-                    {freezeTemp > 0 ? "+" : ""}{freezeTemp.toFixed(1)}°C
-                  </span>
-                </div>
+                <p className="text-[12px] text-[#4A7A8E] leading-relaxed">
+                  Verified NCPOR / MoES datasets, operational manuals, and Antarctic Treaty inspection reports.
+                </p>
               </div>
-              
-              <div className="relative h-6 rounded-full bg-[#030812] border border-[#0D3040]/50 overflow-hidden shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
-                <motion.div
-                  animate={{
-                    width: pipeTripped ? "15%" : "100%",
-                    backgroundColor: pipeTripped ? "#D93030" : "#0DB9D0",
-                    boxShadow: pipeTripped
-                      ? "inset 0 2px 4px rgba(255,255,255,0.2), 0 0 15px rgba(217,48,48,0.6)"
-                      : "inset 0 2px 4px rgba(255,255,255,0.3), 0 0 15px rgba(13,185,208,0.4)",
-                  }}
-                  transition={{ duration: 1.5, ease: [0.32, 0.72, 0, 1] }}
-                  className="h-full rounded-full border border-white/20"
-                />
+              {/* Simulated */}
+              <div className="flex flex-col p-5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-2 h-2 rounded-full bg-[#7B5EC8] shadow-[0_0_8px_#7B5EC8]" />
+                  <span className="font-mono text-[11px] font-bold tracking-widest text-[#EBF5FC]">SIMULATED</span>
+                </div>
+                <p className="text-[12px] text-[#4A7A8E] leading-relaxed">
+                  Synthetic data generation (e.g. 24h generated telemetry) based on verified historical ranges.
+                </p>
+              </div>
+              {/* Live Sensor */}
+              <div className="flex flex-col p-5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-2 h-2 rounded-full bg-[#0DB9D0] animate-pulse shadow-[0_0_8px_#0DB9D0]" />
+                  <span className="font-mono text-[11px] font-bold tracking-widest text-[#EBF5FC]">LIVE_SENSOR</span>
+                </div>
+                <p className="text-[12px] text-[#4A7A8E] leading-relaxed">
+                  Real-time telemetry streamed directly from the station edge gateway via satellite uplink.
+                </p>
+              </div>
+              {/* Inference */}
+              <div className="flex flex-col p-5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-2 h-2 rounded-full bg-[#D49020] shadow-[0_0_8px_#D49020]" />
+                  <span className="font-mono text-[11px] font-bold tracking-widest text-[#EBF5FC]">INFERENCE</span>
+                </div>
+                <p className="text-[12px] text-[#4A7A8E] leading-relaxed">
+                  Cross-domain predictions derived from the rules engine (e.g., fuel autonomy calculation).
+                </p>
               </div>
             </div>
-
-            <AnimatePresence mode="wait">
-              {pipeTripped ? (
-                <motion.div
-                  key="tripped"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.35 }}
-                  className="flex items-start gap-4 p-5 rounded-xl bg-[#D93030]/10 border border-[#D93030]/30 text-sm font-sans text-[#FF9090] shadow-[0_4px_24px_rgba(217,48,48,0.1)]"
-                >
-                  <Warning size={22} weight="fill" className="shrink-0 mt-0.5 text-[#D93030] animate-bounce" />
-                  <div className="leading-relaxed">
-                    <span className="font-bold text-[#D93030] tracking-wide">CRITICAL ALARM:</span>{" "}
-                    Convective heat loss at 1.84 kW/km. With ambient temperature plummeting to -40°C in a 48 kt gale, 
-                    ice nucleation will seal the intake before the 45-minute window expires. 
-                    <br/><br/>
-                    <strong className="text-white">Digital Twin Action:</strong> Recommend immediate generator failover or emergency line drain protocol.
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="nominal"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.35 }}
-                  className="flex items-start gap-4 p-5 rounded-xl bg-[#0DB9D0]/[0.06] border border-[#0DB9D0]/15 text-sm font-sans text-[#5DD8EC]"
-                >
-                  <CheckCircle size={22} weight="fill" className="shrink-0 mt-0.5 text-[#0DB9D0]" />
-                  <div className="leading-relaxed">
-                    <span className="font-bold text-[#0DB9D0] tracking-wide">SYSTEM NOMINAL:</span>{" "}
-                    Trace-heat circuit drawing 48.6 kW from Kirloskar HA694
-                    &apos;Ravi&apos;. Flow maintained at 18.2 L/min. Continuous heating prevents ice nucleation. 
-                    <br/><br/>
-                    <strong className="text-white">Convective margin:</strong> 140 minutes buffer under current conditions.
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         </motion.div>
       </section>

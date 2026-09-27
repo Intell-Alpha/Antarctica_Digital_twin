@@ -24,7 +24,7 @@ import {
 
 const SUBSYSTEM_ITEMS = [
   {
-    href: "/infrastructure",
+    href: "/dashboard/infrastructure",
     label: "Infrastructure & Life Support",
     shortLabel: "Infrastructure",
     tag: "STRUCTURAL",
@@ -32,7 +32,7 @@ const SUBSYSTEM_ITEMS = [
     icon: MapTrifold,
   },
   {
-    href: "/energy",
+    href: "/dashboard/energy",
     label: "Power Grid & Cryo-Fuel",
     shortLabel: "Energy Grid",
     tag: "POWER",
@@ -40,7 +40,7 @@ const SUBSYSTEM_ITEMS = [
     icon: BatteryCharging,
   },
   {
-    href: "/environment",
+    href: "/dashboard/environment",
     label: "Atmospheric & Polar Weather",
     shortLabel: "Environment",
     tag: "RADAR",
@@ -48,18 +48,27 @@ const SUBSYSTEM_ITEMS = [
     icon: Wind,
   },
   {
-    href: "/logistics",
+    href: "/dashboard/logistics",
     label: "Wintering Autonomy & Supply",
     shortLabel: "Logistics",
     tag: "SUPPLY",
     status: "142 Days",
     icon: Package,
   },
+  {
+    href: "/dashboard/communications",
+    label: "Network & Edge Compute",
+    shortLabel: "Communications",
+    tag: "NETWORK",
+    status: "P0 Priority",
+    icon: Radio,
+  },
 ];
 
 const NAV_LINKS = [
   { href: "/", label: "Home", icon: House },
-  { href: "/simulations", label: "Twin Sim", icon: Cpu },
+  { href: "/dashboard", label: "Overview", icon: SquaresFour },
+  { href: "/dashboard/simulations", label: "Twin Sim", icon: Cpu },
 ];
 
 export function Navigation() {
@@ -308,13 +317,6 @@ export function Navigation() {
                   <span>{label}</span>
                 </Link>
               ))}
-              <Link
-                href="/simulations"
-                className="flex items-center gap-3 p-3 rounded-xl font-mono text-xs uppercase tracking-wider text-[#2A5A6A] hover:text-[#7ABBD4] hover:bg-[#0DB9D0]/05 transition-colors"
-              >
-                <Cpu size={15} />
-                <span>Twin Simulator</span>
-              </Link>
             </div>
 
             <div className="pt-3 border-t border-[#0D3040]/60">
