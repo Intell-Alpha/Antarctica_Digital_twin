@@ -426,8 +426,21 @@ export function MaitriStationTwin({
   // Active Tour Camera Tracking State (Disabled for smooth elevated view)
   const activeTourCameraNodeRef = useRef<THREE.Object3D | null>(null);
 
-  // Flow Shader Uniforms
+  // Flow Shader Category Uniforms (Isolated per Lifeline)
   const flowTimeUniformRef = useRef<{ value: number }>({ value: 0 });
+  const flowCategoryUniformsRef = useRef<{
+    water: { value: number };
+    fuel: { value: number };
+    power: { value: number };
+    sewage: { value: number };
+    heattrace: { value: number };
+  }>({
+    water: { value: 0.0 },
+    fuel: { value: 0.0 },
+    power: { value: 0.0 },
+    sewage: { value: 0.0 },
+    heattrace: { value: 0.0 },
+  });
 
   // UI State
   const [loading, setLoading] = useState(true);
@@ -438,6 +451,7 @@ export function MaitriStationTwin({
   const [autoPlayTour, setAutoPlayTour] = useState<boolean>(true);
   const [stageProgress, setStageProgress] = useState<number>(0);
   const [isStoryCardVisible, setIsStoryCardVisible] = useState<boolean>(true);
+  const [isStoryCardCollapsed, setIsStoryCardCollapsed] = useState<boolean>(false);
   const [activeRoom, setActiveRoom] = useState<RoomEntry | null>(null);
   const [roomCategory, setRoomCategory] = useState<"All" | "Science Labs" | "Operations" | "Medical & Living">("All");
   const [roofLifted, setRoofLifted] = useState(false);
@@ -525,20 +539,22 @@ export function MaitriStationTwin({
     scene.add(sunLight);
     sunLightRef.current = sunLight;
 
-    // 7. Pipeline Flow Shader (High-Performance Single-Compile Shader)
+    // 7. Pipeline Flow Shader (High-Performance Isolated Single-Compile Shader)
     const applyPipelineFlowShader = (
       material: THREE.Material,
       colorHex: string,
       direction: THREE.Vector3,
+      category: "water" | "fuel" | "power" | "sewage" | "heattrace",
       speed: number = 4.0,
       frequency: number = 0.25,
-      pulseIntensity: number = 2.0
+      pulseIntensity: number = 2.2
     ) => {
       if ((material as any).userData?.flowCompiled) return;
       (material as any).userData.flowCompiled = true;
 
       material.onBeforeCompile = (shader) => {
         shader.uniforms.uTime = flowTimeUniformRef.current;
+        shader.uniforms.uFlowActive = flowCategoryUniformsRef.current[category];
         shader.uniforms.uFlowColor = { value: new THREE.Color(colorHex) };
         shader.uniforms.uFlowDir = { value: direction.clone().normalize() };
         shader.uniforms.uFlowSpeed = { value: speed };
@@ -558,6 +574,7 @@ export function MaitriStationTwin({
 
         shader.fragmentShader = `
           uniform float uTime;
+          uniform float uFlowActive;
           uniform vec3 uFlowColor;
           uniform vec3 uFlowDir;
           uniform float uFlowSpeed;
@@ -569,11 +586,13 @@ export function MaitriStationTwin({
           "#include <dithering_fragment>",
           `
           #include <dithering_fragment>
-          float flowDist = dot(vFlowWorldPos, uFlowDir);
-          float wave = sin(flowDist * uFlowFreq - uTime * uFlowSpeed);
-          float pulse = smoothstep(0.35, 0.95, wave);
-          vec3 fluidGlow = uFlowColor * (0.35 + pulse * uPulseIntensity);
-          gl_FragColor.rgb += fluidGlow;
+          if (uFlowActive > 0.01) {
+            float flowDist = dot(vFlowWorldPos, uFlowDir);
+            float wave = sin(flowDist * uFlowFreq - uTime * uFlowSpeed);
+            float pulse = smoothstep(0.35, 0.95, wave) * uFlowActive;
+            vec3 fluidGlow = uFlowColor * (0.08 * uFlowActive + pulse * uPulseIntensity);
+            gl_FragColor.rgb += fluidGlow;
+          }
           `
         );
       };
@@ -709,7 +728,7 @@ export function MaitriStationTwin({
               }
             }
 
-            // Pipeline Flow Shaders
+            // Pipeline Flow Shaders (Isolated per Utility Network)
             if (
               meshName === "Maitri_Pipe_Lake_Pumphouse" ||
               meshName === "Maitri_Pipe_Water_Distribution" ||
@@ -717,7 +736,7 @@ export function MaitriStationTwin({
             ) {
               const waterDir = new THREE.Vector3(106, 5, 119).normalize();
               const pipeMat = Array.isArray(mat) ? mat[0] : mat;
-              if (pipeMat) applyPipelineFlowShader(pipeMat, "#00E5FF", waterDir, 4.5, 0.25, 2.2);
+              if (pipeMat) applyPipelineFlowShader(pipeMat, "#00E5FF", waterDir, "water", 4.5, 0.25, 2.2);
             }
 
             if (
@@ -728,7 +747,7 @@ export function MaitriStationTwin({
             ) {
               const fuelDir = new THREE.Vector3(-145, 0.8, -100).normalize();
               const pipeMat = Array.isArray(mat) ? mat[0] : mat;
-              if (pipeMat) applyPipelineFlowShader(pipeMat, "#FFB703", fuelDir, 4.0, 0.25, 2.2);
+              if (pipeMat) applyPipelineFlowShader(pipeMat, "#FFB703", fuelDir, "fuel", 4.0, 0.25, 2.2);
             }
 
             if (
@@ -738,13 +757,24 @@ export function MaitriStationTwin({
             ) {
               const sewageDir = new THREE.Vector3(-93, -0.5, 143).normalize();
               const pipeMat = Array.isArray(mat) ? mat[0] : mat;
-              if (pipeMat) applyPipelineFlowShader(pipeMat, "#00D4A0", sewageDir, 4.0, 0.22, 2.0);
+              if (pipeMat) applyPipelineFlowShader(pipeMat, "#00D4A0", sewageDir, "sewage", 4.0, 0.22, 2.0);
             }
 
             if (meshName.includes("HeatTrace") && meshName.includes("Line")) {
               const traceDir = new THREE.Vector3(106, 5, 119).normalize();
               const pipeMat = Array.isArray(mat) ? mat[0] : mat;
-              if (pipeMat) applyPipelineFlowShader(pipeMat, "#FF0055", traceDir, 5.5, 0.35, 2.4);
+              if (pipeMat) applyPipelineFlowShader(pipeMat, "#FF0055", traceDir, "heattrace", 5.5, 0.35, 2.4);
+            }
+
+            if (
+              meshName.includes("Power") ||
+              meshName.includes("Cable") ||
+              meshName.includes("Ladder") ||
+              meshName.includes("Tray")
+            ) {
+              const powerDir = new THREE.Vector3(1, 0, 0).normalize();
+              const pipeMat = Array.isArray(mat) ? mat[0] : mat;
+              if (pipeMat) applyPipelineFlowShader(pipeMat, "#F97316", powerDir, "power", 5.0, 0.3, 2.4);
             }
           }
         });
@@ -871,6 +901,35 @@ export function MaitriStationTwin({
     };
   }, []);
 
+  // ── ACTIVATE ONLY THE SPECIFIC FLOW SYSTEM ──
+  const setFlowsActivation = useCallback((tourId: string | null) => {
+    const uniforms = flowCategoryUniformsRef.current;
+    if (!uniforms) return;
+
+    // Reset all flows to inactive
+    uniforms.water.value = 0.0;
+    uniforms.fuel.value = 0.0;
+    uniforms.power.value = 0.0;
+    uniforms.sewage.value = 0.0;
+    uniforms.heattrace.value = 0.0;
+
+    if (tourId === "water") {
+      uniforms.water.value = 1.0;
+    } else if (tourId === "fuel") {
+      uniforms.fuel.value = 1.0;
+    } else if (tourId === "power") {
+      uniforms.power.value = 1.0;
+    } else if (tourId === "sewage") {
+      uniforms.sewage.value = 1.0;
+    } else if (tourId === "all_pulse") {
+      uniforms.water.value = 1.0;
+      uniforms.fuel.value = 1.0;
+      uniforms.power.value = 1.0;
+      uniforms.sewage.value = 1.0;
+      uniforms.heattrace.value = 1.0;
+    }
+  }, []);
+
   // ── TRIGGER ELEVATED LIFELINE TOUR STAGE WITH SLICED BUILDING ──
   const goToStage = useCallback((tourIndex: number, stageIndex: number) => {
     const tour = UTILITY_TOURS.find((t) => t.index === tourIndex);
@@ -882,6 +941,9 @@ export function MaitriStationTwin({
     setActiveRoom(null);
     setIsStoryCardVisible(true);
     setActiveMode("flows");
+
+    // 0. ACTIVATE ONLY THIS SPECIFIC LIFELINE SHADER (Deactivates other pipes):
+    setFlowsActivation(tour.id);
 
     const stage = tour.stages[stageIndex] || tour.stages[0];
     const camera = cameraRef.current;
@@ -916,16 +978,18 @@ export function MaitriStationTwin({
       (sceneRef.current as any).environmentIntensity = 0.75;
     }
 
-    // 3. Play continuous pulse animation loop
+    // 3. Play continuous pulse animation loop FOR THIS LIFELINE ONLY:
     if (mixerRef.current) {
-      if (currentActionRef.current) currentActionRef.current.fadeOut(0.3);
+      // Stop all active mixer actions
+      Object.values(actionsRef.current).forEach((act) => act.stop());
+
+      // Only play the specific clip for this tour
       const clip =
         clipsRef.current.find((c) => c.name === tour.clipName) ||
-        clipsRef.current.find((c) => c.name === "Maitri_All_Systems_Pulse_Loop") ||
-        clipsRef.current[4];
+        (tour.id === "all_pulse" ? clipsRef.current.find((c) => c.name === "Maitri_All_Systems_Pulse_Loop") : null);
       if (clip) {
         const act = mixerRef.current.clipAction(clip);
-        act.reset().fadeIn(0.3).play();
+        act.reset().fadeIn(0.2).play();
         currentActionRef.current = act;
       }
     }
@@ -1025,6 +1089,8 @@ export function MaitriStationTwin({
       activeTourCameraNodeRef.current = null;
       setActiveTourIndex(null);
       setAutoPlayTour(false);
+      setFlowsActivation(null); // Turn off flow pulse animations inside rooms
+      setActiveMode("rooms"); // Keep room exploration mode active so user can switch rooms
 
       setActiveRoom(room);
       if (onRoomSelect) onRoomSelect(room.id);
@@ -1069,7 +1135,7 @@ export function MaitriStationTwin({
         x: sittingEyePos.x,
         y: sittingEyePos.y,
         z: sittingEyePos.z,
-        duration: 1.8,
+        duration: 1.6,
         ease: "power3.inOut",
       });
 
@@ -1077,7 +1143,7 @@ export function MaitriStationTwin({
         x: lookTargetPos.x,
         y: lookTargetPos.y,
         z: lookTargetPos.z,
-        duration: 1.8,
+        duration: 1.6,
         ease: "power3.inOut",
         onComplete: () => {
           controls.enabled = true;
@@ -1095,8 +1161,25 @@ export function MaitriStationTwin({
         onUpdate: () => camera.updateProjectionMatrix(),
       });
     },
-    [onRoomSelect]
+    [onRoomSelect, setFlowsActivation]
   );
+
+  // ── QUICK PREV / NEXT ROOM NAVIGATION ──
+  const goToPrevRoom = useCallback(() => {
+    const allRooms = Object.values(roomRegistryRef.current);
+    if (allRooms.length === 0) return;
+    const currentIdx = activeRoom ? allRooms.findIndex((r) => r.id === activeRoom.id) : 0;
+    const prevIdx = (currentIdx - 1 + allRooms.length) % allRooms.length;
+    lockInsideRoom(allRooms[prevIdx]);
+  }, [activeRoom, lockInsideRoom]);
+
+  const goToNextRoom = useCallback(() => {
+    const allRooms = Object.values(roomRegistryRef.current);
+    if (allRooms.length === 0) return;
+    const currentIdx = activeRoom ? allRooms.findIndex((r) => r.id === activeRoom.id) : 0;
+    const nextIdx = (currentIdx + 1) % allRooms.length;
+    lockInsideRoom(allRooms[nextIdx]);
+  }, [activeRoom, lockInsideRoom]);
 
   // ── RESET TO STATION EXTERIOR OVERVIEW ──
   const resetToOverview = useCallback(() => {
@@ -1107,6 +1190,12 @@ export function MaitriStationTwin({
     setActiveStageIndex(0);
     setAutoPlayTour(false);
     setActiveMode("overview");
+    setFlowsActivation(null); // Turn off all flow pulses
+
+    // Stop all running mixer clips
+    if (mixerRef.current) {
+      Object.values(actionsRef.current).forEach((act) => act.stop());
+    }
 
     const camera = cameraRef.current;
     const controls = controlsRef.current;
@@ -1172,15 +1261,7 @@ export function MaitriStationTwin({
       duration: 1.5,
       onUpdate: () => camera.updateProjectionMatrix(),
     });
-
-    // Play all-systems flow loop
-    if (mixerRef.current && clipsRef.current[4]) {
-      if (currentActionRef.current) currentActionRef.current.fadeOut(0.3);
-      const act = mixerRef.current.clipAction(clipsRef.current[4]);
-      act.reset().fadeIn(0.3).play();
-      currentActionRef.current = act;
-    }
-  }, []);
+  }, [setFlowsActivation]);
 
   // Toggle Auto-Orbit
   const toggleAutoRotate = () => {
@@ -1363,24 +1444,60 @@ export function MaitriStationTwin({
         </div>
       </div>
 
-      {/* ── ACTIVE PERSON VIEW CALLOUT (TOP CENTER) ── */}
+      {/* ── ACTIVE PERSON VIEW HUD & MULTI-ROOM SWITCHER (TOP CENTER) ── */}
       {activeRoom && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
-          <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-[#040D1A]/90 border border-[#0DB9D0]/40 backdrop-blur-2xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] animate-in fade-in slide-in-from-top-3 duration-300">
-            <Camera size={16} className="text-[#0DB9D0]" weight="duotone" />
-            <div className="flex items-center gap-2">
-              <span className="font-sans text-xs font-bold text-white tracking-wide">
+          <div className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full bg-[#040D1A]/95 border border-[#0DB9D0]/50 backdrop-blur-2xl shadow-[0_12px_40px_rgba(0,0,0,0.88)] animate-in fade-in slide-in-from-top-3 duration-300">
+            {/* Prev Room Button */}
+            <button
+              onClick={goToPrevRoom}
+              className="p-1 rounded-full text-[#7ABBD4] hover:text-white hover:bg-white/10 transition-colors"
+              title="Previous Facility"
+            >
+              <CaretLeft size={14} weight="bold" />
+            </button>
+
+            <div className="flex items-center gap-1.5 px-1 min-w-0">
+              <Camera size={14} className="text-[#0DB9D0] shrink-0" weight="duotone" />
+              <span className="font-sans text-xs font-bold text-white tracking-wide max-w-[140px] sm:max-w-xs truncate">
                 {activeRoom.name}
               </span>
-              <span className="px-1.5 py-0.5 rounded font-mono text-[9px] bg-[#00D4A0]/20 text-[#00D4A0] border border-[#00D4A0]/30 font-semibold uppercase">
-                Sitting Perspective
+              <span className="hidden md:inline-block px-1.5 py-0.5 rounded font-mono text-[9px] bg-[#00D4A0]/20 text-[#00D4A0] border border-[#00D4A0]/30 font-semibold uppercase">
+                {activeRoom.category}
               </span>
             </div>
+
+            {/* Next Room Button */}
+            <button
+              onClick={goToNextRoom}
+              className="p-1 rounded-full text-[#7ABBD4] hover:text-white hover:bg-white/10 transition-colors"
+              title="Next Facility"
+            >
+              <CaretRight size={14} weight="bold" />
+            </button>
+
+            <span className="text-white/20">|</span>
+
+            {/* Toggle Room Drawer */}
+            <button
+              onClick={() => setActiveMode(activeMode === "rooms" ? "overview" : "rooms")}
+              className={`px-2.5 py-0.5 rounded-full font-mono text-[10px] uppercase font-semibold transition-all ${
+                activeMode === "rooms"
+                  ? "bg-[#0DB9D0]/25 text-[#0DB9D0] border border-[#0DB9D0]/50"
+                  : "bg-white/10 hover:bg-white/20 text-[#EBF5FC]"
+              }`}
+              title="Toggle All Rooms List"
+            >
+              {activeMode === "rooms" ? "Hide List" : "All Rooms"}
+            </button>
+
+            {/* Exit Sitting Perspective */}
             <button
               onClick={resetToOverview}
-              className="ml-2 px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-[#EBF5FC] font-mono text-[10px] uppercase font-semibold transition-colors"
+              className="px-2.5 py-0.5 rounded-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-mono text-[10px] uppercase font-semibold transition-colors"
+              title="Return to Station Overview"
             >
-              Exit View
+              Exit
             </button>
           </div>
         </div>
@@ -1388,164 +1505,211 @@ export function MaitriStationTwin({
 
       {/* ── INTERACTIVE STORYTELLING CARD (SLICED BUILDING LIFELINE TOUR) ── */}
       {currentTour && currentStage && activeTourIndex !== null && !activeRoom && isStoryCardVisible && (
-        <div className="absolute bottom-24 sm:bottom-28 left-4 sm:left-6 z-30 pointer-events-auto w-[calc(100%-2rem)] sm:w-[480px] max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div
-            className="p-5 rounded-3xl bg-[#040D1A]/96 border backdrop-blur-3xl shadow-[0_25px_60px_rgba(0,0,0,0.92)] flex flex-col gap-3.5 relative overflow-hidden"
-            style={{ borderColor: `${currentTour.color}45` }}
-          >
-            {/* Auto-Advance Countdown Line */}
-            {autoPlayTour && (
-              <div className="absolute top-0 left-0 right-0 h-1 bg-white/10">
-                <div
-                  className="h-full transition-all duration-100 ease-linear shadow-[0_0_8px]"
-                  style={{
-                    width: `${stageProgress}%`,
-                    backgroundColor: currentTour.color,
-                    boxShadow: `0 0 10px ${currentTour.color}`,
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Header: Lifeline Badge, Stage Counter, Controls */}
-            <div className="flex items-center justify-between gap-2 pt-0.5">
-              <div className="flex items-center gap-2">
+        <div className="absolute top-24 sm:top-28 left-4 sm:left-6 z-30 pointer-events-auto w-[calc(100%-2rem)] sm:w-[440px] max-w-md animate-in fade-in slide-in-from-left-3 duration-300">
+          {isStoryCardCollapsed ? (
+            /* Minimized Capsule State */
+            <div
+              className="p-3 rounded-2xl bg-[#040D1A]/95 border backdrop-blur-2xl shadow-2xl flex items-center justify-between gap-3"
+              style={{ borderColor: `${currentTour.color}50` }}
+            >
+              <div className="flex items-center gap-2 min-w-0">
                 <span
-                  className="w-2.5 h-2.5 rounded-full animate-pulse shadow-[0_0_8px]"
+                  className="w-2.5 h-2.5 rounded-full animate-pulse shrink-0"
                   style={{ backgroundColor: currentTour.color }}
                 />
-                <span
-                  className="font-mono text-[10px] uppercase font-bold tracking-wider"
-                  style={{ color: currentTour.color }}
-                >
+                <span className="font-mono text-xs font-bold truncate text-white">
                   {currentTour.label}
                 </span>
-                <span className="text-white/20">·</span>
-                <span className="px-2 py-0.5 rounded-md font-mono text-[9px] bg-white/10 text-white font-semibold uppercase tracking-wider">
-                  Stage {activeStageIndex + 1} of {currentTour.stages.length}
+                <span className="font-mono text-[10px] text-[#7ABBD4] shrink-0">
+                  {activeStageIndex + 1}/{currentTour.stages.length}
                 </span>
               </div>
-
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
-                  onClick={() => setAutoPlayTour(!autoPlayTour)}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-mono text-[10px] uppercase tracking-wider transition-colors ${
-                    autoPlayTour
-                      ? "bg-[#00D4A0]/20 text-[#00D4A0] border border-[#00D4A0]/30 font-semibold"
-                      : "bg-white/5 text-[#7ABBD4] hover:text-white"
-                  }`}
-                  title={autoPlayTour ? "Pause Auto-Tour (8s stay)" : "Resume Auto-Tour (8s stay)"}
+                  onClick={() => {
+                    const nextIdx = (activeStageIndex + 1) % currentTour.stages.length;
+                    goToStage(activeTourIndex, nextIdx);
+                  }}
+                  className="px-2.5 py-1 rounded-lg font-mono text-[10px] uppercase font-semibold bg-white/10 hover:bg-white/20 text-white transition-colors"
                 >
-                  {autoPlayTour ? <Pause size={10} weight="fill" /> : <Play size={10} weight="fill" />}
-                  <span>{autoPlayTour ? "Auto" : "Paused"}</span>
+                  Next &rarr;
                 </button>
-
                 <button
-                  onClick={resetToOverview}
-                  className="p-1 rounded-lg text-[#4A7A8E] hover:text-white transition-colors"
-                  title="Close Story Card & Return to Overview"
+                  onClick={() => setIsStoryCardCollapsed(false)}
+                  className="px-2.5 py-1 rounded-lg font-mono text-[10px] uppercase font-semibold text-[#0DB9D0] bg-[#0DB9D0]/15 hover:bg-[#0DB9D0]/25 transition-colors"
                 >
-                  <X size={14} />
+                  Expand
                 </button>
               </div>
             </div>
+          ) : (
+            /* Full Storytelling Card */
+            <div
+              className="p-4 sm:p-5 rounded-3xl bg-[#040D1A]/96 border backdrop-blur-3xl shadow-[0_25px_60px_rgba(0,0,0,0.92)] flex flex-col gap-3 relative overflow-hidden"
+              style={{ borderColor: `${currentTour.color}45` }}
+            >
+              {/* Auto-Advance Countdown Line */}
+              {autoPlayTour && (
+                <div className="absolute top-0 left-0 right-0 h-1 bg-white/10">
+                  <div
+                    className="h-full transition-all duration-100 ease-linear shadow-[0_0_8px]"
+                    style={{
+                      width: `${stageProgress}%`,
+                      backgroundColor: currentTour.color,
+                      boxShadow: `0 0 10px ${currentTour.color}`,
+                    }}
+                  />
+                </div>
+              )}
 
-            {/* Stage Title */}
-            <div>
-              <div className="font-mono text-[10px] uppercase tracking-widest text-[#7ABBD4] font-medium mb-1">
-                {currentStage.badge}
-              </div>
-              <h3 className="font-sans text-base sm:text-lg font-bold text-white tracking-tight leading-snug">
-                {currentStage.title}
-              </h3>
-            </div>
-
-            {/* Narrative Story */}
-            <p className="font-sans text-[12px] sm:text-[13px] text-[#A6C4D6] leading-relaxed font-light">
-              {currentStage.narrative}
-            </p>
-
-            {/* Live Telemetry Parameters Grid */}
-            <div className="grid grid-cols-3 gap-2 pt-1 pb-1">
-              {currentStage.telemetry.map((t, idx) => (
-                <div
-                  key={idx}
-                  className="flex flex-col p-2 rounded-xl bg-white/[0.03] border border-white/10"
-                >
-                  <span className="font-mono text-[9px] uppercase tracking-wider text-[#4A7A8E] truncate">
-                    {t.label}
-                  </span>
+              {/* Header: Lifeline Badge, Stage Counter, Controls */}
+              <div className="flex items-center justify-between gap-2 pt-0.5">
+                <div className="flex items-center gap-2 min-w-0">
                   <span
-                    className="font-mono text-xs font-bold mt-0.5 truncate"
-                    style={{ color: t.color || "#EBF5FC" }}
+                    className="w-2.5 h-2.5 rounded-full animate-pulse shadow-[0_0_8px] shrink-0"
+                    style={{ backgroundColor: currentTour.color }}
+                  />
+                  <span
+                    className="font-mono text-[10px] uppercase font-bold tracking-wider truncate"
+                    style={{ color: currentTour.color }}
                   >
-                    {t.value}
+                    {currentTour.label}
+                  </span>
+                  <span className="text-white/20">·</span>
+                  <span className="px-2 py-0.5 rounded-md font-mono text-[9px] bg-white/10 text-white font-semibold uppercase tracking-wider shrink-0">
+                    Stage {activeStageIndex + 1} of {currentTour.stages.length}
                   </span>
                 </div>
-              ))}
-            </div>
 
-            {/* Sliced Building Indicator Banner */}
-            <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-white/[0.02] border border-white/5 font-mono text-[10px] text-[#7ABBD4]">
-              <div className="flex items-center gap-1.5">
-                <Cube size={13} weight="duotone" className="text-[#0DB9D0]" />
-                <span className="text-white/80">Station Top Sliced (+16.5m X-Ray)</span>
-              </div>
-              <span className="text-[#00D4A0] text-[9px] font-semibold uppercase">Smooth Aerial View</span>
-            </div>
-
-            {/* Navigation Bar: Prev, Stage Dots, Next */}
-            <div className="flex items-center justify-between pt-1 border-t border-white/[0.08]">
-              <button
-                disabled={activeStageIndex === 0}
-                onClick={() => goToStage(activeTourIndex, Math.max(0, activeStageIndex - 1))}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-xl font-mono text-xs font-semibold uppercase tracking-wider transition-all ${
-                  activeStageIndex === 0
-                    ? "opacity-30 cursor-not-allowed text-[#4A7A8E]"
-                    : "text-[#7ABBD4] hover:text-white bg-white/5 hover:bg-white/10"
-                }`}
-              >
-                <CaretLeft size={12} weight="bold" />
-                <span>Prev</span>
-              </button>
-
-              {/* Stage Progress Dots */}
-              <div className="flex items-center gap-1.5">
-                {currentTour.stages.map((st, sIdx) => (
+                <div className="flex items-center gap-1 shrink-0">
                   <button
-                    key={st.id}
-                    onClick={() => goToStage(activeTourIndex, sIdx)}
-                    className={`h-2 rounded-full transition-all ${
-                      sIdx === activeStageIndex
-                        ? "w-6 shadow-[0_0_8px]"
-                        : "w-2 bg-white/20 hover:bg-white/40"
+                    onClick={() => setAutoPlayTour(!autoPlayTour)}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                      autoPlayTour
+                        ? "bg-[#00D4A0]/20 text-[#00D4A0] border border-[#00D4A0]/30 font-semibold"
+                        : "bg-white/5 text-[#7ABBD4] hover:text-white"
                     }`}
-                    style={
-                      sIdx === activeStageIndex
-                        ? { backgroundColor: currentTour.color, boxShadow: `0 0 8px ${currentTour.color}` }
-                        : {}
-                    }
-                    title={`Stage ${sIdx + 1}: ${st.title}`}
-                  />
+                    title={autoPlayTour ? "Pause Auto-Tour (8s stay)" : "Resume Auto-Tour (8s stay)"}
+                  >
+                    {autoPlayTour ? <Pause size={10} weight="fill" /> : <Play size={10} weight="fill" />}
+                    <span>{autoPlayTour ? "Auto" : "Paused"}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setIsStoryCardCollapsed(true)}
+                    className="p-1 rounded-lg text-[#7ABBD4] hover:text-white hover:bg-white/10 transition-colors"
+                    title="Minimize Card"
+                  >
+                    <ArrowsIn size={13} />
+                  </button>
+
+                  <button
+                    onClick={resetToOverview}
+                    className="p-1 rounded-lg text-[#4A7A8E] hover:text-white transition-colors"
+                    title="Close Story Card & Return to Overview"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Stage Title */}
+              <div>
+                <div className="font-mono text-[10px] uppercase tracking-widest text-[#7ABBD4] font-medium mb-1">
+                  {currentStage.badge}
+                </div>
+                <h3 className="font-sans text-sm sm:text-base font-bold text-white tracking-tight leading-snug">
+                  {currentStage.title}
+                </h3>
+              </div>
+
+              {/* Narrative Story */}
+              <p className="font-sans text-[11px] sm:text-[12px] text-[#A6C4D6] leading-relaxed font-light">
+                {currentStage.narrative}
+              </p>
+
+              {/* Live Telemetry Parameters Grid */}
+              <div className="grid grid-cols-3 gap-2 pt-0.5 pb-0.5">
+                {currentStage.telemetry.map((t, idx) => (
+                  <div
+                    key={idx}
+                    className="flex flex-col p-2 rounded-xl bg-white/[0.03] border border-white/10"
+                  >
+                    <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-wider text-[#4A7A8E] truncate">
+                      {t.label}
+                    </span>
+                    <span
+                      className="font-mono text-xs font-bold mt-0.5 truncate"
+                      style={{ color: t.color || "#EBF5FC" }}
+                    >
+                      {t.value}
+                    </span>
+                  </div>
                 ))}
               </div>
 
-              <button
-                onClick={() => {
-                  const nextIdx = (activeStageIndex + 1) % currentTour.stages.length;
-                  goToStage(activeTourIndex, nextIdx);
-                }}
-                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl font-mono text-xs font-semibold uppercase tracking-wider transition-all text-white shadow-lg hover:brightness-110 active:scale-95"
-                style={{
-                  backgroundColor: `${currentTour.color}35`,
-                  border: `1px solid ${currentTour.color}70`,
-                  color: currentTour.color,
-                }}
-              >
-                <span>{activeStageIndex + 1 === currentTour.stages.length ? "Replay \u21ba" : "Next \u2192"}</span>
-              </button>
+              {/* Sliced Building Indicator Banner */}
+              <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-white/[0.02] border border-white/5 font-mono text-[10px] text-[#7ABBD4]">
+                <div className="flex items-center gap-1.5">
+                  <Cube size={13} weight="duotone" className="text-[#0DB9D0]" />
+                  <span className="text-white/80">Station Top Sliced (+16.5m X-Ray)</span>
+                </div>
+                <span className="text-[#00D4A0] text-[9px] font-semibold uppercase">Smooth Aerial View</span>
+              </div>
+
+              {/* Navigation Bar: Prev, Stage Dots, Next */}
+              <div className="flex items-center justify-between pt-1 border-t border-white/[0.08]">
+                <button
+                  disabled={activeStageIndex === 0}
+                  onClick={() => goToStage(activeTourIndex, Math.max(0, activeStageIndex - 1))}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl font-mono text-xs font-semibold uppercase tracking-wider transition-all ${
+                    activeStageIndex === 0
+                      ? "opacity-30 cursor-not-allowed text-[#4A7A8E]"
+                      : "text-[#7ABBD4] hover:text-white bg-white/5 hover:bg-white/10"
+                  }`}
+                >
+                  <CaretLeft size={12} weight="bold" />
+                  <span>Prev</span>
+                </button>
+
+                {/* Stage Progress Dots */}
+                <div className="flex items-center gap-1.5">
+                  {currentTour.stages.map((st, sIdx) => (
+                    <button
+                      key={st.id}
+                      onClick={() => goToStage(activeTourIndex, sIdx)}
+                      className={`h-2 rounded-full transition-all ${
+                        sIdx === activeStageIndex
+                          ? "w-6 shadow-[0_0_8px]"
+                          : "w-2 bg-white/20 hover:bg-white/40"
+                      }`}
+                      style={
+                        sIdx === activeStageIndex
+                          ? { backgroundColor: currentTour.color, boxShadow: `0 0 8px ${currentTour.color}` }
+                          : {}
+                      }
+                      title={`Stage ${sIdx + 1}: ${st.title}`}
+                    />
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => {
+                    const nextIdx = (activeStageIndex + 1) % currentTour.stages.length;
+                    goToStage(activeTourIndex, nextIdx);
+                  }}
+                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl font-mono text-xs font-semibold uppercase tracking-wider transition-all text-white shadow-lg hover:brightness-110 active:scale-95"
+                  style={{
+                    backgroundColor: `${currentTour.color}35`,
+                    border: `1px solid ${currentTour.color}70`,
+                    color: currentTour.color,
+                  }}
+                >
+                  <span>{activeStageIndex + 1 === currentTour.stages.length ? "Replay \u21ba" : "Next \u2192"}</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -1584,10 +1748,10 @@ export function MaitriStationTwin({
           </div>
         )}
 
-        {/* SUBMENU 2: FACILITIES SELECTOR */}
-        {activeMode === "rooms" && !activeRoom && (
+        {/* SUBMENU 2: FACILITIES SELECTOR (Always Accessible & Multi-Room Switcher) */}
+        {activeMode === "rooms" && (
           <div className="w-full max-w-xl flex flex-col gap-2.5 p-3 rounded-3xl bg-[#040D1A]/95 border border-white/15 backdrop-blur-3xl shadow-[0_25px_60px_rgba(0,0,0,0.9)] animate-in fade-in slide-in-from-bottom-3 duration-200">
-            {/* Category Filter Pills */}
+            {/* Category Filter Pills & Drawer Close */}
             <div className="flex items-center justify-between gap-1 pb-1 border-b border-white/[0.08]">
               <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
                 {(["All", "Science Labs", "Operations", "Medical & Living"] as const).map((cat) => (
@@ -1606,30 +1770,52 @@ export function MaitriStationTwin({
               </div>
 
               <button
-                onClick={() => setActiveMode("overview")}
+                onClick={() => {
+                  if (activeRoom) {
+                    setActiveMode("overview");
+                  } else {
+                    resetToOverview();
+                  }
+                }}
                 className="p-1 rounded-lg text-[#4A7A8E] hover:text-white transition-colors"
+                title="Close Facilities Drawer"
               >
                 <X size={14} />
               </button>
             </div>
 
-            {/* Room Buttons Grid */}
+            {/* Room Buttons Grid with Active Highlight */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
-              {filteredRooms.map((room) => (
-                <button
-                  key={room.id}
-                  onClick={() => lockInsideRoom(room)}
-                  className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-[#0DB9D0]/30 text-left transition-all group"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Camera size={13} className="text-[#4A7A8E] group-hover:text-[#0DB9D0] shrink-0" />
-                    <span className="font-sans text-xs text-[#EBF5FC] truncate">
-                      {room.name}
+              {filteredRooms.map((room) => {
+                const isSelected = activeRoom?.id === room.id;
+                return (
+                  <button
+                    key={room.id}
+                    onClick={() => lockInsideRoom(room)}
+                    className={`flex items-center justify-between p-2 rounded-xl text-left transition-all group ${
+                      isSelected
+                        ? "bg-[#0DB9D0]/20 border border-[#0DB9D0] shadow-[0_0_12px_rgba(13,185,208,0.3)] text-white"
+                        : "bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-[#0DB9D0]/30 text-[#EBF5FC]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          isSelected
+                            ? "bg-[#00D4A0] animate-pulse shadow-[0_0_6px_#00D4A0]"
+                            : "bg-white/20 group-hover:bg-[#0DB9D0]"
+                        }`}
+                      />
+                      <span className="font-sans text-xs truncate font-medium">
+                        {room.name}
+                      </span>
+                    </div>
+                    <span className="font-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-white/5 text-[#7ABBD4] group-hover:text-white shrink-0 ml-1">
+                      {isSelected ? "Active" : "Inspect"}
                     </span>
-                  </div>
-                  <CaretRight size={12} className="text-[#4A7A8E] group-hover:text-white shrink-0 ml-1" />
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
