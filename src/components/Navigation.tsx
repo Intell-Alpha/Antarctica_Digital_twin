@@ -2,11 +2,18 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { 
+import {
   House,
+  SquaresFour,
+  MapTrifold,
+  BatteryCharging,
+  Package,
+  Wind,
+  Cpu,
+  WifiHigh,
   Info,
   SquaresFour, 
   MapTrifold, 
@@ -19,16 +26,61 @@ import {
 } from "@phosphor-icons/react";
 import { BackendInspectorModal } from "./BackendInspectorModal";
 
+const SUBSYSTEM_ITEMS = [
+  {
+    href: "/dashboard/infrastructure",
+    label: "Infrastructure & Life Support",
+    shortLabel: "Infrastructure",
+    tag: "STRUCTURAL",
+    status: "Normal",
+    icon: MapTrifold,
+  },
+  {
+    href: "/dashboard/energy",
+    label: "Power Grid & Cryo-Fuel",
+    shortLabel: "Energy Grid",
+    tag: "POWER",
+    status: "98.4%",
+    icon: BatteryCharging,
+  },
+  {
+    href: "/dashboard/environment",
+    label: "Atmospheric & Polar Weather",
+    shortLabel: "Environment",
+    tag: "RADAR",
+    status: "Advisory",
+    icon: Wind,
+  },
+  {
+    href: "/dashboard/logistics",
+    label: "Wintering Autonomy & Supply",
+    shortLabel: "Logistics",
+    tag: "SUPPLY",
+    status: "142 Days",
+    icon: Package,
+  },
+  {
+    href: "/dashboard/communications",
+    label: "Network & Edge Compute",
+    shortLabel: "Communications",
+    tag: "NETWORK",
+    status: "P0 Priority",
+    icon: Radio,
+  },
+  {
+    href: "/dashboard/alerts",
+    label: "Active Priority Alerts",
+    shortLabel: "Active Alerts",
+    tag: "CRITICAL",
+    status: "Priority",
+    icon: WarningCircle,
+  },
+];
+
 const NAV_LINKS = [
   { href: "/", label: "Home", icon: House },
-  { href: "/about", label: "About", icon: Info },
-  { href: "/dashboard", label: "Dashboard", icon: SquaresFour },
-  { href: "/infrastructure", label: "Infrastructure", icon: MapTrifold },
-  { href: "/energy", label: "Energy", icon: BatteryCharging },
-  { href: "/logistics", label: "Logistics", icon: Factory },
-  { href: "/environment", label: "Environment", icon: Wind },
-  { href: "/network", label: "Network", icon: WifiHigh },
-  { href: "/simulations", label: "Simulations", icon: Graph },
+  { href: "/dashboard", label: "Overview", icon: SquaresFour },
+  { href: "/dashboard/simulations", label: "Twin Sim", icon: Cpu },
 ];
 
 export function Navigation() {

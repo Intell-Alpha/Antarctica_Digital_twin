@@ -49,10 +49,9 @@ export default function MissionConsole() {
 
   // Clock tick
   useEffect(() => {
-    const tick = () => setUtcTime(new Date().toUTCString().slice(17, 25) + " UTC");
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
+    // In a real app, this would be determined by a global station selector state
+    api.getStationMetadata("MAITRI").then(setStationData);
+    api.getDashboardSummary("MAITRI").then(setSummaryData);
   }, []);
 
   // Fetch live telemetry from Express Backend API
@@ -116,8 +115,24 @@ export default function MissionConsole() {
         <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay" style={{ backgroundImage: "url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E')" }} />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[length:64px_64px]" />
       </div>
+    );
+  }
 
-      <div className="relative z-10 max-w-[1600px] mx-auto flex flex-col gap-8">
+  return (
+    <div className="max-w-6xl mx-auto flex flex-col h-full space-y-8 animate-in fade-in duration-700">
+      {/* HEADER */}
+      <div className="flex items-start justify-between border-b border-[#0D3040]/60 pb-6">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-semibold text-white tracking-tight">
+              {stationData.id} STATION
+            </h1>
+            <ProvenanceBadge type="OFFICIAL" />
+          </div>
+          <p className="text-[#7ABBD4] font-mono text-[11px] uppercase tracking-widest">
+            Commissioned {stationData.commissioningYear} · Capacity: {stationData.capacity} Personnel
+          </p>
+        </div>
         
         {/* TOP COMMAND BAR */}
         <motion.header initial={{ opacity:0, y:-20 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6, ease:easeOut }} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#0a0d14]/60 backdrop-blur-2xl border border-white/[0.08] p-5 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative overflow-hidden">
@@ -245,6 +260,17 @@ export default function MissionConsole() {
               </DoubleBezel>
             </motion.div>
 
+      {/* ACTIVE ALERTS */}
+      <div className="flex-1 min-h-[200px] border border-[#D93030]/30 bg-gradient-to-b from-[#D93030]/5 to-transparent rounded-2xl p-6 flex flex-col shadow-[0_0_30px_rgba(217,48,48,0.05)] relative overflow-hidden">
+        {/* Subtle scanning laser line effect at top */}
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#D93030] to-transparent opacity-50" />
+        
+        <div className="flex items-center justify-between mb-6 relative z-10">
+          <div className="flex items-center gap-3">
+            <WarningCircle size={20} className="text-[#D93030] animate-pulse" weight="fill" />
+            <h2 className="font-mono text-sm uppercase tracking-widest text-[#D93030] font-bold">
+              Active Priority Alerts ({summaryData.activeAlerts}) · Predictive Risks ({summaryData.predictiveRisks})
+            </h2>
           </div>
 
           {/* COLUMN 2: Deep Systems (Span 8) */}
@@ -319,8 +345,7 @@ export default function MissionConsole() {
 
           </div>
         </div>
-
       </div>
-    </main>
+    </div>
   );
 }
