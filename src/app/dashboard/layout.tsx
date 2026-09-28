@@ -1,5 +1,5 @@
 "use client";
-
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
@@ -11,12 +11,16 @@ import {
   Radio, 
   Cpu, 
   WarningCircle,
-  CaretLeft
+  CaretLeft,
+  Cube
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
 
 const DASHBOARD_LINKS = [
   { href: "/dashboard", label: "Overview", icon: SquaresFour },
+  { href: "/twin", label: "3D Maitri Twin", icon: Cube },
+  { href: "/twin/bharati", label: "3D Bharati Twin", icon: Cube },
   { href: "/dashboard/infrastructure", label: "Infrastructure", icon: MapTrifold },
   { href: "/dashboard/energy", label: "Energy & Power", icon: BatteryCharging },
   { href: "/dashboard/logistics", label: "Logistics", icon: Package },
@@ -28,6 +32,25 @@ const DASHBOARD_LINKS = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
+  const [latency, setLatency] = useState<number>(0);
+
+  useEffect(() => {
+    let mounted = true;
+    const check = async () => {
+      const res = await api.checkBackendStatus();
+      if (mounted) {
+        setBackendOnline(res.online);
+        setLatency(res.latencyMs);
+      }
+    };
+    check();
+    const interval = setInterval(check, 5000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#03060E] text-[#EBF5FC] font-sans flex">
@@ -78,6 +101,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             );
           })}
         </nav>
+
+        {/* ── LIVE BACKEND STATUS WIDGET ── */}
+        <div className="mt-auto px-4 pt-4 border-t border-[#0DB9D0]/10">
+          <div className="p-2.5 rounded-xl bg-[#03060E]/90 border border-white/[0.08] flex items-center justify-between shadow-inner">
+            <div className="flex items-center gap-2.5">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${backendOnline ? 'bg-[#00D4A0] shadow-[0_0_8px_#00D4A0] animate-pulse' : 'bg-[#D49020]'}`} />
+              <div className="flex flex-col">
+                <span className="font-mono text-[9px] uppercase tracking-wider text-zinc-300 font-semibold">
+                  {backendOnline ? "EXPRESS :5000" : "LOCAL STORE"}
+                </span>
+                <span className="font-mono text-[8px] text-zinc-500">
+                  {backendOnline ? "LIVE TELEMETRY" : "STANDALONE"}
+                </span>
+              </div>
+            </div>
+            <span className={`font-mono text-[9px] px-1.5 py-0.5 rounded font-bold ${backendOnline ? 'bg-[#00D4A0]/10 text-[#00D4A0] border border-[#00D4A0]/30' : 'bg-[#D49020]/10 text-[#D49020] border border-[#D49020]/30'}`}>
+              {backendOnline ? `${latency}ms` : "OFFLINE"}
+            </span>
+          </div>
+        </div>
       </aside>
 
       {/* ── MAIN CONTENT AREA ── */}

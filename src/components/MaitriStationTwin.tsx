@@ -1,0 +1,1692 @@
+"use client";
+
+import { useEffect, useRef, useState, useCallback } from "react";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import gsap from "gsap";
+import {
+  Compass,
+  Waves,
+  GasPump,
+  Lightning,
+  Cube,
+  ArrowsClockwise,
+  Eye,
+  Camera,
+  Sun,
+  Moon,
+  ArrowsIn,
+  ArrowsOut,
+  Play,
+  Pause,
+  CaretRight,
+  CaretLeft,
+  X,
+  Gear,
+  Cpu,
+} from "@phosphor-icons/react";
+
+export interface RoomEntry {
+  id: string;
+  name: string;
+  category: "Science Labs" | "Operations" | "Medical & Living";
+  camera_name?: string;
+  position: [number, number, number];
+  target: [number, number, number];
+  fov?: number;
+  minDistance?: number;
+  maxDistance?: number;
+  description?: string;
+}
+
+export interface TourStage {
+  id: string;
+  stageNumber: number;
+  totalStages: number;
+  title: string;
+  badge: string;
+  narrative: string;
+  telemetry: { label: string; value: string; color?: string }[];
+  cameraPos: [number, number, number];
+  targetPos: [number, number, number];
+  fov?: number;
+}
+
+export interface UtilityTour {
+  id: string;
+  index: number;
+  label: string;
+  clipName: string;
+  icon: any;
+  color: string;
+  badge: string;
+  description: string;
+  stages: TourStage[];
+}
+
+const UTILITY_TOURS: UtilityTour[] = [
+  {
+    id: "water",
+    index: 0,
+    label: "Freshwater Lifeline",
+    clipName: "Water_Pulse_Flow",
+    icon: Waves,
+    color: "#00E5FF",
+    badge: "LAKE TO BOILER",
+    description: "280m insulated pipeline from Priyadarshini Lake intake pumphouse to boiler calorifier.",
+    stages: [
+      {
+        id: "water_stage_1",
+        stageNumber: 1,
+        totalStages: 4,
+        title: "Priyadarshini Lake Sub-Ice Extraction",
+        badge: "STAGE 1 · SUB-ICE INTAKE",
+        narrative: "Potable water is drawn from 6 meters beneath the permanent surface ice sheet of Lake Priyadarshini. Submerged duplex suction strainers and 30 W/m self-regulating heat trace prevent frazil ice crystals from seeding into the impeller manifold.",
+        telemetry: [
+          { label: "Intake Temp", value: "+1.6°C", color: "#00E5FF" },
+          { label: "Sub-Ice Depth", value: "6.2 m" },
+          { label: "Trace Power", value: "30 W/m OK", color: "#00D4A0" },
+        ],
+        cameraPos: [-110, 32, -165],
+        targetPos: [-80, 0, -125],
+        fov: 60,
+      },
+      {
+        id: "water_stage_2",
+        stageNumber: 2,
+        totalStages: 4,
+        title: "280m Overland Moraine Gantry",
+        badge: "STAGE 2 · PERMAFROST BRIDGE",
+        narrative: "Water travels 280 meters along an elevated steel gantry spanning uneven rocky moraine. A continuous 100mm closed-cell polyurethane thermal jacket and dual parallel heat-trace circuits maintain positive core velocity at -40°C blizzard ambient.",
+        telemetry: [
+          { label: "Flow Velocity", value: "1.65 m/s", color: "#00E5FF" },
+          { label: "Thermal Drop", value: "< 0.8°C" },
+          { label: "Freeze Risk", value: "0.0% SAFE", color: "#00D4A0" },
+        ],
+        cameraPos: [-45, 34, -90],
+        targetPos: [-25, 2, -50],
+        fov: 58,
+      },
+      {
+        id: "water_stage_3",
+        stageNumber: 3,
+        totalStages: 4,
+        title: "Sliced Boiler Hall & Hot Calorifiers",
+        badge: "STAGE 3 · SLICED MECHANICAL CORE",
+        narrative: "With the station roof sliced open (+16.5m): incoming freshwater enters the mechanical wing into dual 1,000L hot water calorifiers. Secondary plate heat exchangers draw waste heat from the active diesel gensets and the central Riello fuel burner.",
+        telemetry: [
+          { label: "Calorifier Core", value: "+64.5°C", color: "#FFB703" },
+          { label: "Thermal Reserve", value: "2,000 L" },
+          { label: "System Pressure", value: "3.8 Bar" },
+        ],
+        cameraPos: [28, 26, 20],
+        targetPos: [12, 4, -4],
+        fov: 55,
+      },
+      {
+        id: "water_stage_4",
+        stageNumber: 4,
+        totalStages: 4,
+        title: "Internal Corridor Distribution Grid",
+        badge: "STAGE 4 · SLICED HABITAT LOOP",
+        narrative: "The sliced cross-section exposes the central container corridor. Pressurized potable and domestic hot water recirculates 24/7 through under-floor utility trenches to the surgical clinic, galley mess, hygiene berths, and external science huts.",
+        telemetry: [
+          { label: "Daily Supply", value: "3,480 L/d", color: "#00E5FF" },
+          { label: "Recirculation", value: "24/7 Loop" },
+          { label: "Water Quality", value: "WHO Potable", color: "#00D4A0" },
+        ],
+        cameraPos: [-5, 38, -30],
+        targetPos: [0, 4, -36],
+        fov: 62,
+      },
+    ],
+  },
+  {
+    id: "fuel",
+    index: 1,
+    label: "Fuel Supply Network",
+    clipName: "Fuel_Pulse_Flow",
+    icon: GasPump,
+    color: "#FFB703",
+    badge: "TANK FARM TO GENSET",
+    description: "Double-walled amber fuel line from Bulk Tank Farm to Powerhouse gensets and Riello burner.",
+    stages: [
+      {
+        id: "fuel_stage_1",
+        stageNumber: 1,
+        totalStages: 4,
+        title: "Bulk Tank Farm Storage",
+        badge: "STAGE 1 · BULK CONTAINMENT",
+        narrative: "Aviation-grade Arctic Diesel (ATF-50 with a -50°C pour point) is stored in double-walled bulk tanks on the southern pad. Interstitial vacuum monitoring ensures zero hydro-carbon escape into the fragile Antarctic permafrost.",
+        telemetry: [
+          { label: "Bulk Stock", value: "114,200 L", color: "#FFB703" },
+          { label: "Fuel Grade", value: "ATF-50 (-50°C)" },
+          { label: "Containment", value: "VACUUM OK", color: "#00D4A0" },
+        ],
+        cameraPos: [190, 32, 185],
+        targetPos: [155, 1, 150],
+        fov: 58,
+      },
+      {
+        id: "fuel_stage_2",
+        stageNumber: 2,
+        totalStages: 4,
+        title: "Double-Walled Overland Transfer Line",
+        badge: "STAGE 2 · PRESSURE TRANSFER",
+        narrative: "Redundant explosion-proof transfer pumps propel fuel along an elevated gantry bridge. Continuous pressure-decay sensors detect micro-punctures within milliseconds, triggering automatic pneumatic isolation valves.",
+        telemetry: [
+          { label: "Pump Flow", value: "28 L/min", color: "#FFB703" },
+          { label: "Line Pressure", value: "2.4 Bar" },
+          { label: "Line Integrity", value: "100.0%", color: "#00D4A0" },
+        ],
+        cameraPos: [70, 28, 120],
+        targetPos: [40, 2, 90],
+        fov: 58,
+      },
+      {
+        id: "fuel_stage_3",
+        stageNumber: 3,
+        totalStages: 4,
+        title: "Powerhouse Genset Day Tanks",
+        badge: "STAGE 3 · POWERHOUSE INJECTION",
+        narrative: "Fuel enters the powerhouse into 900-liter day tanks feeding 3x 62.5 kVA Kirloskar diesel generators. Dual coalescing centrifugal separators strip microscopic condensation to prevent injector freeze-up.",
+        telemetry: [
+          { label: "Day Tank Level", value: "93.4%", color: "#00D4A0" },
+          { label: "Burn Rate", value: "18.2 L/h" },
+          { label: "Genset Status", value: "N+1 READY" },
+        ],
+        cameraPos: [-40, 26, 105],
+        targetPos: [-60, 2, 83],
+        fov: 55,
+      },
+      {
+        id: "fuel_stage_4",
+        stageNumber: 4,
+        totalStages: 4,
+        title: "Sliced Boiler Room Burner Injection",
+        badge: "STAGE 4 · SLICED HYDRONIC HEATING",
+        narrative: "Sliced cross-section into the heating wing: an amber branch line feeds the Riello dual-fuel burner, firing the primary hydronic boiler to circulate closed-loop glycol heat through perimeter radiators across the entire complex.",
+        telemetry: [
+          { label: "Thermal Output", value: "85 kW", color: "#FFB703" },
+          { label: "Burner Eff.", value: "94.2%", color: "#00D4A0" },
+          { label: "Glycol Supply", value: "+72.0°C" },
+        ],
+        cameraPos: [26, 25, 15],
+        targetPos: [11, 4, -4],
+        fov: 52,
+      },
+    ],
+  },
+  {
+    id: "power",
+    index: 3,
+    label: "Electrical Power Grid",
+    clipName: "Power_Pulse_Flow",
+    icon: Lightning,
+    color: "#F97316",
+    badge: "415V 3-PHASE GRID",
+    description: "Elevated gantry cable trays distributing power from 3x 62.5 kVA gensets to all science huts.",
+    stages: [
+      {
+        id: "power_stage_1",
+        stageNumber: 1,
+        totalStages: 3,
+        title: "Powerhouse 415V 3-Phase Generation",
+        badge: "STAGE 1 · COGENERATION ALTERNATORS",
+        narrative: "Three 62.5 kVA diesel alternators generate 415V 50Hz 3-phase electricity. An automated synchronizing switchboard handles active load balancing and bumpless transfer during generator maintenance rotations.",
+        telemetry: [
+          { label: "Grid Freq", value: "50.02 Hz", color: "#00D4A0" },
+          { label: "Active Power", value: "112 kW", color: "#F97316" },
+          { label: "Power Factor", value: "0.92" },
+        ],
+        cameraPos: [-40, 26, 105],
+        targetPos: [-60, 2, 83],
+        fov: 55,
+      },
+      {
+        id: "power_stage_2",
+        stageNumber: 2,
+        totalStages: 3,
+        title: "Elevated Cable Ladder Tray Bridge",
+        badge: "STAGE 2 · ELEVATED CABLE TRAY",
+        narrative: "Armored 4-core XLPE distribution feeders span from the powerhouse to the main complex across an elevated hot-dip galvanized ladder tray raised 1.5m above ground to eliminate snow drift encasement.",
+        telemetry: [
+          { label: "Feeder Cable", value: "4C-120mm²" },
+          { label: "Voltage Drop", value: "< 1.2%", color: "#00D4A0" },
+          { label: "Clearance", value: "1.5m Above Snow" },
+        ],
+        cameraPos: [-20, 28, 55],
+        targetPos: [-10, 2, 30],
+        fov: 56,
+      },
+      {
+        id: "power_stage_3",
+        stageNumber: 3,
+        totalStages: 3,
+        title: "Sliced Main Distribution Board (MDB)",
+        badge: "STAGE 3 · SLICED CRITICAL RISER",
+        narrative: "Looking down into the sliced electrical control room: the Main Distribution Board segments critical life support (heat-trace circuits, boiler hydronic pumps, surgical life support) onto uninterruptible battery-backed buses.",
+        telemetry: [
+          { label: "Critical Bus", value: "ENERGIZED", color: "#00D4A0" },
+          { label: "Battery UPS", value: "45 min Reserve" },
+          { label: "Isolation", value: "100 MΩ OK" },
+        ],
+        cameraPos: [26, 26, 14],
+        targetPos: [14, 4, -3.6],
+        fov: 52,
+      },
+    ],
+  },
+  {
+    id: "sewage",
+    index: 2,
+    label: "Wastewater / STP Run",
+    clipName: "Sewage_Pulse_Flow",
+    icon: Gear,
+    color: "#00D4A0",
+    badge: "MADRID PROTOCOL",
+    description: "180m insulated sewer line descending moraine slopes to Central Sewage Treatment Facility.",
+    stages: [
+      {
+        id: "sewage_stage_1",
+        stageNumber: 1,
+        totalStages: 3,
+        title: "Internal Gravity Waste Drainage",
+        badge: "STAGE 1 · SLICED GRAVITY RISERS",
+        narrative: "Interior view into the sliced living quarters: greywater from showers and galley plus blackwater drop through insulated vertical stacks inside the internal service core, jacketed by self-regulating trace heaters.",
+        telemetry: [
+          { label: "Daily Discharge", value: "3,200 L/d" },
+          { label: "Drain Slope", value: "1:40 Gravity" },
+          { label: "Stack Temp", value: "+19.2°C", color: "#00D4A0" },
+        ],
+        cameraPos: [-5, 34, -20],
+        targetPos: [0, 4, -25],
+        fov: 58,
+      },
+      {
+        id: "sewage_stage_2",
+        stageNumber: 2,
+        totalStages: 3,
+        title: "180m Moraine Slope Outfall Descent",
+        badge: "STAGE 2 · HEATED MORAINE DESCENT",
+        narrative: "The 4-inch insulated Schedule 40 HDPE sewer pipeline descends rocky moraine slopes at a uniform 4.5% gravity grade. Continuous 40 W/m heavy-duty heat tracing eliminates freeze blockage along the slope.",
+        telemetry: [
+          { label: "Slope Grade", value: "4.5% Gravity" },
+          { label: "Run Length", value: "180 m" },
+          { label: "Heat-Trace", value: "40 W/m OK", color: "#00D4A0" },
+        ],
+        cameraPos: [-10, 30, 75],
+        targetPos: [-30, 2, 85],
+        fov: 58,
+      },
+      {
+        id: "sewage_stage_3",
+        stageNumber: 3,
+        totalStages: 3,
+        title: "Central Biological STP (MBBR Facility)",
+        badge: "STAGE 3 · BIO-REACTOR TREATMENT",
+        narrative: "Moving Bed Biofilm Reactor (MBBR) biological digestion tanks break down organic material. Effluent undergoes secondary ultrafiltration and high-intensity UV disinfection before discharge in 100% compliance with Madrid Environmental Protocol.",
+        telemetry: [
+          { label: "BOD Reduction", value: "98.4%", color: "#00D4A0" },
+          { label: "UV Sterilization", value: "40 mJ/cm²" },
+          { label: "Protocol", value: "MADRID COMPLIANT", color: "#00D4A0" },
+        ],
+        cameraPos: [-65, 24, 125],
+        targetPos: [-75, 1, 140],
+        fov: 54,
+      },
+    ],
+  },
+  {
+    id: "all_pulse",
+    index: 4,
+    label: "All Lifeline Flows",
+    clipName: "Maitri_All_Systems_Pulse_Loop",
+    icon: ArrowsClockwise,
+    color: "#0DB9D0",
+    badge: "ACTIVE SIMULATION",
+    description: "Real-time fluid and electrical energy transmission running through all physical pipelines.",
+    stages: [
+      {
+        id: "all_stage_1",
+        stageNumber: 1,
+        totalStages: 2,
+        title: "All Lifeline Networks (Macro X-Ray Sliced)",
+        badge: "STAGE 1 · MACRO SYNCHRONY",
+        narrative: "High elevated overview with the station roof sliced $+16.5m$: all 5 lifelines (Freshwater, Fuel, Power, Sewage, Heat-Tracing) pulsate simultaneously in real-time coordination, simulating complete station thermodynamic and fluid dynamics.",
+        telemetry: [
+          { label: "Simulated Lines", value: "5 / 5 Active", color: "#0DB9D0" },
+          { label: "Roof Slice", value: "+16.5m Sliced" },
+          { label: "System Health", value: "NOMINAL", color: "#00D4A0" },
+        ],
+        cameraPos: [-65, 46, 65],
+        targetPos: [0, 4, -20],
+        fov: 62,
+      },
+      {
+        id: "all_stage_2",
+        stageNumber: 2,
+        totalStages: 2,
+        title: "Integrated CHP & Thermal Energy Loop",
+        badge: "STAGE 2 · HEAT RECOVERY COUPLING",
+        narrative: "Elevated close-in view of the mechanical intersection: hot engine jacket water from the generators couples with the central boiler calorifiers, pre-heating the incoming lake freshwater and supplying heat-trace circuits.",
+        telemetry: [
+          { label: "Heat Recovery", value: "48 kW Thermal", color: "#FFB703" },
+          { label: "Thermal Loop", value: "+68.0°C" },
+          { label: "Fuel Saved", value: "22% Annually", color: "#00D4A0" },
+        ],
+        cameraPos: [25, 32, 10],
+        targetPos: [8, 4, 0],
+        fov: 55,
+      },
+    ],
+  },
+];
+
+// Helper to convert Blender (X, Y, Z_height) to Three.js glTF (X, Z_height, -Y)
+function blenderToThreeCoords(coords: [number, number, number]): THREE.Vector3 {
+  return new THREE.Vector3(coords[0], coords[2], -coords[1]);
+}
+
+interface MaitriStationTwinProps {
+  className?: string;
+  initialMode?: "overview" | "flows" | "rooms";
+  selectedRoomId?: string;
+  enableFullscreenButton?: boolean;
+  onRoomSelect?: (roomId: string) => void;
+}
+
+export function MaitriStationTwin({
+  className = "w-full h-full min-h-[680px]",
+  enableFullscreenButton = true,
+  onRoomSelect,
+}: MaitriStationTwinProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const mixerRef = useRef<THREE.AnimationMixer | null>(null);
+  const actionsRef = useRef<{ [name: string]: THREE.AnimationAction }>({});
+  const clipsRef = useRef<THREE.AnimationClip[]>([]);
+  const currentActionRef = useRef<THREE.AnimationAction | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const roomRegistryRef = useRef<{ [id: string]: RoomEntry }>({});
+  const interiorLightsRef = useRef<{ [id: string]: THREE.PointLight }>({});
+  const lakeMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const mainRoofRef = useRef<THREE.Object3D | null>(null);
+  const lastFovRef = useRef<number>(65);
+
+  // Lighting References for Dynamic Transitions
+  const sunLightRef = useRef<THREE.DirectionalLight | null>(null);
+  const hemiLightRef = useRef<THREE.HemisphereLight | null>(null);
+
+  // Active Tour Camera Tracking State (Disabled for smooth elevated view)
+  const activeTourCameraNodeRef = useRef<THREE.Object3D | null>(null);
+
+  // Flow Shader Uniforms
+  const flowTimeUniformRef = useRef<{ value: number }>({ value: 0 });
+
+  // UI State
+  const [loading, setLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [activeMode, setActiveMode] = useState<"overview" | "flows" | "rooms">("overview");
+  const [activeTourIndex, setActiveTourIndex] = useState<number | null>(null);
+  const [activeStageIndex, setActiveStageIndex] = useState<number>(0);
+  const [autoPlayTour, setAutoPlayTour] = useState<boolean>(true);
+  const [stageProgress, setStageProgress] = useState<number>(0);
+  const [isStoryCardVisible, setIsStoryCardVisible] = useState<boolean>(true);
+  const [activeRoom, setActiveRoom] = useState<RoomEntry | null>(null);
+  const [roomCategory, setRoomCategory] = useState<"All" | "Science Labs" | "Operations" | "Medical & Living">("All");
+  const [roofLifted, setRoofLifted] = useState(false);
+  const [isRotating, setIsRotating] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [lightingMode, setLightingMode] = useState<"SUN" | "AURORA" | "NIGHT">("SUN");
+
+  // Main Three.js Scene Setup
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const container = containerRef.current;
+    const width = container.clientWidth || window.innerWidth;
+    const height = container.clientHeight || 700;
+
+    // 1. Scene with Natural Polar Atmosphere
+    const scene = new THREE.Scene();
+    const polarSkyColor = new THREE.Color("#7db4db");
+    scene.background = polarSkyColor;
+    scene.fog = new THREE.FogExp2(0x7db4db, 0.0012);
+    sceneRef.current = scene;
+
+    // 2. Camera with 0.05m near plane
+    const camera = new THREE.PerspectiveCamera(65, width / height, 0.05, 2500);
+    camera.position.set(-90, 60, 120);
+    cameraRef.current = camera;
+
+    // 3. Renderer with ACESFilmic Tone Mapping and High-Performance Configuration
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: "high-performance",
+    });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.innerHTML = "";
+    container.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    // 4. Natural Polar Environment Map (PMREM) for PBR Reflections
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    pmremGenerator.compileCubemapShader();
+
+    const envScene = new THREE.Scene();
+    const envHemi = new THREE.HemisphereLight(0xd0e6fa, 0x90a8bd, 0.5);
+    envScene.add(envHemi);
+    const envSun = new THREE.DirectionalLight(0xfffaee, 0.7);
+    envSun.position.set(1, 0.8, 1);
+    envScene.add(envSun);
+    const envRT = pmremGenerator.fromScene(envScene);
+    scene.environment = envRT.texture;
+
+    // 5. OrbitControls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.target.set(0, 3, 0);
+    controls.minDistance = 2.0;
+    controls.maxDistance = 500.0;
+    controls.minPolarAngle = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 - 0.01;
+    controlsRef.current = controls;
+
+    // 6. Natural Polar Outdoor Lighting
+    const hemiLight = new THREE.HemisphereLight(0xdcf0ff, 0x8ea6ba, 0.7);
+    hemiLight.position.set(0, 50, 0);
+    scene.add(hemiLight);
+    hemiLightRef.current = hemiLight;
+
+    const sunLight = new THREE.DirectionalLight(0xfff7ee, 1.35);
+    sunLight.position.set(130, 75, 95);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 1024;
+    sunLight.shadow.mapSize.height = 1024;
+    sunLight.shadow.camera.near = 10;
+    sunLight.shadow.camera.far = 450;
+    sunLight.shadow.camera.left = -160;
+    sunLight.shadow.camera.right = 160;
+    sunLight.shadow.camera.top = 160;
+    sunLight.shadow.camera.bottom = -160;
+    sunLight.shadow.bias = -0.0003;
+    sunLight.shadow.normalBias = 0.04;
+    scene.add(sunLight);
+    sunLightRef.current = sunLight;
+
+    // 7. Pipeline Flow Shader (High-Performance Single-Compile Shader)
+    const applyPipelineFlowShader = (
+      material: THREE.Material,
+      colorHex: string,
+      direction: THREE.Vector3,
+      speed: number = 4.0,
+      frequency: number = 0.25,
+      pulseIntensity: number = 2.0
+    ) => {
+      if ((material as any).userData?.flowCompiled) return;
+      (material as any).userData.flowCompiled = true;
+
+      material.onBeforeCompile = (shader) => {
+        shader.uniforms.uTime = flowTimeUniformRef.current;
+        shader.uniforms.uFlowColor = { value: new THREE.Color(colorHex) };
+        shader.uniforms.uFlowDir = { value: direction.clone().normalize() };
+        shader.uniforms.uFlowSpeed = { value: speed };
+        shader.uniforms.uFlowFreq = { value: frequency };
+        shader.uniforms.uPulseIntensity = { value: pulseIntensity };
+
+        shader.vertexShader = `
+          varying vec3 vFlowWorldPos;
+          ${shader.vertexShader}
+        `.replace(
+          "#include <worldpos_vertex>",
+          `
+          #include <worldpos_vertex>
+          vFlowWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+          `
+        );
+
+        shader.fragmentShader = `
+          uniform float uTime;
+          uniform vec3 uFlowColor;
+          uniform vec3 uFlowDir;
+          uniform float uFlowSpeed;
+          uniform float uFlowFreq;
+          uniform float uPulseIntensity;
+          varying vec3 vFlowWorldPos;
+          ${shader.fragmentShader}
+        `.replace(
+          "#include <dithering_fragment>",
+          `
+          #include <dithering_fragment>
+          float flowDist = dot(vFlowWorldPos, uFlowDir);
+          float wave = sin(flowDist * uFlowFreq - uTime * uFlowSpeed);
+          float pulse = smoothstep(0.35, 0.95, wave);
+          vec3 fluidGlow = uFlowColor * (0.35 + pulse * uPulseIntensity);
+          gl_FragColor.rgb += fluidGlow;
+          `
+        );
+      };
+    };
+
+    // 8. Load GLTF Digital Twin Model
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath("/draco/");
+
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.setDRACOLoader(dracoLoader);
+
+    const glbUrl = "/assets/maitri_digital_twin_compressed.glb";
+
+    gltfLoader.load(
+      glbUrl,
+      (gltf) => {
+        const root = gltf.scene;
+        scene.add(root);
+
+        mainRoofRef.current = root.getObjectByName("Maitri_Building_Main_Roof") || null;
+
+        // Hide standalone floating spheres
+        const standaloneSpheres = [
+          "Maitri_Water_Flow_Pulse",
+          "Maitri_Fuel_Flow_Pulse",
+          "Maitri_Sewage_Flow_Pulse",
+          "Maitri_Power_Flow_Pulse",
+          "Maitri_HeatTrace_Flow_Pulse",
+        ];
+        standaloneSpheres.forEach((sphereName) => {
+          const sphereNode = root.getObjectByName(sphereName);
+          if (sphereNode) sphereNode.visible = false;
+        });
+
+        // Traverse scene and calibrate materials & lights
+        root.traverse((node: any) => {
+          // Disable rogue Blender default light
+          if (node.isLight) {
+            if (node.name === "Light" || node.intensity > 10000) {
+              node.visible = false;
+              node.intensity = 0.0;
+            }
+          }
+
+          if (node.isMesh) {
+            const meshName = node.name || "";
+            const mat = node.material;
+
+            // Selective Shadow Optimization
+            if (meshName.includes("Terrain")) {
+              node.castShadow = false;
+              node.receiveShadow = true;
+            } else if (
+              meshName.includes("Building") ||
+              meshName.includes("Tank") ||
+              meshName.includes("Hut") ||
+              meshName.includes("Powerhouse") ||
+              meshName.includes("STP") ||
+              meshName.includes("Boiler")
+            ) {
+              node.castShadow = true;
+              node.receiveShadow = true;
+            } else {
+              node.castShadow = false;
+              node.receiveShadow = true;
+            }
+
+            if (mat) {
+              const mats = Array.isArray(mat) ? mat : [mat];
+              mats.forEach((m: any) => {
+                const matName = m.name || "";
+
+                if (
+                  matName.includes("Screen") ||
+                  matName.includes("Display") ||
+                  matName.includes("TexRack") ||
+                  matName.includes("TexAllSky") ||
+                  matName.includes("Data_Logger") ||
+                  matName.includes("Waveforms") ||
+                  matName.includes("Radar") ||
+                  matName.includes("ECGMonitor")
+                ) {
+                  m.emissiveIntensity = 0.35;
+                  m.roughness = 0.35;
+                  m.needsUpdate = true;
+                }
+
+                if (
+                  matName.includes("Corridor_Wall") ||
+                  matName.includes("Roof_White") ||
+                  matName.includes("Wall_Trim") ||
+                  matName.includes("Ceiling") ||
+                  matName.includes("Cabin_Wall") ||
+                  matName.includes("Hospital_ClinicalWall") ||
+                  matName.includes("Kitchen_TiledWall")
+                ) {
+                  m.roughness = 0.8;
+                  m.metalness = 0.02;
+                  m.needsUpdate = true;
+                }
+              });
+            }
+
+            // Pristine Antarctic Snow Terrain
+            if (meshName.includes("Terrain") || meshName.includes("Snow") || (mat && mat.name && mat.name.includes("Snow"))) {
+              if (mat && !Array.isArray(mat)) {
+                mat.color = new THREE.Color("#ffffff");
+                mat.roughness = 0.9;
+                mat.metalness = 0.0;
+                mat.needsUpdate = true;
+              }
+            }
+
+            // Lake Priyadarshini Glacial Turquoise Water
+            if (meshName.includes("Lake") || meshName.includes("Priyadarshini")) {
+              node.castShadow = false;
+              node.receiveShadow = false;
+              if (mat && !Array.isArray(mat)) {
+                mat.color = new THREE.Color("#086888");
+                mat.roughness = 0.05;
+                mat.metalness = 0.15;
+                if ((mat as any).clearcoat !== undefined) {
+                  (mat as any).clearcoat = 1.0;
+                  (mat as any).clearcoatRoughness = 0.04;
+                }
+                if (mat.normalMap) {
+                  mat.normalMap.wrapS = THREE.RepeatWrapping;
+                  mat.normalMap.wrapT = THREE.RepeatWrapping;
+                  mat.normalMap.repeat.set(4, 4);
+                }
+                lakeMaterialRef.current = mat;
+              }
+            }
+
+            // Pipeline Flow Shaders
+            if (
+              meshName === "Maitri_Pipe_Lake_Pumphouse" ||
+              meshName === "Maitri_Pipe_Water_Distribution" ||
+              meshName === "Maitri_Water_Cold_Header"
+            ) {
+              const waterDir = new THREE.Vector3(106, 5, 119).normalize();
+              const pipeMat = Array.isArray(mat) ? mat[0] : mat;
+              if (pipeMat) applyPipelineFlowShader(pipeMat, "#00E5FF", waterDir, 4.5, 0.25, 2.2);
+            }
+
+            if (
+              meshName === "Maitri_Pipe_Fuel_Network" ||
+              meshName === "Maitri_Fuel_Supply_Header" ||
+              meshName === "Maitri_Boiler_Fuel_Branch" ||
+              (meshName.includes("Generator") && meshName.includes("Fuel"))
+            ) {
+              const fuelDir = new THREE.Vector3(-145, 0.8, -100).normalize();
+              const pipeMat = Array.isArray(mat) ? mat[0] : mat;
+              if (pipeMat) applyPipelineFlowShader(pipeMat, "#FFB703", fuelDir, 4.0, 0.25, 2.2);
+            }
+
+            if (
+              meshName === "Maitri_Pipe_Sewage" ||
+              meshName === "Maitri_Greywater_Main" ||
+              meshName.includes("Greywater_Branch")
+            ) {
+              const sewageDir = new THREE.Vector3(-93, -0.5, 143).normalize();
+              const pipeMat = Array.isArray(mat) ? mat[0] : mat;
+              if (pipeMat) applyPipelineFlowShader(pipeMat, "#00D4A0", sewageDir, 4.0, 0.22, 2.0);
+            }
+
+            if (meshName.includes("HeatTrace") && meshName.includes("Line")) {
+              const traceDir = new THREE.Vector3(106, 5, 119).normalize();
+              const pipeMat = Array.isArray(mat) ? mat[0] : mat;
+              if (pipeMat) applyPipelineFlowShader(pipeMat, "#FF0055", traceDir, 5.5, 0.35, 2.4);
+            }
+          }
+        });
+
+        // Setup Animation Mixer
+        clipsRef.current = gltf.animations || [];
+        if (clipsRef.current.length > 0) {
+          const mixer = new THREE.AnimationMixer(root);
+          mixerRef.current = mixer;
+
+          clipsRef.current.forEach((clip) => {
+            actionsRef.current[clip.name] = mixer.clipAction(clip);
+          });
+
+          // Default all systems pulse simulation
+          const defaultClip = clipsRef.current[4] || clipsRef.current[0];
+          if (defaultClip) {
+            const act = mixer.clipAction(defaultClip);
+            act.play();
+            currentActionRef.current = act;
+          }
+        }
+
+        // Read embedded Room Registry directly from GLB extras
+        const registry = (gltf.parser.json?.extras?.room_registry || {}) as { [id: string]: RoomEntry };
+        roomRegistryRef.current = registry;
+
+        // Configure interior lighting for all 16 rooms
+        const interiorLightsMap: { [id: string]: THREE.PointLight } = {};
+        Object.values(registry).forEach((room) => {
+          const lightSuffix = (room.camera_name || room.id).replace("Cam_Person_", "");
+          const lightName = "Light_Interior_" + lightSuffix;
+          const lightObj = root.getObjectByName(lightName);
+
+          let pointLight: THREE.PointLight | null = null;
+          if (lightObj) {
+            pointLight = (lightObj as any).isLight ? (lightObj as any) : lightObj.children?.find((c: any) => c.isLight);
+          }
+
+          if (pointLight) {
+            pointLight.visible = false;
+            pointLight.intensity = 0.0;
+            pointLight.color.set(0xffeedd);
+            pointLight.distance = 10.0;
+            pointLight.decay = 2.0;
+            interiorLightsMap[room.id] = pointLight;
+          } else {
+            const pos = blenderToThreeCoords(room.position);
+            const fallbackLight = new THREE.PointLight(0xffeedd, 0.0, 10.0, 2.0);
+            fallbackLight.position.set(pos.x, pos.y + 0.8, pos.z);
+            scene.add(fallbackLight);
+            interiorLightsMap[room.id] = fallbackLight;
+          }
+        });
+        interiorLightsRef.current = interiorLightsMap;
+
+        setLoading(false);
+      },
+      (xhr) => {
+        if (xhr.total > 0) {
+          const pct = Math.round((xhr.loaded / xhr.total) * 100);
+          setLoadProgress(pct);
+        }
+      },
+      (error) => {
+        console.warn("[Maitri 3D Twin] Error loading compressed GLB, trying uncompressed:", error);
+        gltfLoader.load("/assets/maitri_digital_twin.glb", (gltf) => {
+          scene.add(gltf.scene);
+          setLoading(false);
+        });
+      }
+    );
+
+    // 9. High-Performance Render Animation Loop
+    const clock = new THREE.Clock();
+
+    const animate = () => {
+      animFrameRef.current = requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const elapsed = clock.getElapsedTime();
+
+      // Update flow time uniform
+      flowTimeUniformRef.current.value = elapsed;
+
+      // Animate Lake water surface normal scrolling
+      if (lakeMaterialRef.current && lakeMaterialRef.current.normalMap) {
+        lakeMaterialRef.current.normalMap.offset.x = (elapsed * 0.015) % 1.0;
+        lakeMaterialRef.current.normalMap.offset.y = (elapsed * 0.008) % 1.0;
+      }
+
+      // Update Animation Mixer
+      if (mixerRef.current) {
+        mixerRef.current.update(delta);
+      }
+
+      // Update OrbitControls smoothly
+      if (controlsRef.current) {
+        controlsRef.current.update();
+      }
+
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    // 10. Resize Handler
+    const handleResize = () => {
+      if (!container || !rendererRef.current || !cameraRef.current) return;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      cameraRef.current.aspect = w / h;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(w, h);
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      dracoLoader.dispose();
+      renderer.dispose();
+      pmremGenerator.dispose();
+      if (controlsRef.current) controlsRef.current.dispose();
+    };
+  }, []);
+
+  // ── TRIGGER ELEVATED LIFELINE TOUR STAGE WITH SLICED BUILDING ──
+  const goToStage = useCallback((tourIndex: number, stageIndex: number) => {
+    const tour = UTILITY_TOURS.find((t) => t.index === tourIndex);
+    if (!tour || !cameraRef.current || !controlsRef.current || !sceneRef.current) return;
+
+    setActiveTourIndex(tourIndex);
+    setActiveStageIndex(stageIndex);
+    setStageProgress(0);
+    setActiveRoom(null);
+    setIsStoryCardVisible(true);
+    setActiveMode("flows");
+
+    const stage = tour.stages[stageIndex] || tour.stages[0];
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+
+    // 1. SLICE THE TOP OF THE BUILDING:
+    // Elevate the main roof by +16.5m so all internal piping and machinery are exposed from above
+    if (mainRoofRef.current) {
+      gsap.to(mainRoofRef.current.position, {
+        y: 16.5,
+        duration: 1.4,
+        ease: "power2.out",
+      });
+      setRoofLifted(true);
+    }
+
+    // 2. Extinguish interior spotlights to avoid spot artifacts, keep outdoor sunlight balanced
+    Object.values(interiorLightsRef.current).forEach((l) => {
+      l.visible = false;
+      l.intensity = 0.0;
+    });
+    if (sunLightRef.current) {
+      sunLightRef.current.intensity = 1.35;
+      sunLightRef.current.color.set(0xfff7ee);
+    }
+    if (hemiLightRef.current) {
+      hemiLightRef.current.intensity = 0.75;
+      hemiLightRef.current.color.set(0xdcf0ff);
+      hemiLightRef.current.groundColor.set(0x8ea6ba);
+    }
+    if (sceneRef.current) {
+      (sceneRef.current as any).environmentIntensity = 0.75;
+    }
+
+    // 3. Play continuous pulse animation loop
+    if (mixerRef.current) {
+      if (currentActionRef.current) currentActionRef.current.fadeOut(0.3);
+      const clip =
+        clipsRef.current.find((c) => c.name === tour.clipName) ||
+        clipsRef.current.find((c) => c.name === "Maitri_All_Systems_Pulse_Loop") ||
+        clipsRef.current[4];
+      if (clip) {
+        const act = mixerRef.current.clipAction(clip);
+        act.reset().fadeIn(0.3).play();
+        currentActionRef.current = act;
+      }
+    }
+
+    // 4. Smooth elevated camera animation:
+    activeTourCameraNodeRef.current = null;
+    controls.enabled = false;
+    gsap.killTweensOf(camera.position);
+    gsap.killTweensOf(controls.target);
+
+    gsap.to(camera.position, {
+      x: stage.cameraPos[0],
+      y: stage.cameraPos[1],
+      z: stage.cameraPos[2],
+      duration: 2.2,
+      ease: "power2.inOut",
+    });
+
+    gsap.to(controls.target, {
+      x: stage.targetPos[0],
+      y: stage.targetPos[1],
+      z: stage.targetPos[2],
+      duration: 2.2,
+      ease: "power2.inOut",
+      onComplete: () => {
+        controls.enabled = true;
+        controls.minDistance = 3.0;
+        controls.maxDistance = 500.0;
+        controls.minPolarAngle = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 - 0.01;
+      },
+    });
+
+    if (stage.fov) {
+      gsap.to(camera, {
+        fov: stage.fov,
+        duration: 1.5,
+        onUpdate: () => camera.updateProjectionMatrix(),
+      });
+    }
+  }, []);
+
+  // ── TRIGGER LIFELINE TOUR (STARTS AT STAGE 0) ──
+  const playTour = useCallback(
+    (tourIndex: number) => {
+      goToStage(tourIndex, 0);
+    },
+    [goToStage]
+  );
+
+  // ── AUTO-ADVANCE LIFELINE STORY TIMER (8 SECONDS PER STAGE) ──
+  useEffect(() => {
+    if (activeTourIndex === null || activeMode !== "flows" || !autoPlayTour || activeRoom) {
+      setStageProgress(0);
+      return;
+    }
+
+    const currentTour = UTILITY_TOURS.find((t) => t.index === activeTourIndex);
+    if (!currentTour || currentTour.stages.length <= 1) return;
+
+    const intervalMs = 100;
+    const totalDurationMs = 8000;
+    const stepIncrement = (intervalMs / totalDurationMs) * 100;
+
+    const timer = setInterval(() => {
+      setStageProgress((prev) => {
+        if (prev >= 100) {
+          const nextIdx = (activeStageIndex + 1) % currentTour.stages.length;
+          goToStage(activeTourIndex, nextIdx);
+          return 0;
+        }
+        return prev + stepIncrement;
+      });
+    }, intervalMs);
+
+    return () => clearInterval(timer);
+  }, [activeTourIndex, activeStageIndex, autoPlayTour, activeMode, activeRoom, goToStage]);
+
+  // Toggle Roof X-Ray Lift
+  const toggleRoofLift = useCallback(() => {
+    if (mainRoofRef.current) {
+      const nextLift = !roofLifted;
+      gsap.to(mainRoofRef.current.position, {
+        y: nextLift ? 16.5 : 0.0,
+        duration: 1.4,
+        ease: "power2.inOut",
+      });
+      setRoofLifted(nextLift);
+    }
+  }, [roofLifted]);
+
+  // ── LOCK INSIDE ROOM (PERSON SITTING VIEW) ──
+  const lockInsideRoom = useCallback(
+    (room: RoomEntry) => {
+      if (!cameraRef.current || !controlsRef.current || !sceneRef.current) return;
+
+      activeTourCameraNodeRef.current = null;
+      setActiveTourIndex(null);
+      setAutoPlayTour(false);
+
+      setActiveRoom(room);
+      if (onRoomSelect) onRoomSelect(room.id);
+
+      const camera = cameraRef.current;
+      const controls = controlsRef.current;
+
+      const sittingEyePos = blenderToThreeCoords(room.position);
+      const lookTargetPos = blenderToThreeCoords(room.target);
+
+      // Smoothly transition lighting to cozy indoor room atmosphere:
+      if (sunLightRef.current) sunLightRef.current.intensity = 0.25;
+      if (hemiLightRef.current) {
+        hemiLightRef.current.intensity = 0.45;
+        hemiLightRef.current.color.set(0xffeedd);
+      }
+      if (sceneRef.current) {
+        (sceneRef.current as any).environmentIntensity = 0.3;
+      }
+
+      // Extinguish all other room lights
+      Object.values(interiorLightsRef.current).forEach((l) => {
+        l.visible = false;
+        l.intensity = 0.0;
+      });
+
+      // Activate ONLY the selected room's warm fixture
+      const roomLight = interiorLightsRef.current[room.id];
+      if (roomLight) {
+        roomLight.visible = true;
+        roomLight.intensity = 35.0;
+        roomLight.color.set(0xffeedd);
+        roomLight.distance = 15.0;
+        roomLight.decay = 2.0;
+      }
+
+      controls.enabled = false;
+      gsap.killTweensOf(camera.position);
+      gsap.killTweensOf(controls.target);
+
+      gsap.to(camera.position, {
+        x: sittingEyePos.x,
+        y: sittingEyePos.y,
+        z: sittingEyePos.z,
+        duration: 1.8,
+        ease: "power3.inOut",
+      });
+
+      gsap.to(controls.target, {
+        x: lookTargetPos.x,
+        y: lookTargetPos.y,
+        z: lookTargetPos.z,
+        duration: 1.8,
+        ease: "power3.inOut",
+        onComplete: () => {
+          controls.enabled = true;
+          controls.minDistance = room.minDistance || 0.05;
+          controls.maxDistance = room.maxDistance || 1.8;
+          controls.minPolarAngle = 0.15;
+          controls.maxPolarAngle = Math.PI - 0.15;
+          controls.enablePan = false;
+        },
+      });
+
+      gsap.to(camera, {
+        fov: room.fov || 72,
+        duration: 1.4,
+        onUpdate: () => camera.updateProjectionMatrix(),
+      });
+    },
+    [onRoomSelect]
+  );
+
+  // ── RESET TO STATION EXTERIOR OVERVIEW ──
+  const resetToOverview = useCallback(() => {
+    if (!cameraRef.current || !controlsRef.current) return;
+    activeTourCameraNodeRef.current = null;
+    setActiveRoom(null);
+    setActiveTourIndex(null);
+    setActiveStageIndex(0);
+    setAutoPlayTour(false);
+    setActiveMode("overview");
+
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+
+    // Smoothly restore roof back down
+    if (mainRoofRef.current) {
+      gsap.to(mainRoofRef.current.position, {
+        y: 0,
+        duration: 1.4,
+        ease: "power2.inOut",
+      });
+      setRoofLifted(false);
+    }
+
+    // Restore natural outdoor polar sunlight
+    if (sunLightRef.current) {
+      sunLightRef.current.intensity = 1.35;
+      sunLightRef.current.color.set(0xfff7ee);
+    }
+    if (hemiLightRef.current) {
+      hemiLightRef.current.intensity = 0.7;
+      hemiLightRef.current.color.set(0xdcf0ff);
+      hemiLightRef.current.groundColor.set(0x8ea6ba);
+    }
+    if (sceneRef.current) {
+      (sceneRef.current as any).environmentIntensity = 0.7;
+    }
+    Object.values(interiorLightsRef.current).forEach((l) => {
+      l.visible = false;
+      l.intensity = 0.0;
+    });
+
+    controls.enabled = false;
+    gsap.killTweensOf(camera.position);
+    gsap.killTweensOf(controls.target);
+
+    gsap.to(camera.position, {
+      x: -90,
+      y: 60,
+      z: 120,
+      duration: 2.0,
+      ease: "power3.inOut",
+    });
+
+    gsap.to(controls.target, {
+      x: 0,
+      y: 3,
+      z: 0,
+      duration: 2.0,
+      ease: "power3.inOut",
+      onComplete: () => {
+        controls.enabled = true;
+        controls.minDistance = 3.0;
+        controls.maxDistance = 500.0;
+        controls.minPolarAngle = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 - 0.01;
+        controls.enablePan = true;
+      },
+    });
+
+    gsap.to(camera, {
+      fov: 65,
+      duration: 1.5,
+      onUpdate: () => camera.updateProjectionMatrix(),
+    });
+
+    // Play all-systems flow loop
+    if (mixerRef.current && clipsRef.current[4]) {
+      if (currentActionRef.current) currentActionRef.current.fadeOut(0.3);
+      const act = mixerRef.current.clipAction(clipsRef.current[4]);
+      act.reset().fadeIn(0.3).play();
+      currentActionRef.current = act;
+    }
+  }, []);
+
+  // Toggle Auto-Orbit
+  const toggleAutoRotate = () => {
+    if (!controlsRef.current) return;
+    controlsRef.current.autoRotate = !isRotating;
+    controlsRef.current.autoRotateSpeed = 0.8;
+    setIsRotating(!isRotating);
+  };
+
+  // Toggle Fullscreen Mode
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch((err) => console.warn(err));
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen().catch((err) => console.warn(err));
+      setIsFullscreen(false);
+    }
+  };
+
+  // Toggle Lighting Mode
+  const cycleLighting = () => {
+    if (!sceneRef.current) return;
+    const scene = sceneRef.current;
+
+    if (lightingMode === "SUN") {
+      scene.background = new THREE.Color("#020814");
+      scene.fog = new THREE.FogExp2(0x020814, 0.002);
+      if (hemiLightRef.current) {
+        hemiLightRef.current.color.set(0x00d4a0);
+        hemiLightRef.current.groundColor.set(0x020814);
+        hemiLightRef.current.intensity = 0.4;
+      }
+      if (sunLightRef.current) {
+        sunLightRef.current.color.set(0x0db9d0);
+        sunLightRef.current.intensity = 0.45;
+      }
+      setLightingMode("AURORA");
+    } else if (lightingMode === "AURORA") {
+      scene.background = new THREE.Color("#010308");
+      scene.fog = new THREE.FogExp2(0x010308, 0.0025);
+      if (hemiLightRef.current) {
+        hemiLightRef.current.color.set(0x182436);
+        hemiLightRef.current.groundColor.set(0x010308);
+        hemiLightRef.current.intensity = 0.2;
+      }
+      if (sunLightRef.current) {
+        sunLightRef.current.color.set(0x224466);
+        sunLightRef.current.intensity = 0.2;
+      }
+      setLightingMode("NIGHT");
+    } else {
+      scene.background = new THREE.Color("#7db4db");
+      scene.fog = new THREE.FogExp2(0x7db4db, 0.0012);
+      if (hemiLightRef.current) {
+        hemiLightRef.current.color.set(0xdcf0ff);
+        hemiLightRef.current.groundColor.set(0x8ea6ba);
+        hemiLightRef.current.intensity = 0.7;
+      }
+      if (sunLightRef.current) {
+        sunLightRef.current.color.set(0xfff7ee);
+        sunLightRef.current.intensity = 1.35;
+      }
+      setLightingMode("SUN");
+    }
+  };
+
+  // Filtered room list
+  const rooms = Object.values(roomRegistryRef.current);
+  const filteredRooms = roomCategory === "All" ? rooms : rooms.filter((r) => r.category === roomCategory);
+  const currentTour = UTILITY_TOURS.find((t) => t.index === activeTourIndex);
+  const currentStage = currentTour ? currentTour.stages[activeStageIndex] : null;
+
+  return (
+    <div className={`relative overflow-hidden w-full h-full bg-[#03060E] ${className}`}>
+      {/* ── 3D WEBGL CANVAS ── */}
+      <div ref={containerRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
+
+      {/* ── HIGH-TECH MINIMAL LOADING OVERLAY ── */}
+      {loading && (
+        <div className="absolute inset-0 z-50 bg-[#03060E]/95 backdrop-blur-2xl flex flex-col items-center justify-center gap-6 p-6">
+          <div className="relative w-16 h-16">
+            <div className="absolute inset-0 rounded-full border border-[#0DB9D0]/20 animate-ping" />
+            <div className="absolute inset-1 rounded-full border-2 border-t-[#0DB9D0] border-r-transparent border-b-[#00D4A0] border-l-transparent animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center font-mono text-xs font-bold text-[#0DB9D0]">
+              {loadProgress}%
+            </div>
+          </div>
+          <div className="text-center space-y-1.5">
+            <h3 className="font-mono text-xs uppercase tracking-[0.25em] text-[#EBF5FC] font-semibold">
+              Loading Maitri 3D Digital Twin
+            </h3>
+            <p className="font-mono text-[10px] text-[#4A7A8E]">
+              Calibrating natural polar atmosphere, PBR materials, and physical utility pipeline flows...
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── TOP-LEFT STATION IDENTITY BADGE & SWITCHER ── */}
+      <div className="absolute top-20 left-4 sm:left-6 z-30 pointer-events-auto flex items-center gap-2">
+        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#040D1A]/85 border border-white/10 backdrop-blur-2xl shadow-xl">
+          <span className="w-2 h-2 rounded-full bg-[#00D4A0] animate-pulse shadow-[0_0_8px_#00D4A0]" />
+          <span className="font-mono text-[11px] uppercase tracking-wider text-[#EBF5FC] font-semibold">
+            Maitri Station 3D Twin
+          </span>
+          <span className="text-white/20">·</span>
+          <span className="font-mono text-[10px] text-[#0DB9D0] font-medium">70°45′S, 11°44′E</span>
+        </div>
+
+        {/* Quick Station Switcher */}
+        <div className="hidden sm:flex items-center p-0.5 rounded-full bg-[#040D1A]/85 border border-white/10 backdrop-blur-2xl shadow-xl font-mono text-[10px]">
+          <span className="px-2.5 py-1 rounded-full bg-[#0DB9D0]/20 text-[#0DB9D0] border border-[#0DB9D0]/40 font-semibold uppercase tracking-wider shadow-[0_0_8px_rgba(13,185,208,0.3)]">
+            Maitri
+          </span>
+          <a
+            href="/twin/bharati"
+            className="px-2.5 py-1 rounded-full text-[#7ABBD4] hover:text-white uppercase tracking-wider transition-colors"
+          >
+            Bharati
+          </a>
+        </div>
+      </div>
+
+      {/* ── TOP-RIGHT QUICK ACTION CLUSTER ── */}
+      <div className="absolute top-20 right-4 sm:right-6 z-30 pointer-events-auto">
+        <div className="flex items-center gap-1 p-1 bg-[#040D1A]/85 border border-white/10 rounded-2xl backdrop-blur-2xl shadow-xl">
+          <button
+            onClick={resetToOverview}
+            className={`p-2 rounded-xl transition-all ${
+              activeMode === "overview" && !activeRoom && activeTourIndex === null
+                ? "bg-[#0DB9D0]/20 text-[#0DB9D0]"
+                : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
+            }`}
+            title="Reset to Station Overview"
+          >
+            <Compass size={16} weight="duotone" />
+          </button>
+
+          <button
+            onClick={toggleRoofLift}
+            className={`p-2 rounded-xl transition-all ${
+              roofLifted
+                ? "bg-[#e11d48]/20 text-[#ff4d6d] border border-[#e11d48]/40 shadow-[0_0_12px_rgba(225,29,72,0.4)]"
+                : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
+            }`}
+            title="Toggle Roof X-Ray Lift (+16.5m Sliced)"
+          >
+            <Cube size={16} weight="duotone" />
+          </button>
+
+          <button
+            onClick={toggleAutoRotate}
+            className={`p-2 rounded-xl transition-colors ${
+              isRotating ? "bg-[#0DB9D0]/20 text-[#0DB9D0]" : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
+            }`}
+            title="Toggle Auto-Orbit"
+          >
+            <ArrowsClockwise size={16} className={isRotating ? "animate-spin" : ""} />
+          </button>
+
+          <button
+            onClick={cycleLighting}
+            className="p-2 rounded-xl text-[#7ABBD4] hover:text-white hover:bg-white/10 transition-colors"
+            title={`Cycle Lighting (${lightingMode})`}
+          >
+            {lightingMode === "SUN" ? <Sun size={16} weight="duotone" /> : <Moon size={16} weight="duotone" />}
+          </button>
+
+          {enableFullscreenButton && (
+            <button
+              onClick={toggleFullscreen}
+              className="p-2 rounded-xl text-[#7ABBD4] hover:text-white hover:bg-white/10 transition-colors"
+              title="Toggle Fullscreen"
+            >
+              {isFullscreen ? <ArrowsIn size={16} /> : <ArrowsOut size={16} />}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── ACTIVE PERSON VIEW CALLOUT (TOP CENTER) ── */}
+      {activeRoom && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+          <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-[#040D1A]/90 border border-[#0DB9D0]/40 backdrop-blur-2xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] animate-in fade-in slide-in-from-top-3 duration-300">
+            <Camera size={16} className="text-[#0DB9D0]" weight="duotone" />
+            <div className="flex items-center gap-2">
+              <span className="font-sans text-xs font-bold text-white tracking-wide">
+                {activeRoom.name}
+              </span>
+              <span className="px-1.5 py-0.5 rounded font-mono text-[9px] bg-[#00D4A0]/20 text-[#00D4A0] border border-[#00D4A0]/30 font-semibold uppercase">
+                Sitting Perspective
+              </span>
+            </div>
+            <button
+              onClick={resetToOverview}
+              className="ml-2 px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-[#EBF5FC] font-mono text-[10px] uppercase font-semibold transition-colors"
+            >
+              Exit View
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── INTERACTIVE STORYTELLING CARD (SLICED BUILDING LIFELINE TOUR) ── */}
+      {currentTour && currentStage && activeTourIndex !== null && !activeRoom && isStoryCardVisible && (
+        <div className="absolute bottom-24 sm:bottom-28 left-4 sm:left-6 z-30 pointer-events-auto w-[calc(100%-2rem)] sm:w-[480px] max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div
+            className="p-5 rounded-3xl bg-[#040D1A]/96 border backdrop-blur-3xl shadow-[0_25px_60px_rgba(0,0,0,0.92)] flex flex-col gap-3.5 relative overflow-hidden"
+            style={{ borderColor: `${currentTour.color}45` }}
+          >
+            {/* Auto-Advance Countdown Line */}
+            {autoPlayTour && (
+              <div className="absolute top-0 left-0 right-0 h-1 bg-white/10">
+                <div
+                  className="h-full transition-all duration-100 ease-linear shadow-[0_0_8px]"
+                  style={{
+                    width: `${stageProgress}%`,
+                    backgroundColor: currentTour.color,
+                    boxShadow: `0 0 10px ${currentTour.color}`,
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Header: Lifeline Badge, Stage Counter, Controls */}
+            <div className="flex items-center justify-between gap-2 pt-0.5">
+              <div className="flex items-center gap-2">
+                <span
+                  className="w-2.5 h-2.5 rounded-full animate-pulse shadow-[0_0_8px]"
+                  style={{ backgroundColor: currentTour.color }}
+                />
+                <span
+                  className="font-mono text-[10px] uppercase font-bold tracking-wider"
+                  style={{ color: currentTour.color }}
+                >
+                  {currentTour.label}
+                </span>
+                <span className="text-white/20">·</span>
+                <span className="px-2 py-0.5 rounded-md font-mono text-[9px] bg-white/10 text-white font-semibold uppercase tracking-wider">
+                  Stage {activeStageIndex + 1} of {currentTour.stages.length}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setAutoPlayTour(!autoPlayTour)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                    autoPlayTour
+                      ? "bg-[#00D4A0]/20 text-[#00D4A0] border border-[#00D4A0]/30 font-semibold"
+                      : "bg-white/5 text-[#7ABBD4] hover:text-white"
+                  }`}
+                  title={autoPlayTour ? "Pause Auto-Tour (8s stay)" : "Resume Auto-Tour (8s stay)"}
+                >
+                  {autoPlayTour ? <Pause size={10} weight="fill" /> : <Play size={10} weight="fill" />}
+                  <span>{autoPlayTour ? "Auto" : "Paused"}</span>
+                </button>
+
+                <button
+                  onClick={resetToOverview}
+                  className="p-1 rounded-lg text-[#4A7A8E] hover:text-white transition-colors"
+                  title="Close Story Card & Return to Overview"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* Stage Title */}
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-widest text-[#7ABBD4] font-medium mb-1">
+                {currentStage.badge}
+              </div>
+              <h3 className="font-sans text-base sm:text-lg font-bold text-white tracking-tight leading-snug">
+                {currentStage.title}
+              </h3>
+            </div>
+
+            {/* Narrative Story */}
+            <p className="font-sans text-[12px] sm:text-[13px] text-[#A6C4D6] leading-relaxed font-light">
+              {currentStage.narrative}
+            </p>
+
+            {/* Live Telemetry Parameters Grid */}
+            <div className="grid grid-cols-3 gap-2 pt-1 pb-1">
+              {currentStage.telemetry.map((t, idx) => (
+                <div
+                  key={idx}
+                  className="flex flex-col p-2 rounded-xl bg-white/[0.03] border border-white/10"
+                >
+                  <span className="font-mono text-[9px] uppercase tracking-wider text-[#4A7A8E] truncate">
+                    {t.label}
+                  </span>
+                  <span
+                    className="font-mono text-xs font-bold mt-0.5 truncate"
+                    style={{ color: t.color || "#EBF5FC" }}
+                  >
+                    {t.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Sliced Building Indicator Banner */}
+            <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-white/[0.02] border border-white/5 font-mono text-[10px] text-[#7ABBD4]">
+              <div className="flex items-center gap-1.5">
+                <Cube size={13} weight="duotone" className="text-[#0DB9D0]" />
+                <span className="text-white/80">Station Top Sliced (+16.5m X-Ray)</span>
+              </div>
+              <span className="text-[#00D4A0] text-[9px] font-semibold uppercase">Smooth Aerial View</span>
+            </div>
+
+            {/* Navigation Bar: Prev, Stage Dots, Next */}
+            <div className="flex items-center justify-between pt-1 border-t border-white/[0.08]">
+              <button
+                disabled={activeStageIndex === 0}
+                onClick={() => goToStage(activeTourIndex, Math.max(0, activeStageIndex - 1))}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-xl font-mono text-xs font-semibold uppercase tracking-wider transition-all ${
+                  activeStageIndex === 0
+                    ? "opacity-30 cursor-not-allowed text-[#4A7A8E]"
+                    : "text-[#7ABBD4] hover:text-white bg-white/5 hover:bg-white/10"
+                }`}
+              >
+                <CaretLeft size={12} weight="bold" />
+                <span>Prev</span>
+              </button>
+
+              {/* Stage Progress Dots */}
+              <div className="flex items-center gap-1.5">
+                {currentTour.stages.map((st, sIdx) => (
+                  <button
+                    key={st.id}
+                    onClick={() => goToStage(activeTourIndex, sIdx)}
+                    className={`h-2 rounded-full transition-all ${
+                      sIdx === activeStageIndex
+                        ? "w-6 shadow-[0_0_8px]"
+                        : "w-2 bg-white/20 hover:bg-white/40"
+                    }`}
+                    style={
+                      sIdx === activeStageIndex
+                        ? { backgroundColor: currentTour.color, boxShadow: `0 0 8px ${currentTour.color}` }
+                        : {}
+                    }
+                    title={`Stage ${sIdx + 1}: ${st.title}`}
+                  />
+                ))}
+              </div>
+
+              <button
+                onClick={() => {
+                  const nextIdx = (activeStageIndex + 1) % currentTour.stages.length;
+                  goToStage(activeTourIndex, nextIdx);
+                }}
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl font-mono text-xs font-semibold uppercase tracking-wider transition-all text-white shadow-lg hover:brightness-110 active:scale-95"
+                style={{
+                  backgroundColor: `${currentTour.color}35`,
+                  border: `1px solid ${currentTour.color}70`,
+                  color: currentTour.color,
+                }}
+              >
+                <span>{activeStageIndex + 1 === currentTour.stages.length ? "Replay \u21ba" : "Next \u2192"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── FLOATING ISLAND CONTROLS (BOTTOM CENTER DOCK) ── */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex flex-col items-center gap-3 w-[92%] sm:w-auto max-w-2xl">
+        {/* SUBMENU 1: LIFELINE FLOWS SELECTOR */}
+        {activeMode === "flows" && !activeRoom && (
+          <div className="w-full flex items-center justify-center gap-1.5 p-2 rounded-2xl bg-[#040D1A]/95 border border-white/15 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] animate-in fade-in slide-in-from-bottom-2 duration-200 overflow-x-auto no-scrollbar">
+            {UTILITY_TOURS.map((tour) => {
+              const Icon = tour.icon;
+              const isActive = activeTourIndex === tour.index;
+              return (
+                <button
+                  key={tour.id}
+                  onClick={() => playTour(tour.index)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-mono text-[11px] font-semibold whitespace-nowrap transition-all border ${
+                    isActive
+                      ? "text-white shadow-lg"
+                      : "text-[#7ABBD4] hover:text-white bg-white/[0.03] border-white/5 hover:border-white/15"
+                  }`}
+                  style={
+                    isActive
+                      ? {
+                          backgroundColor: `${tour.color}25`,
+                          borderColor: `${tour.color}70`,
+                          color: tour.color,
+                        }
+                      : {}
+                  }
+                >
+                  <Icon size={14} weight="duotone" />
+                  <span>{tour.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* SUBMENU 2: FACILITIES SELECTOR */}
+        {activeMode === "rooms" && !activeRoom && (
+          <div className="w-full max-w-xl flex flex-col gap-2.5 p-3 rounded-3xl bg-[#040D1A]/95 border border-white/15 backdrop-blur-3xl shadow-[0_25px_60px_rgba(0,0,0,0.9)] animate-in fade-in slide-in-from-bottom-3 duration-200">
+            {/* Category Filter Pills */}
+            <div className="flex items-center justify-between gap-1 pb-1 border-b border-white/[0.08]">
+              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                {(["All", "Science Labs", "Operations", "Medical & Living"] as const).map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setRoomCategory(cat)}
+                    className={`px-2.5 py-1 rounded-lg font-mono text-[10px] uppercase tracking-wider whitespace-nowrap transition-colors ${
+                      roomCategory === cat
+                        ? "bg-[#0DB9D0]/20 text-[#0DB9D0] border border-[#0DB9D0]/40 font-semibold"
+                        : "text-[#4A7A8E] hover:text-white"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setActiveMode("overview")}
+                className="p-1 rounded-lg text-[#4A7A8E] hover:text-white transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Room Buttons Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
+              {filteredRooms.map((room) => (
+                <button
+                  key={room.id}
+                  onClick={() => lockInsideRoom(room)}
+                  className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-[#0DB9D0]/30 text-left transition-all group"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Camera size={13} className="text-[#4A7A8E] group-hover:text-[#0DB9D0] shrink-0" />
+                    <span className="font-sans text-xs text-[#EBF5FC] truncate">
+                      {room.name}
+                    </span>
+                  </div>
+                  <CaretRight size={12} className="text-[#4A7A8E] group-hover:text-white shrink-0 ml-1" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* MAIN DOCK BAR */}
+        <div className="flex items-center p-1.5 rounded-full bg-[#040D1A]/90 border border-white/15 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] gap-1">
+          <button
+            onClick={resetToOverview}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono text-xs font-semibold tracking-wider uppercase transition-all ${
+              activeMode === "overview" && !activeRoom && activeTourIndex === null
+                ? "bg-[#0DB9D0] text-[#03060E] shadow-[0_0_20px_rgba(13,185,208,0.4)]"
+                : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
+            }`}
+          >
+            <Compass size={15} weight="duotone" />
+            <span>Station View</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (activeMode === "flows" && activeTourIndex !== null) {
+                resetToOverview();
+              } else {
+                setActiveMode("flows");
+                playTour(0); // Open Freshwater Lifeline with Story Card
+              }
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono text-xs font-semibold tracking-wider uppercase transition-all ${
+              activeMode === "flows" || activeTourIndex !== null
+                ? "bg-[#0DB9D0] text-[#03060E] shadow-[0_0_20px_rgba(13,185,208,0.4)]"
+                : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
+            }`}
+          >
+            <Lightning size={15} weight="duotone" />
+            <span>Lifeline Flows</span>
+          </button>
+
+          <button
+            onClick={() => setActiveMode(activeMode === "rooms" ? "overview" : "rooms")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono text-xs font-semibold tracking-wider uppercase transition-all ${
+              activeMode === "rooms" || activeRoom
+                ? "bg-[#0DB9D0] text-[#03060E] shadow-[0_0_20px_rgba(13,185,208,0.4)]"
+                : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
+            }`}
+          >
+            <Cpu size={15} weight="duotone" />
+            <span>Explore Rooms ({rooms.length})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── MINIMAL VIEWPORT HINT (BOTTOM RIGHT) ── */}
+      <div className="absolute bottom-4 right-4 z-20 pointer-events-none hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#040D1A]/80 border border-white/10 backdrop-blur-md font-mono text-[10px] text-[#4A7A8E]">
+        <span>Drag to Orbit</span>
+        <span>·</span>
+        <span>Scroll to Zoom</span>
+      </div>
+    </div>
+  );
+}
