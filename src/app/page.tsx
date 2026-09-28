@@ -23,6 +23,7 @@ import {
 import { TopographicBg } from "@/components/TopographicBg";
 import { MaitriStationTwin } from "@/components/MaitriStationTwin";
 import { BharatiStationTwin } from "@/components/BharatiStationTwin";
+import { TelemetryTicker } from "@/components/TelemetryTicker";
 
 /*
  * ANTARCTIC DESIGN SYSTEM
@@ -92,17 +93,22 @@ function StatBlock({
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: "-60px" }}
-      className="flex flex-col gap-2 p-6 rounded-2xl bg-white/[0.02] border border-white/[0.04] shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] hover:bg-white/[0.04] hover:border-white/[0.08] transition-all duration-300"
+      className="relative group overflow-hidden flex flex-col gap-2 p-6 rounded-2xl bg-[#03060E]/40 backdrop-blur-xl border border-white/[0.05] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:bg-[#03060E]/70 hover:border-white/[0.15] transition-all duration-500 hover:-translate-y-1"
     >
-      <div className={`font-mono text-4xl sm:text-5xl font-bold tracking-tight drop-shadow-md ${accent}`}>
-        {value}
-        {unit && (
-          <span className="text-2xl sm:text-3xl ml-1 opacity-60">{unit}</span>
-        )}
+      {/* Ambient background glow */}
+      <div className={`absolute -top-10 -right-10 w-32 h-32 blur-[60px] opacity-20 group-hover:opacity-50 transition-opacity duration-700 bg-current ${accent}`} />
+      
+      <div className="relative z-10">
+        <div className={`font-mono text-4xl sm:text-5xl font-bold tracking-tight drop-shadow-[0_0_12px_currentColor] ${accent}`}>
+          {value}
+          {unit && (
+            <span className="text-2xl sm:text-3xl ml-1 opacity-60">{unit}</span>
+          )}
+        </div>
+        <p className="text-[13px] text-[#7ABBD4] font-sans leading-relaxed mt-1 font-medium">
+          {label}
+        </p>
       </div>
-      <p className="text-[13px] text-[#4A7A8E] font-sans leading-relaxed">
-        {label}
-      </p>
     </motion.div>
   );
 }
@@ -251,12 +257,12 @@ export default function LandingPage() {
           </motion.div>
         </motion.div>
 
-        {/* Scroll hint */}
+      {/* Scroll hint */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 2.5, duration: 1 }}
-          className="absolute bottom-10 left-6 sm:left-10 lg:left-16 flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest text-[#1E3A48]"
+          className="absolute bottom-16 left-6 sm:left-10 lg:left-16 flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest text-[#1E3A48]"
         >
           <motion.div
             animate={{ y: [0, 6, 0] }}
@@ -265,6 +271,8 @@ export default function LandingPage() {
           />
           Scroll to explore
         </motion.div>
+        
+        <TelemetryTicker />
       </section>
 
       {/* ══════════════════════════════════════════════════════════════ */}
@@ -413,44 +421,60 @@ export default function LandingPage() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Official */}
-              <div className="flex flex-col p-5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="w-2 h-2 rounded-full bg-[#00D4A0] shadow-[0_0_8px_#00D4A0]" />
-                  <span className="font-mono text-[11px] font-bold tracking-widest text-[#EBF5FC]">OFFICIAL</span>
+              <div className="group relative flex flex-col p-6 rounded-xl bg-[#03060E]/50 backdrop-blur-md border border-white/[0.05] hover:border-[#00D4A0]/40 transition-colors duration-500 overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                <div className="absolute inset-0 bg-gradient-to-b from-[#00D4A0]/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#00D4A0]/60 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-[#00D4A0] shadow-[0_0_12px_#00D4A0]" />
+                    <span className="font-mono text-[11px] font-bold tracking-widest text-white group-hover:text-[#00D4A0] transition-colors">OFFICIAL</span>
+                  </div>
+                  <p className="text-[12px] text-[#7ABBD4] leading-relaxed">
+                    Verified NCPOR / MoES datasets, operational manuals, and Antarctic Treaty inspection reports.
+                  </p>
                 </div>
-                <p className="text-[12px] text-[#4A7A8E] leading-relaxed">
-                  Verified NCPOR / MoES datasets, operational manuals, and Antarctic Treaty inspection reports.
-                </p>
               </div>
               {/* Simulated */}
-              <div className="flex flex-col p-5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="w-2 h-2 rounded-full bg-[#7B5EC8] shadow-[0_0_8px_#7B5EC8]" />
-                  <span className="font-mono text-[11px] font-bold tracking-widest text-[#EBF5FC]">SIMULATED</span>
+              <div className="group relative flex flex-col p-6 rounded-xl bg-[#03060E]/50 backdrop-blur-md border border-white/[0.05] hover:border-[#7B5EC8]/40 transition-colors duration-500 overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                <div className="absolute inset-0 bg-gradient-to-b from-[#7B5EC8]/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#7B5EC8]/60 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000 delay-100" />
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-[#7B5EC8] shadow-[0_0_12px_#7B5EC8]" />
+                    <span className="font-mono text-[11px] font-bold tracking-widest text-white group-hover:text-[#7B5EC8] transition-colors">SIMULATED</span>
+                  </div>
+                  <p className="text-[12px] text-[#7ABBD4] leading-relaxed">
+                    Synthetic data generation (e.g. 24h generated telemetry) based on verified historical ranges.
+                  </p>
                 </div>
-                <p className="text-[12px] text-[#4A7A8E] leading-relaxed">
-                  Synthetic data generation (e.g. 24h generated telemetry) based on verified historical ranges.
-                </p>
               </div>
               {/* Live Sensor */}
-              <div className="flex flex-col p-5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="w-2 h-2 rounded-full bg-[#0DB9D0] animate-pulse shadow-[0_0_8px_#0DB9D0]" />
-                  <span className="font-mono text-[11px] font-bold tracking-widest text-[#EBF5FC]">LIVE_SENSOR</span>
+              <div className="group relative flex flex-col p-6 rounded-xl bg-[#03060E]/50 backdrop-blur-md border border-white/[0.05] hover:border-[#0DB9D0]/40 transition-colors duration-500 overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                <div className="absolute inset-0 bg-gradient-to-b from-[#0DB9D0]/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#0DB9D0]/60 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000 delay-200" />
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-[#0DB9D0] animate-pulse shadow-[0_0_12px_#0DB9D0]" />
+                    <span className="font-mono text-[11px] font-bold tracking-widest text-white group-hover:text-[#0DB9D0] transition-colors">LIVE_SENSOR</span>
+                  </div>
+                  <p className="text-[12px] text-[#7ABBD4] leading-relaxed">
+                    Real-time telemetry streamed directly from the station edge gateway via satellite uplink.
+                  </p>
                 </div>
-                <p className="text-[12px] text-[#4A7A8E] leading-relaxed">
-                  Real-time telemetry streamed directly from the station edge gateway via satellite uplink.
-                </p>
               </div>
               {/* Inference */}
-              <div className="flex flex-col p-5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="w-2 h-2 rounded-full bg-[#D49020] shadow-[0_0_8px_#D49020]" />
-                  <span className="font-mono text-[11px] font-bold tracking-widest text-[#EBF5FC]">INFERENCE</span>
+              <div className="group relative flex flex-col p-6 rounded-xl bg-[#03060E]/50 backdrop-blur-md border border-white/[0.05] hover:border-[#D49020]/40 transition-colors duration-500 overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                <div className="absolute inset-0 bg-gradient-to-b from-[#D49020]/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#D49020]/60 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000 delay-300" />
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-[#D49020] shadow-[0_0_12px_#D49020]" />
+                    <span className="font-mono text-[11px] font-bold tracking-widest text-white group-hover:text-[#D49020] transition-colors">INFERENCE</span>
+                  </div>
+                  <p className="text-[12px] text-[#7ABBD4] leading-relaxed">
+                    Cross-domain predictions derived from the rules engine (e.g., fuel autonomy calculation).
+                  </p>
                 </div>
-                <p className="text-[12px] text-[#4A7A8E] leading-relaxed">
-                  Cross-domain predictions derived from the rules engine (e.g., fuel autonomy calculation).
-                </p>
               </div>
             </div>
           </div>
@@ -462,6 +486,9 @@ export default function LandingPage() {
       {/* Digital Twin: how it sees, predicts, acts.                   */}
       {/* ══════════════════════════════════════════════════════════════ */}
       <section className="relative z-10 py-32 px-6 sm:px-10 lg:px-16 max-w-7xl mx-auto border-t border-[#0D3040]/60">
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+          <div className="polar-snow opacity-40" aria-hidden="true" />
+        </div>
         <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
           <div className="w-full h-full" style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(13,185,208,0.08) 0%, transparent 60%)' }} />
         </div>
@@ -547,14 +574,21 @@ export default function LandingPage() {
                   viewport={{ once: true, margin: "-60px" }}
                   className="group relative"
                 >
-                  {/* Subtle glow behind the card on hover */}
-                  <div className={`absolute inset-0 rounded-2xl blur-xl opacity-0 group-hover:opacity-[0.15] transition-opacity duration-700 bg-current ${card.accent}`} />
+                  {/* Intense ambient glow behind HUD on hover */}
+                  <div className={`absolute inset-0 rounded-2xl blur-2xl opacity-0 group-hover:opacity-30 transition-opacity duration-700 bg-current ${card.accent}`} />
                   
-                  <div className={`relative p-7 sm:p-8 rounded-2xl border ${card.border} bg-white/[0.01] backdrop-blur-md flex flex-col sm:flex-row gap-6 hover:bg-white/[0.03] transition-all duration-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]`}>
+                  <div className={`relative overflow-hidden p-7 sm:p-8 rounded-2xl border ${card.border} bg-[#03060E]/60 backdrop-blur-xl flex flex-col sm:flex-row gap-6 hover:bg-[#05101C] transition-all duration-500 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.15)] hover:shadow-[0_15px_50px_rgba(0,0,0,0.6)]`}>
+                    
+                    {/* Background Data Line Animation (ambient HUD scanning) */}
+                    <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700">
+                      <div className="absolute top-0 bottom-0 w-[200%] bg-gradient-to-r from-transparent via-current to-transparent opacity-[0.03] animate-[pulse_3s_linear_infinite]" style={{ color: 'inherit' }} />
+                      <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-current to-transparent opacity-[0.3] transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000 delay-150" style={{ color: 'inherit' }} />
+                    </div>
+
                     <div
-                      className={`shrink-0 w-12 h-12 rounded-xl border ${card.border} ${card.iconBg} flex items-center justify-center ${card.accent} shadow-[inset_0_1px_4px_rgba(255,255,255,0.1)] group-hover:scale-110 transition-transform duration-500`}
+                      className={`relative z-10 shrink-0 w-14 h-14 rounded-xl border ${card.border} ${card.iconBg} flex items-center justify-center ${card.accent} shadow-[inset_0_2px_8px_rgba(255,255,255,0.1)] group-hover:scale-110 transition-transform duration-500 group-hover:shadow-[0_0_20px_currentColor]`}
                     >
-                      <Icon size={24} weight="duotone" />
+                      <Icon size={28} weight="duotone" />
                     </div>
                     <div>
                       <div className="flex items-center gap-3 mb-3">
@@ -586,6 +620,9 @@ export default function LandingPage() {
       {/* Four subsystem portals. Asymmetric bento — not repeating.    */}
       {/* ══════════════════════════════════════════════════════════════ */}
       <section className="relative z-10 py-32 px-6 sm:px-10 lg:px-16 max-w-7xl mx-auto border-t border-[#0D3040]/60">
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+          <div className="polar-snow opacity-40" aria-hidden="true" />
+        </div>
         <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
           <div className="w-full h-full" style={{ backgroundImage: 'radial-gradient(circle at 100% 0%, rgba(0,212,160,0.05) 0%, transparent 50%)' }} />
         </div>
@@ -621,8 +658,13 @@ export default function LandingPage() {
             viewport={{ once: true, margin: "-60px" }}
             className="md:col-span-7 bezel-shell p-1"
           >
-            <Link href="/energy" className="group relative block bezel-core p-7 sm:p-9 h-full flex flex-col justify-between min-h-[260px] overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#D49020]/0 to-[#D49020]/0 group-hover:from-[#D49020]/[0.08] transition-colors duration-700 pointer-events-none" />
+            <Link href="/energy" className="group relative block bezel-core p-7 sm:p-9 h-full flex flex-col justify-between min-h-[260px] overflow-hidden bg-[#03060E]/80 backdrop-blur-md">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#D49020]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+              {/* Energy pulsing grid background */}
+              <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-40 transition-opacity duration-700 flex items-center justify-center overflow-hidden">
+                <div className="w-[200%] h-[200%] bg-[linear-gradient(rgba(212,144,32,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(212,144,32,0.1)_1px,transparent_1px)] bg-[size:40px_40px] animate-[pulse_4s_cubic-bezier(0.4,0,0.6,1)_infinite]" style={{ transform: 'perspective(500px) rotateX(60deg) translateY(-100px) translateZ(-200px)' }} />
+              </div>
+              <div className="absolute bottom-0 right-0 w-64 h-64 bg-[#D49020]/20 blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
               <div className="relative z-10">
                 <div className="flex items-start justify-between mb-8">
                   <div className="w-12 h-12 rounded-xl border border-[#D49020]/25 bg-[#D49020]/[0.07] flex items-center justify-center text-[#D49020] shadow-[0_0_15px_rgba(212,144,32,0.15)] group-hover:scale-110 transition-transform duration-500">
@@ -672,8 +714,13 @@ export default function LandingPage() {
               viewport={{ once: true, margin: "-60px" }}
               className="bezel-shell p-1 flex-1"
             >
-              <Link href="/infrastructure" className="group relative block bezel-core p-6 sm:p-7 h-full flex flex-col justify-between min-h-[120px] overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#0DB9D0]/0 to-[#0DB9D0]/0 group-hover:from-[#0DB9D0]/[0.08] transition-colors duration-700 pointer-events-none" />
+              <Link href="/infrastructure" className="group relative block bezel-core p-6 sm:p-7 h-full flex flex-col justify-between min-h-[120px] overflow-hidden bg-[#03060E]/80 backdrop-blur-md">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#0DB9D0]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                {/* Water flow lines */}
+                <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-30 transition-opacity duration-700 overflow-hidden">
+                  <div className="absolute top-0 bottom-0 w-[200%] bg-[repeating-linear-gradient(90deg,transparent,transparent_20px,rgba(13,185,208,0.1)_20px,rgba(13,185,208,0.1)_40px)] animate-[pulse_3s_linear_infinite]" style={{ transform: 'skewX(-20deg)' }} />
+                </div>
+                <div className="absolute top-0 left-0 w-40 h-40 bg-[#0DB9D0]/20 blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
                 <div className="flex items-start justify-between relative z-10">
                   <div>
                     <div className="w-10 h-10 rounded-xl border border-[#0DB9D0]/25 bg-[#0DB9D0]/[0.06] flex items-center justify-center text-[#0DB9D0] mb-4 shadow-[0_0_10px_rgba(13,185,208,0.1)] group-hover:scale-110 transition-transform duration-500">
@@ -707,8 +754,13 @@ export default function LandingPage() {
               viewport={{ once: true, margin: "-60px" }}
               className="bezel-shell p-1 flex-1"
             >
-              <Link href="/logistics" className="group relative block bezel-core p-6 sm:p-7 h-full flex flex-col justify-between min-h-[120px] overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#00D4A0]/0 to-[#00D4A0]/0 group-hover:from-[#00D4A0]/[0.08] transition-colors duration-700 pointer-events-none" />
+              <Link href="/logistics" className="group relative block bezel-core p-6 sm:p-7 h-full flex flex-col justify-between min-h-[120px] overflow-hidden bg-[#03060E]/80 backdrop-blur-md">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#00D4A0]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                {/* Logistics supply chain ticks */}
+                <div className="absolute right-0 top-0 bottom-0 w-1/2 pointer-events-none opacity-0 group-hover:opacity-20 transition-opacity duration-700">
+                  <div className="w-full h-[200%] bg-[repeating-linear-gradient(0deg,transparent,transparent_4px,rgba(0,212,160,0.4)_4px,rgba(0,212,160,0.4)_6px)] mask-image-[linear-gradient(to_left,black,transparent)]" style={{ WebkitMaskImage: 'linear-gradient(to left, black, transparent)' }} />
+                </div>
+                <div className="absolute bottom-0 right-0 w-40 h-40 bg-[#00D4A0]/20 blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
                 <div className="flex items-start justify-between relative z-10">
                   <div>
                     <div className="w-10 h-10 rounded-xl border border-[#00D4A0]/25 bg-[#00D4A0]/[0.06] flex items-center justify-center text-[#00D4A0] mb-4 shadow-[0_0_10px_rgba(0,212,160,0.1)] group-hover:scale-110 transition-transform duration-500">
@@ -745,8 +797,13 @@ export default function LandingPage() {
             viewport={{ once: true, margin: "-60px" }}
             className="md:col-span-12 bezel-shell p-1"
           >
-            <Link href="/communications" className="group relative block bezel-core p-6 sm:p-8 overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-[#7B5EC8]/0 via-transparent to-[#0DB9D0]/0 group-hover:from-[#7B5EC8]/[0.05] group-hover:to-[#0DB9D0]/[0.05] transition-colors duration-700 pointer-events-none" />
+            <Link href="/communications" className="group relative block bezel-core p-6 sm:p-8 overflow-hidden bg-[#03060E]/80 backdrop-blur-md">
+              <div className="absolute inset-0 bg-gradient-to-r from-[#7B5EC8]/10 via-transparent to-[#0DB9D0]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+              {/* Radar Ping / Comm wave */}
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-0 group-hover:opacity-30 transition-opacity duration-700">
+                <div className="absolute w-[600px] h-[600px] rounded-full border border-[#7B5EC8]/30 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite]" />
+                <div className="absolute w-[300px] h-[300px] rounded-full border border-[#0DB9D0]/30 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite_1s]" />
+              </div>
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative z-10">
                 <div className="flex items-center gap-6">
                   <div className="w-14 h-14 rounded-xl border border-[#7B5EC8]/25 bg-[#7B5EC8]/[0.06] flex items-center justify-center text-[#7B5EC8] shrink-0 shadow-[0_0_15px_rgba(123,94,200,0.1)] group-hover:scale-110 transition-transform duration-500">
