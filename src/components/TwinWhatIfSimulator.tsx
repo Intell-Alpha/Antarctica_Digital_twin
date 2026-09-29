@@ -44,10 +44,31 @@ export interface SimulationResultPayload {
 interface TwinWhatIfSimulatorProps {
   station: Station;
   onSimulationChange?: (simResult: SimulationResultPayload | null) => void;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }
 
-export function TwinWhatIfSimulator({ station, onSimulationChange }: TwinWhatIfSimulatorProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function TwinWhatIfSimulator({
+  station,
+  onSimulationChange,
+  isOpen: controlledIsOpen,
+  onOpenChange,
+  hideTrigger = false,
+}: TwinWhatIfSimulatorProps) {
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
+
+  const setIsOpen = (val: boolean | ((prev: boolean) => boolean)) => {
+    const nextVal = typeof val === "function" ? val(isOpen) : val;
+    if (controlledIsOpen === undefined) {
+      setInternalIsOpen(nextVal);
+    }
+    if (onOpenChange) {
+      onOpenChange(nextVal);
+    }
+  };
+
   const [activeSimulation, setActiveSimulation] = useState<SimulationResultPayload | null>(null);
   const [isComputing, setIsComputing] = useState(false);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string>("EXTREME_WEATHER");
@@ -120,33 +141,34 @@ export function TwinWhatIfSimulator({ station, onSimulationChange }: TwinWhatIfS
 
   return (
     <>
-      {/* ── TOP-RIGHT WHAT-IF TRIGGER BUTTON ── */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3.5 py-2 rounded-2xl font-mono text-[11px] font-semibold uppercase tracking-wider backdrop-blur-2xl transition-all shadow-xl ${
-          activeSimulation
-            ? "bg-[#FF0055]/20 text-[#FF0055] border border-[#FF0055]/50 shadow-[0_0_20px_rgba(255,0,85,0.4)] animate-pulse"
-            : "bg-[#040D1A]/90 hover:bg-white/10 border border-white/10 text-[#FFAA00] hover:text-white"
-        }`}
-        title="Open What-If Counterfactual Crisis Studio"
-      >
-        <Flask size={14} weight="duotone" className={activeSimulation ? "text-[#FF0055]" : "text-[#FFAA00]"} />
-        <span>{activeSimulation ? "SIM ACTIVE: " + activeSimulation.scenarioId : "WHAT-IF SIM"}</span>
-        {activeSimulation && <span className="w-1.5 h-1.5 rounded-full bg-[#FF0055] animate-ping" />}
-      </button>
+      {/* ── OPTIONAL FLOATING TRIGGER BUTTON (When not invoked via top bar) ── */}
+      {!hideTrigger && (
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono text-[11px] font-medium tracking-wide backdrop-blur-xl transition-colors shadow-lg ${
+            activeSimulation
+              ? "bg-amber-950/80 text-amber-200 border border-amber-500/50"
+              : "bg-[#070D18]/90 hover:bg-white/10 border border-white/[0.12] text-amber-300 hover:text-white"
+          }`}
+          title="Open What-If Counterfactual Crisis Studio"
+        >
+          <Flask size={14} className={activeSimulation ? "text-amber-400" : "text-amber-300"} />
+          <span>{activeSimulation ? "SIM ACTIVE: " + activeSimulation.scenarioId : "WHAT-IF SIM"}</span>
+        </button>
+      )}
 
       {/* ── WHAT-IF SIMULATION POPOVER DRAWER ── */}
       {isOpen && (
-        <div className="absolute top-32 right-4 sm:right-6 z-40 w-[360px] max-w-[calc(100vw-32px)] rounded-3xl bg-[#040D1A]/95 border border-[#FFAA00]/40 backdrop-blur-3xl shadow-[0_25px_60px_rgba(0,0,0,0.95)] animate-in fade-in slide-in-from-top-4 duration-300 font-sans select-none overflow-hidden">
+        <div className="absolute top-20 right-4 sm:right-6 z-40 w-[380px] max-w-[calc(100vw-32px)] rounded-2xl bg-[#070D18]/98 border border-white/[0.14] backdrop-blur-2xl shadow-[0_24px_64px_rgba(0,0,0,0.92)] animate-in fade-in slide-in-from-top-3 duration-250 font-sans select-none overflow-hidden">
           {/* Header */}
-          <div className="p-3.5 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-[#FFAA00]/10 via-transparent to-transparent">
+          <div className="px-4 py-3 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
             <div className="flex items-center gap-2">
-              <Flask size={18} weight="duotone" className="text-[#FFAA00]" />
+              <Flask size={16} className="text-amber-400" />
               <div>
-                <span className="font-mono text-[9px] uppercase tracking-wider text-[#FFAA00] font-bold block">
+                <span className="font-mono text-[9px] uppercase tracking-wider text-amber-400 font-semibold block">
                   What-If Counterfactual Engine
                 </span>
-                <h4 className="font-sans text-xs font-bold text-white">
+                <h4 className="font-mono text-xs font-semibold text-white tracking-wide">
                   Crisis Simulation & Risk Studio
                 </h4>
               </div>
@@ -181,34 +203,34 @@ export function TwinWhatIfSimulator({ station, onSimulationChange }: TwinWhatIfS
                   key={sc.id}
                   disabled={isComputing}
                   onClick={() => handleRunScenario(sc.id)}
-                  className={`flex items-start gap-2.5 p-2 rounded-2xl text-left transition-all ${
+                  className={`flex items-start gap-2.5 p-2 rounded-xl text-left transition-colors ${
                     isSelected
-                      ? "bg-[#FFAA00]/20 border border-[#FFAA00]/60 text-white shadow-[0_0_15px_rgba(255,170,0,0.2)]"
-                      : "bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 text-[#A6C4D6]"
+                      ? "bg-amber-500/15 border border-amber-500/40 text-white"
+                      : "bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] text-[#A6C4D6]"
                   }`}
                 >
                   <div
-                    className="w-7 h-7 rounded-xl flex items-center justify-center border shrink-0 mt-0.5"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center border shrink-0 mt-0.5"
                     style={{
                       backgroundColor: `${sc.color}15`,
                       borderColor: `${sc.color}40`,
                       color: sc.color,
                     }}
                   >
-                    <IconComp size={15} weight="duotone" />
+                    <IconComp size={15} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <span className="font-sans text-xs font-bold text-white truncate">
+                      <span className="font-mono text-xs font-semibold text-white truncate">
                         {sc.label}
                       </span>
                       {isSelected && (
-                        <span className="font-mono text-[8px] px-1.5 py-0.2 rounded bg-[#FFAA00] text-black font-bold uppercase shrink-0">
+                        <span className="font-mono text-[9px] px-1.5 py-0.2 rounded bg-amber-400 text-black font-semibold uppercase shrink-0">
                           ACTIVE
                         </span>
                       )}
                     </div>
-                    <span className="font-mono text-[9px] text-[#7ABBD4] line-clamp-1">
+                    <span className="font-sans text-[11px] text-[#7ABBD4] line-clamp-1">
                       {sc.desc}
                     </span>
                   </div>

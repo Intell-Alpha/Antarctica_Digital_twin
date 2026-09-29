@@ -35,6 +35,8 @@ app.get("/", (req: Request, res: Response) => {
   });
 });
 
+import commanderRoutes from "./routes/commanderRoutes";
+
 // Mount modular API routers
 app.use("/api/stations", stationRoutes);
 app.use("/api/infrastructure", infrastructureRoutes);
@@ -45,6 +47,7 @@ app.use("/api/network", networkRoutes);
 app.use("/api/simulation", simulationRoutes);
 app.use("/api/telemetry", telemetryRoutes);
 app.use("/api/synthetic-data", syntheticDataRoutes);
+app.use("/api/commander", commanderRoutes);
 
 app.listen(CONFIG.PORT, () => {
   console.log(`=======================================================`);

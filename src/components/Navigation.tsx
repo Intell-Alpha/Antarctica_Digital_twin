@@ -116,7 +116,11 @@ export function Navigation() {
 
   const isSubsystemActive = SUBSYSTEM_ITEMS.some((i) => pathname === i.href);
 
-  if (pathname?.startsWith("/dashboard")) {
+  if (
+    pathname?.startsWith("/dashboard") ||
+    pathname?.startsWith("/twin") ||
+    pathname === "/bharati"
+  ) {
     return null;
   }
 

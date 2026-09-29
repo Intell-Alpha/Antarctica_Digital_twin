@@ -30,10 +30,17 @@ import {
   Wrench,
   Gear,
 } from "@phosphor-icons/react";
+import { StationHeaderBar } from "./StationHeaderBar";
 import { RoomTelemetryCard } from "./RoomTelemetryCard";
 import { TwinWhatIfSimulator, SimulationResultPayload } from "./TwinWhatIfSimulator";
-import { TwinVitalsBar } from "./TwinVitalsBar";
 import { StationSystemDock, SystemFacilityItem } from "./StationSystemDock";
+import { PolarAtmosphereSystem } from "./PolarAtmosphereSystem";
+import { polarAudio } from "@/lib/polarAudioEngine";
+import { StationAICommander } from "./StationAICommander";
+import { CinematicDroneDirector, CinematicDroneDirectorHandle } from "./CinematicDroneDirector";
+import { PolarOrbitalGlobeView } from "./PolarOrbitalGlobeView";
+import { MissionReportModal } from "./MissionReportModal";
+import { GlobeHemisphereWest, FileText } from "@phosphor-icons/react";
 
 
 export interface BharatiRoomEntry {
@@ -1172,6 +1179,7 @@ export function BharatiStationTwin({
   const sunLightRef = useRef<THREE.DirectionalLight | null>(null);
   const seaFillLightRef = useRef<THREE.DirectionalLight | null>(null);
   const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
+  const atmosphereRef = useRef<PolarAtmosphereSystem | null>(null);
 
   // Mesh Groups for Precise Multi-Floor Cutaways & Pipe Flow Unobstructed Views
   const roofMeshesRef = useRef<THREE.Mesh[]>([]);       // Level 04: Roof skin, penthouse, radomes, AHUs, walkways, ceiling top
@@ -1187,6 +1195,11 @@ export function BharatiStationTwin({
   const clipPlaneRef = useRef<THREE.Plane>(new THREE.Plane(new THREE.Vector3(0, -1, 0), 25.0));
   const [cutPlaneHeight, setCutPlaneHeight] = useState<number>(25.0);
   const [isGhostHull, setIsGhostHull] = useState<boolean>(true);
+  const [isOrbitalViewOpen, setIsOrbitalViewOpen] = useState<boolean>(false);
+  const [isReportOpen, setIsReportOpen] = useState<boolean>(false);
+  const [isAICommanderOpen, setIsAICommanderOpen] = useState<boolean>(false);
+  const [isSimulatorOpen, setIsSimulatorOpen] = useState<boolean>(false);
+  const droneDirectorRef = useRef<CinematicDroneDirectorHandle | null>(null);
 
   const cutawayStateRef = useRef<{
     roofTargetOpacity: number;
@@ -1253,6 +1266,12 @@ export function BharatiStationTwin({
   const [lightingMode, setLightingMode] = useState<"SUN" | "AURORA" | "NIGHT">("SUN");
   const [activeSimulation, setActiveSimulation] = useState<SimulationResultPayload | null>(null);
   const [activeSystemId, setActiveSystemId] = useState<string | null>(null);
+  const [isBoilerHeatingActive, setIsBoilerHeatingActive] = useState<boolean>(false);
+  const heatingPipesGroupRef = useRef<THREE.Group | null>(null);
+  const heatingShaderUniformsRef = useRef<{ uTime: { value: number }; uActive: { value: number } }>({
+    uTime: { value: 0 },
+    uActive: { value: 0 },
+  });
 
   // ── CUTAWAY / FLOOR DECK CONTROLLER (REMOVES ALL ABOVE STRUCTURES SMOOTHLY VIA GPU HARDWARE CLIPPING) ──
   const setCutawayMode = useCallback(
@@ -1604,6 +1623,7 @@ export function BharatiStationTwin({
 
       setActiveRoom(room);
       if (onRoomSelect) onRoomSelect(room.id);
+      polarAudio.setLocationState(true, room.id.includes("power") || room.id.includes("chpp"));
 
       // Automatic floor cutaway: Remove structures above this room's floor!
       if (room.level === "L1") {
@@ -1659,16 +1679,81 @@ export function BharatiStationTwin({
     [onRoomSelect, setFlowsActivation, setCutawayMode]
   );
 
+  // ── TOGGLE BOILER ROOM HEATING & ORANGE FLOW (TOP-DOWN OVERHEAD VIEW) ──
+  const toggleBoilerHeating = useCallback(() => {
+    if (!cameraRef.current || !controlsRef.current) return;
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+
+    setIsBoilerHeatingActive((prev) => {
+      const nextState = !prev;
+
+      if (heatingShaderUniformsRef.current) {
+        heatingShaderUniformsRef.current.uActive.value = nextState ? 1.0 : 0.0;
+      }
+
+      if (nextState) {
+        setActiveTourIndex(null);
+        setActiveRoom(null);
+        setActiveMode("flows");
+
+        // Expose interior rooms and pipes with Level 03 cutaway
+        setCutawayMode("roof_l3", false);
+
+        // DIRECT TOP-DOWN / OVERHEAD VIEW (Not cinematic camera follow-up)
+        controls.enabled = false;
+        gsap.killTweensOf(camera.position);
+        gsap.killTweensOf(controls.target);
+
+        gsap.to(camera.position, {
+          x: 0,
+          y: 78.0,
+          z: 2.0,
+          duration: 1.8,
+          ease: "power3.inOut",
+        });
+
+        gsap.to(controls.target, {
+          x: 0,
+          y: 7.0,
+          z: 2.1,
+          duration: 1.8,
+          ease: "power3.inOut",
+          onComplete: () => {
+            controls.enabled = true;
+            controls.minDistance = 10.0;
+            controls.maxDistance = 250.0;
+            controls.enablePan = true;
+          },
+        });
+
+        gsap.to(camera, {
+          fov: 50,
+          duration: 1.5,
+          onUpdate: () => camera.updateProjectionMatrix(),
+        });
+      } else {
+        setCutawayMode("exterior", false);
+      }
+
+      return nextState;
+    });
+  }, [setCutawayMode]);
+
   // ── SELECT FACILITY SYSTEM FROM HARDWARE DOCK & FLY CAMERA ──
   const handleSelectSystem = useCallback(
     (system: SystemFacilityItem) => {
       setActiveSystemId(system.id);
+      if (system.id === "bharati_boiler_heating" || system.id.includes("heating")) {
+        toggleBoilerHeating();
+        return;
+      }
       const room = BHARATI_ROOM_REGISTRY[system.targetRoomId];
       if (room) {
         lockInsideRoom(room);
       }
     },
-    [lockInsideRoom]
+    [lockInsideRoom, toggleBoilerHeating]
   );
 
 
@@ -1757,6 +1842,10 @@ export function BharatiStationTwin({
     seaFillLight.position.set(-140, 40, -100);
     scene.add(seaFillLight);
     seaFillLightRef.current = seaFillLight;
+
+    // 6.1 Polar Atmosphere Engine (Aurora Australis, Katabatic Snow Particles, 24h Solar Arc)
+    const atmosphere = new PolarAtmosphereSystem(scene, polarSun, null);
+    atmosphereRef.current = atmosphere;
 
     // 7. Pipeline Flow Shader (Directly on Authentic Existing Physical Pipes)
     const applyPipelineFlowShader = (
@@ -1850,6 +1939,74 @@ export function BharatiStationTwin({
         );
       };
     };
+
+    // 7b. Dedicated Hydronic Boiler Heating Network (Warm Orange Fluid Distribution)
+    const heatingShaderUniforms = heatingShaderUniformsRef.current;
+    const heatingMaterial = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      uniforms: {
+        uTime: heatingShaderUniforms.uTime,
+        uActive: heatingShaderUniforms.uActive,
+      },
+      vertexShader: `
+        varying vec3 vWorldPos;
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        uniform float uActive;
+        varying vec3 vWorldPos;
+        varying vec2 vUv;
+        void main() {
+          if (uActive < 0.01) discard;
+          float wave = sin(vUv.x * 40.0 - uTime * 7.5);
+          float pulse = smoothstep(0.15, 0.9, wave);
+          vec3 baseOrange = vec3(1.0, 0.40, 0.0); // #FF6600
+          vec3 glowHot = vec3(1.0, 0.92, 0.30);  // #FFE547
+          vec3 col = mix(baseOrange, glowHot, pulse);
+          float alpha = (0.80 + pulse * 0.20) * uActive;
+          gl_FragColor = vec4(col, alpha);
+        }
+      `,
+    });
+
+    const heatingPipesGroup = new THREE.Group();
+    heatingPipesGroup.name = "Bharati_Hydronic_Heating_Network";
+
+    const bharatiHeatingSegments: [number, number, number][][] = [
+      // 1. Primary CHPP Boiler Loop (Level 02)
+      [ [-12.0, 5.3, 4.0], [-12.0, 5.3, 0.0], [-12.0, 5.3, -4.0], [-20.0, 5.3, -4.0] ], // To RO Desal & UV Disinfection
+      [ [-12.0, 5.3, 4.0], [-21.8, 5.3, 4.0] ], // To Fuel Day Tank Preheater
+      [ [-12.0, 5.3, 0.0], [-5.0, 5.3, 0.0], [0.0, 5.3, 0.0] ], // Level 02 Central Transfer Header
+      // 2. Vertical Mechanical Heating Riser from Level 02 to Level 03
+      [ [0.0, 5.3, 0.0], [0.0, 8.85, 0.0] ],
+      // 3. Level 03 North Living & Command Corridor (Cabins 01-07, Command, BMS, Hospital)
+      [ [0.0, 8.85, 0.0], [0.0, 8.85, -5.8], [-14.0, 8.85, -5.8], [-18.0, 8.85, -5.8] ],
+      [ [0.0, 8.85, -5.8], [9.8, 8.85, -5.8], [15.8, 8.85, -5.8], [18.5, 8.85, -5.8] ], // Command, BMS, Hospital OT
+      // 4. Level 03 South Living & Mess Corridor (Cabins 08-14, Galley, Mess, Sauna)
+      [ [0.0, 8.85, 0.0], [0.0, 8.85, 5.8], [-14.0, 8.85, 5.8], [-18.0, 8.85, 5.8] ],
+      [ [0.0, 8.85, 5.8], [9.9, 8.85, 5.8], [16.2, 8.85, 5.8], [22.8, 8.85, 5.8] ], // Galley, Mess, Sauna
+      // 5. Level 03 West Observation Lounge Perimeter Radiator Loop
+      [ [0.0, 8.85, 0.0], [-18.5, 8.85, 0.0], [-23.5, 8.85, 0.0] ],
+      // 6. Return Loop descending back into CHPP Heat Recovery Exchanger
+      [ [0.0, 8.65, 0.0], [-11.8, 5.15, 3.8] ],
+    ];
+
+    bharatiHeatingSegments.forEach((pts) => {
+      const curve = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(p[0], p[1], p[2])));
+      const geom = new THREE.TubeGeometry(curve, 32, 0.16, 8, false);
+      const mesh = new THREE.Mesh(geom, heatingMaterial);
+      heatingPipesGroup.add(mesh);
+    });
+
+    scene.add(heatingPipesGroup);
+    heatingPipesGroupRef.current = heatingPipesGroup;
 
     // 8. Load GLTF Digital Twin Model with Draco & Fallback Strategy
     const dracoLoader = new DRACOLoader();
@@ -2399,6 +2556,9 @@ export function BharatiStationTwin({
 
       // Update flow shader time uniform
       flowTimeUniformRef.current.value = elapsed;
+      if (heatingShaderUniformsRef.current) {
+        heatingShaderUniformsRef.current.uTime.value = elapsed;
+      }
 
       // Smooth Frame-Rate Independent Lerp of all Floor & Cutaway Layers
       const state = cutawayStateRef.current;
@@ -2452,6 +2612,12 @@ export function BharatiStationTwin({
       );
 
       controls.update();
+
+      // Update Polar Atmosphere & Katabatic Blizzard Engine
+      if (atmosphereRef.current) {
+        atmosphereRef.current.update(delta);
+      }
+
       renderer.render(scene, camera);
     };
 
@@ -2474,6 +2640,7 @@ export function BharatiStationTwin({
       container.removeEventListener("click", handleClick);
       window.removeEventListener("resize", handleResize);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (atmosphereRef.current) atmosphereRef.current.dispose();
       renderer.dispose();
       pmremGenerator.dispose();
       dracoLoader.dispose();
@@ -2624,6 +2791,7 @@ export function BharatiStationTwin({
   // ── RESET TO STATION EXTERIOR OVERVIEW ──
   const resetToOverview = useCallback(() => {
     setActiveSystemId(null);
+    polarAudio.setLocationState(false, false);
     if (!cameraRef.current || !controlsRef.current) return;
     setActiveRoom(null);
     setActiveTourIndex(null);
@@ -2632,6 +2800,10 @@ export function BharatiStationTwin({
     setActiveMode("overview");
     setFlowsActivation(null); // Turn off all flow pulses
     setCutawayMode("exterior", false); // Restore full exterior envelope
+    setIsBoilerHeatingActive(false);
+    if (heatingShaderUniformsRef.current) {
+      heatingShaderUniformsRef.current.uActive.value = 0.0;
+    }
 
     const camera = cameraRef.current;
     const controls = controlsRef.current;
@@ -2826,12 +2998,88 @@ export function BharatiStationTwin({
         </div>
       )}
 
-      {/* ── LIVE POLAR VITALS TICKER & ISRO SATELLITE STORE-AND-FORWARD BUFFER ── */}
-      <TwinVitalsBar station="BHARATI" />
+      {/* ── UNIFIED AEROSPACE STATION COMMAND HEADER ── */}
+      <StationHeaderBar
+        station="BHARATI"
+        activeRoom={activeRoom ? { id: activeRoom.id, name: activeRoom.name, category: activeRoom.category } : null}
+        onPrevRoom={goToPrevRoom}
+        onNextRoom={goToNextRoom}
+        onExitRoom={resetToOverview}
+        roofLifted={cutawayViewMode !== "exterior"}
+        onToggleRoofLift={() => setCutawayMode(cutawayViewMode === "exterior" ? "xray" : "exterior", false)}
+        isRotating={isRotating}
+        onToggleRotate={toggleAutoRotate}
+        atmosphereSystem={atmosphereRef.current}
+        onOpenOrbitalView={() => setIsOrbitalViewOpen(true)}
+        onOpenDossier={() => setIsReportOpen(true)}
+        onOpenAICommander={() => setIsAICommanderOpen(true)}
+        onOpenSimulation={() => setIsSimulatorOpen(true)}
+        onResetOverview={resetToOverview}
+        enableFullscreenButton={enableFullscreenButton}
+        onStartDroneTour={() => droneDirectorRef.current?.startDroneTour()}
+        isBoilerHeatingActive={isBoilerHeatingActive}
+        onToggleBoilerHeating={toggleBoilerHeating}
+      />
+
+      {/* ── FLOATING TOP-DOWN BOILER ROOM HEATING HUD ── */}
+      {isBoilerHeatingActive && !activeRoom && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto w-[94%] max-w-xl animate-in fade-in slide-in-from-top-3 duration-300">
+          <div className="p-3.5 rounded-2xl bg-[#050B16]/95 border border-amber-500/40 shadow-[0_16px_48px_rgba(0,0,0,0.85)] backdrop-blur-2xl flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FFAA00] animate-pulse" />
+                <span className="font-mono text-xs font-bold text-white tracking-wider uppercase">
+                  Bharati CHPP Cogeneration Heating · Top-Down Overhead View
+                </span>
+              </div>
+              <button
+                onClick={toggleBoilerHeating}
+                className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors"
+                title="Exit Overhead Heating View"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
+              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 flex flex-col">
+                <span className="text-[9px] text-[#FFAA00] uppercase font-semibold">Supply Loop</span>
+                <span className="text-sm font-bold text-white mt-0.5">+82.5°C</span>
+                <span className="text-[8px] text-[#FFAA00]/80">Orange Arterial Pipe</span>
+              </div>
+              <div className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.08] flex flex-col">
+                <span className="text-[9px] text-white/60 uppercase font-semibold">Return Loop</span>
+                <span className="text-sm font-bold text-white mt-0.5">+66.2°C</span>
+                <span className="text-[8px] text-white/50">ΔT: 16.3°C</span>
+              </div>
+              <div className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.08] flex flex-col">
+                <span className="text-[9px] text-white/60 uppercase font-semibold">Thermal Recovery</span>
+                <span className="text-sm font-bold text-white mt-0.5">310 kW</span>
+                <span className="text-[8px] text-emerald-400">Exhaust & Jacket CHP</span>
+              </div>
+              <div className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.08] flex flex-col">
+                <span className="text-[9px] text-white/60 uppercase font-semibold">Room Radiators</span>
+                <span className="text-sm font-bold text-white mt-0.5">+21.0°C</span>
+                <span className="text-[8px] text-emerald-400">14 Cabins + Labs</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] font-mono text-[#7ABBD4] pt-1 border-t border-white/[0.08]">
+              <span>Distribution: CHPP (L2) ➔ Riser ➔ Living Cabins ➔ Command ➔ Mess & Lounge</span>
+              <button
+                onClick={resetToOverview}
+                className="text-white/60 hover:text-white underline underline-offset-2"
+              >
+                Reset Overview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── CONTEXTUAL ROOM SCADA TELEMETRY & BI-DIRECTIONAL REMOTE ACTUATION ── */}
       {activeRoom && (
-        <div className="absolute top-28 left-4 sm:left-6 z-40 pointer-events-auto">
+        <div className="absolute top-16 left-4 sm:left-6 z-40 pointer-events-auto">
           <RoomTelemetryCard
             room={activeRoom}
             stationId="BHARATI"
@@ -2841,64 +3089,48 @@ export function BharatiStationTwin({
             }}
             onTriggerAction={(actionId, label) => {
               console.log(`[BHARATI SCADA ACTUATION] Executed ${label} (${actionId}) in ${activeRoom.name}`);
+              if (actionId === "ACTIVATE_BOILER_HEATING") {
+                toggleBoilerHeating();
+              }
             }}
           />
         </div>
       )}
 
-      {/* ── TOP-LEFT STATION IDENTITY BADGE & CUTAWAY VIEW SELECTOR ── */}
-      <div className="absolute top-20 left-4 sm:left-6 z-30 pointer-events-auto flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          {/* Station Identity Badge */}
-          <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-[#040D1A]/90 border border-white/10 backdrop-blur-2xl shadow-2xl">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#00A8FF] animate-pulse shadow-[0_0_8px_#00A8FF]" />
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-mono text-xs font-bold tracking-wider text-white uppercase">
-                  Bharati Station
-                </span>
-                <span className="px-1.5 py-0.2 rounded font-mono text-[8px] bg-[#00A8FF]/20 text-[#00A8FF] font-semibold">
-                  69°S
-                </span>
-              </div>
-              <span className="font-mono text-[9px] text-[#7ABBD4] block">
-                {activeRoom
-                  ? `${activeRoom.name} · ${activeRoom.level}`
-                  : activeTourIndex !== null
-                  ? `${currentTour?.label || "Flow Tour"} Active`
-                  : cutawayViewMode !== "exterior"
-                  ? `Cutaway: ${
-                      cutawayViewMode === "l4_terrace"
-                        ? "L4 Roof Terrace & Radomes"
-                        : cutawayViewMode === "roof_l3"
-                        ? "L3 Living Deck"
-                        : cutawayViewMode === "l2_power"
-                        ? "L2 Power & Water"
-                        : cutawayViewMode === "l1_garage"
-                        ? "L1 Logistics & Garage"
-                        : "X-Ray Ghost Shell"
-                    }`
-                  : "Grovnes Peninsula, Larsemann Hills"}
-              </span>
-            </div>
-          </div>
+      {/* ── WHAT-IF CRISIS SIMULATION DRAWER (Controlled) ── */}
+      <TwinWhatIfSimulator
+        station="BHARATI"
+        isOpen={isSimulatorOpen}
+        onOpenChange={setIsSimulatorOpen}
+        hideTrigger={true}
+        onSimulationChange={setActiveSimulation}
+      />
 
-          {/* Quick Cutaway Mode Toggle Pill */}
-          <button
-            onClick={() => setActiveMode(activeMode === "cutaways" ? "overview" : "cutaways")}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl font-mono text-[11px] uppercase tracking-wider font-semibold border backdrop-blur-2xl shadow-xl transition-all ${
-              cutawayViewMode !== "exterior"
-                ? "bg-[#FFAA00]/20 text-[#FFAA00] border-[#FFAA00]/40 shadow-[0_0_15px_rgba(255,170,0,0.3)]"
-                : "bg-[#040D1A]/90 text-[#7ABBD4] hover:text-white border-white/10 hover:border-white/25"
-            }`}
-            title="Open Floor Deck Cutaways & X-Ray Menu"
-          >
-            <Stack size={14} weight={cutawayViewMode !== "exterior" ? "fill" : "regular"} />
-            <span className="hidden sm:inline">
-              {cutawayViewMode === "exterior" ? "Cutaways" : "Cutaway ON"}
-            </span>
-          </button>
-        </div>
+      {/* ── AUTONOMOUS 4K DRONE AERIAL SURVEY DIRECTOR ── */}
+      <CinematicDroneDirector
+        ref={droneDirectorRef}
+        camera={cameraRef.current}
+        controls={controlsRef.current}
+        station="BHARATI"
+        hideTrigger={true}
+        onExitCallback={resetToOverview}
+      />
+
+      {/* ── FLOOR CUTAWAYS SHORTCUT PILL ── */}
+      <div className="absolute top-16 right-4 sm:right-6 z-30 pointer-events-auto flex items-center gap-2">
+        <button
+          onClick={() => setActiveMode(activeMode === "cutaways" ? "overview" : "cutaways")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[11px] uppercase tracking-wider font-semibold border backdrop-blur-xl shadow-lg transition-colors ${
+            cutawayViewMode !== "exterior"
+              ? "bg-amber-950/80 text-amber-200 border-amber-500/40"
+              : "bg-[#070D18]/90 text-[#7ABBD4] hover:text-white border-white/[0.12] hover:border-white/25"
+          }`}
+          title="Open Floor Deck Cutaways & Continuous BIM Elevation Scrubbing"
+        >
+          <Stack size={14} weight={cutawayViewMode !== "exterior" ? "fill" : "regular"} />
+          <span>{cutawayViewMode === "exterior" ? "Deck Cutaways" : "Deck Cutaway Active"}</span>
+        </button>
+      </div>
 
         {/* ── EXPANDABLE FLOOR CUTAWAY SELECTOR POPOVER ── */}
         {activeMode === "cutaways" && (
@@ -3001,107 +3233,8 @@ export function BharatiStationTwin({
             </div>
           </div>
         )}
-      </div>
 
-      {/* ── TOP-RIGHT QUICK ACTIONS (WHAT-IF SIMULATOR, LIGHTING, ROTATE, FULLSCREEN) ── */}
-      <div className="absolute top-20 right-4 sm:right-6 z-30 pointer-events-auto flex items-center gap-1.5">
-        <TwinWhatIfSimulator
-          station="BHARATI"
-          onSimulationChange={setActiveSimulation}
-        />
 
-        <button
-          onClick={cycleLighting}
-          className="p-2 rounded-2xl bg-[#040D1A]/90 hover:bg-white/10 border border-white/10 text-[#7ABBD4] hover:text-white backdrop-blur-2xl transition-all shadow-xl"
-          title={`Lighting Mode: ${lightingMode} (Click to switch)`}
-        >
-          {lightingMode === "SUN" ? (
-            <Sun size={15} weight="duotone" className="text-[#FFAA00]" />
-          ) : lightingMode === "AURORA" ? (
-            <Sun size={15} weight="duotone" className="text-[#00D4A0]" />
-          ) : (
-            <Moon size={15} weight="duotone" className="text-[#38BDF8]" />
-          )}
-        </button>
-
-        <button
-          onClick={toggleAutoRotate}
-          className={`p-2 rounded-2xl border backdrop-blur-2xl transition-all shadow-xl ${
-            isRotating
-              ? "bg-[#00A8FF]/20 border-[#00A8FF]/40 text-[#00A8FF]"
-              : "bg-[#040D1A]/90 hover:bg-white/10 border-white/10 text-[#7ABBD4] hover:text-white"
-          }`}
-          title={isRotating ? "Stop Orbit Auto-Rotation" : "Start Orbit Auto-Rotation"}
-        >
-          <ArrowsClockwise size={15} className={isRotating ? "animate-spin" : ""} />
-        </button>
-
-        {enableFullscreenButton && (
-          <button
-            onClick={toggleFullscreen}
-            className="p-2 rounded-2xl bg-[#040D1A]/90 hover:bg-white/10 border border-white/10 text-[#7ABBD4] hover:text-white backdrop-blur-2xl transition-all shadow-xl"
-            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-          >
-            {isFullscreen ? <ArrowsIn size={15} /> : <ArrowsOut size={15} />}
-          </button>
-        )}
-      </div>
-
-      {/* ── TOP-CENTER PERSPECTIVE HUD (ROOM SWITCHER & PREV / NEXT NAVIGATOR) ── */}
-      {activeRoom && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto animate-in fade-in slide-in-from-top-3 duration-300">
-          <div className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full bg-[#040D1A]/95 border border-[#00A8FF]/40 backdrop-blur-2xl shadow-[0_15px_40px_rgba(0,168,255,0.25)]">
-            {/* Step to Previous Room */}
-            <button
-              onClick={goToPrevRoom}
-              className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/5 hover:bg-white/15 text-[#7ABBD4] hover:text-white font-mono text-[10px] uppercase font-semibold transition-colors"
-              title="Step to Previous Room"
-            >
-              <CaretLeft size={11} weight="bold" />
-              <span className="hidden sm:inline">Prev</span>
-            </button>
-
-            {/* Active Room Title and Deck Pill */}
-            <div className="flex items-center gap-1.5 px-2">
-              <span className="w-2 h-2 rounded-full bg-[#00D4A0] animate-pulse" />
-              <span className="font-sans text-xs font-bold text-white truncate max-w-[140px] sm:max-w-[200px]">
-                {activeRoom.name}
-              </span>
-              <span className="px-1.5 py-0.2 rounded font-mono text-[9px] bg-[#00A8FF]/20 text-[#00A8FF] font-semibold">
-                {activeRoom.level}
-              </span>
-            </div>
-
-            {/* Step to Next Room */}
-            <button
-              onClick={goToNextRoom}
-              className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/5 hover:bg-white/15 text-[#7ABBD4] hover:text-white font-mono text-[10px] uppercase font-semibold transition-colors"
-              title="Step to Next Room"
-            >
-              <span className="hidden sm:inline">Next</span>
-              <CaretRight size={11} weight="bold" />
-            </button>
-
-            {/* Toggle Rooms Drawer */}
-            <button
-              onClick={() => setActiveMode(activeMode === "rooms" ? "overview" : "rooms")}
-              className="px-2.5 py-0.5 rounded-full bg-[#00A8FF]/15 hover:bg-[#00A8FF]/25 text-[#00A8FF] font-mono text-[10px] uppercase font-semibold transition-colors"
-              title="Browse all 34 station facilities"
-            >
-              {activeMode === "rooms" ? "Hide List" : "All Facilities"}
-            </button>
-
-            {/* Exit Room Perspective */}
-            <button
-              onClick={resetToOverview}
-              className="px-2.5 py-0.5 rounded-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-mono text-[10px] uppercase font-semibold transition-colors"
-              title="Return to Station Overview"
-            >
-              Exit
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ── INTERACTIVE STORYTELLING CARD (BHARATI SLICED LIFELINE TOUR) ── */}
       {currentTour && currentStage && activeTourIndex !== null && !activeRoom && isStoryCardVisible && (
@@ -3468,6 +3601,43 @@ export function BharatiStationTwin({
         <span>·</span>
         <span>Scroll to Zoom</span>
       </div>
+
+      {/* ── AGENTIC AI STATION COMMANDER (HIMADRI COPILOT WITH 3D ACTUATION) ── */}
+      <StationAICommander
+        station="BHARATI"
+        isOpen={isAICommanderOpen}
+        onOpenChange={setIsAICommanderOpen}
+        hideFloatingTrigger={true}
+        onFlyToRoom={(roomId) => {
+          const room = BHARATI_ROOM_REGISTRY[roomId];
+          if (room) lockInsideRoom(room);
+        }}
+        onToggleBlizzard={(isBlizz) => {
+          if (atmosphereRef.current) {
+            atmosphereRef.current.setBlizzard(isBlizz);
+            atmosphereRef.current.setWindSpeed(isBlizz ? 105 : 28);
+          }
+          polarAudio.setBlizzard(isBlizz);
+        }}
+        onTriggerSimulation={(scId) => {
+          setActiveSimulation({ scenarioId: scId } as any);
+        }}
+        onResetOverview={resetToOverview}
+      />
+
+      {/* ── ISRO GSAT POLAR ORBITAL GLOBE VIEW ── */}
+      <PolarOrbitalGlobeView
+        isOpen={isOrbitalViewOpen}
+        onClose={() => setIsOrbitalViewOpen(false)}
+        currentStation="BHARATI"
+      />
+
+      {/* ── NCPOR & ATCM MISSION READINESS BRIEFING DOSSIER ── */}
+      <MissionReportModal
+        station="BHARATI"
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+      />
     </div>
   );
 }

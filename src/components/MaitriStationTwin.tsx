@@ -26,11 +26,19 @@ import {
   X,
   Gear,
   Cpu,
+  GlobeHemisphereWest,
 } from "@phosphor-icons/react";
+import { StationHeaderBar } from "./StationHeaderBar";
 import { RoomTelemetryCard } from "./RoomTelemetryCard";
 import { TwinWhatIfSimulator, SimulationResultPayload } from "./TwinWhatIfSimulator";
-import { TwinVitalsBar } from "./TwinVitalsBar";
 import { StationSystemDock, SystemFacilityItem } from "./StationSystemDock";
+import { PolarAtmosphereSystem } from "./PolarAtmosphereSystem";
+import { polarAudio } from "@/lib/polarAudioEngine";
+import { PolarOrbitalGlobeView } from "./PolarOrbitalGlobeView";
+import { CinematicDroneDirector, CinematicDroneDirectorHandle } from "./CinematicDroneDirector";
+import { MissionReportModal } from "./MissionReportModal";
+import { StationAICommander } from "./StationAICommander";
+import { FileText } from "@phosphor-icons/react";
 
 export interface RoomEntry {
   id: string;
@@ -126,6 +134,60 @@ export const MAITRI_MASTER_FACILITIES: Record<string, RoomEntry> = {
     target: [-75.00, -144.50, 2.2],
     fov: 68,
     description: "MBBR biological digestion, ultra-filtration, and UV sterilization adhering to Madrid Protocol.",
+  },
+  room_powerhouse_ravi: {
+    id: "room_powerhouse_ravi",
+    name: "Ravi Complex (4x 150 kVA Gensets)",
+    category: "Operations",
+    position: [12.00, -50.00, 3.5],
+    target: [12.00, -53.20, 1.8],
+    fov: 65,
+    description: "Ravi Generator Complex housing 4x 150 kVA Kirloskar-Cummins heavy diesel sets supplying primary lead microgrid.",
+  },
+  room_powerhouse_surya: {
+    id: "room_powerhouse_surya",
+    name: "Surya Complex (4x 62.5 kVA Gensets)",
+    category: "Operations",
+    position: [18.00, -50.00, 3.5],
+    target: [18.00, -53.20, 1.8],
+    fov: 65,
+    description: "Surya Generator Complex housing 4x 62.5 kVA diesel generator sets supplying mid-load microgrid circuits.",
+  },
+  room_powerhouse_aditya: {
+    id: "room_powerhouse_aditya",
+    name: "Aditya Complex (4x 62.5 kVA Gensets)",
+    category: "Operations",
+    position: [24.00, -50.00, 3.5],
+    target: [24.00, -53.20, 1.8],
+    fov: 65,
+    description: "Aditya Generator Complex housing 4x 62.5 kVA auxiliary and emergency standby generators with cold-start preheaters.",
+  },
+  room_carpentry_waste: {
+    id: "room_carpentry_waste",
+    name: "Carpentry & Waste Management Room",
+    category: "Operations",
+    position: [-22.00, 4.20, 4.25],
+    target: [-22.00, 5.80, 3.80],
+    fov: 68,
+    description: "Woodwork & carpentry shop, solid waste segregation bays, timber crating for backload, and hydraulic baler compliant with Madrid Protocol.",
+  },
+  room_dry_food: {
+    id: "room_dry_food",
+    name: "Dry Food Storage (9 Rations Bays)",
+    category: "Operations",
+    position: [-12.00, 4.20, 4.25],
+    target: [-12.00, 5.80, 3.80],
+    fov: 65,
+    description: "9 segregated dry rations storage bays holding pulses, grains, canned food, and overwinter survival reserves for 540 days.",
+  },
+  room_cold_storage: {
+    id: "room_cold_storage",
+    name: "Dual -4°C Walk-In Deep Freezers",
+    category: "Operations",
+    position: [-7.50, 4.20, 4.25],
+    target: [-7.50, 5.80, 3.80],
+    fov: 65,
+    description: "Dual redundant -4°C walk-in deep freezers (Freezer Unit 01 & 02) holding perishable cold-store expedition rations.",
   },
 };
 
@@ -510,6 +572,7 @@ export function MaitriStationTwin({
   // Lighting References for Dynamic Transitions
   const sunLightRef = useRef<THREE.DirectionalLight | null>(null);
   const hemiLightRef = useRef<THREE.HemisphereLight | null>(null);
+  const atmosphereRef = useRef<PolarAtmosphereSystem | null>(null);
 
   // Active Tour Camera Tracking State (Disabled for smooth elevated view)
   const activeTourCameraNodeRef = useRef<THREE.Object3D | null>(null);
@@ -548,6 +611,17 @@ export function MaitriStationTwin({
   const [lightingMode, setLightingMode] = useState<"SUN" | "AURORA" | "NIGHT">("SUN");
   const [activeSimulation, setActiveSimulation] = useState<SimulationResultPayload | null>(null);
   const [activeSystemId, setActiveSystemId] = useState<string | null>(null);
+  const [isOrbitalViewOpen, setIsOrbitalViewOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isAICommanderOpen, setIsAICommanderOpen] = useState(false);
+  const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+  const [isBoilerHeatingActive, setIsBoilerHeatingActive] = useState(false);
+  const heatingPipesGroupRef = useRef<THREE.Group | null>(null);
+  const heatingShaderUniformsRef = useRef<{ uTime: { value: number }; uActive: { value: number } }>({
+    uTime: { value: 0 },
+    uActive: { value: 0 },
+  });
+  const droneDirectorRef = useRef<CinematicDroneDirectorHandle | null>(null);
 
   // ── PHYSICAL THREE.JS SCENE REACTIONS TO WHAT-IF SIMULATION CRISES ──
   useEffect(() => {
@@ -667,6 +741,83 @@ export function MaitriStationTwin({
     sunLight.shadow.normalBias = 0.04;
     scene.add(sunLight);
     sunLightRef.current = sunLight;
+
+    // 6.2 Hydronic Boiler Room Heating Pipeline Network (Animated Orange Flow)
+    const heatingPipesGroup = new THREE.Group();
+    heatingPipesGroup.name = "Maitri_Boiler_Hydronic_Heating_Network";
+    heatingPipesGroup.visible = false;
+
+    const heatingMaterial = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      uniforms: {
+        uTime: heatingShaderUniformsRef.current.uTime,
+        uActive: heatingShaderUniformsRef.current.uActive,
+      },
+      vertexShader: `
+        varying vec3 vWorldPos;
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        uniform float uActive;
+        varying vec3 vWorldPos;
+        varying vec2 vUv;
+        void main() {
+          if (uActive < 0.01) discard;
+          float wave = sin(vUv.x * 38.0 - uTime * 7.0);
+          float pulse = smoothstep(0.15, 0.9, wave);
+          vec3 baseOrange = vec3(1.0, 0.40, 0.0); // #FF6600
+          vec3 glowHot = vec3(1.0, 0.90, 0.28);  // #FFE547
+          vec3 col = mix(baseOrange, glowHot, pulse);
+          float alpha = (0.75 + pulse * 0.25) * uActive;
+          gl_FragColor = vec4(col, alpha);
+        }
+      `,
+      side: THREE.DoubleSide,
+    });
+
+    const segments: [number, number, number][][] = [
+      // 1. Central Boiler Distribution Arterial Spine (spans entire building along main corridor at Z = -4.2)
+      [ [12.5, 4.35, -4.2], [6.0, 4.35, -4.2], [0.0, 4.35, -4.2], [-6.0, 4.35, -4.2], [-14.0, 4.35, -4.2], [-22.5, 4.35, -4.2] ],
+      // 2. Boiler Room Calorifiers & Burner Injection (East Wing)
+      [ [12.5, 4.35, -4.2], [12.5, 4.35, -5.8], [11.0, 4.35, -5.8] ],
+      // 3. IMD Meteorological Observatory Radiator Branch
+      [ [6.95, 4.35, -4.2], [6.95, 4.35, -5.66] ],
+      // 4. Communications & Telemetry NOC Radiator Branch
+      [ [3.35, 4.35, -4.2], [3.35, 4.35, -5.86] ],
+      // 5. Dual -4°C Cold Storage Freezer Heated Jacket / Defrost Line
+      [ [-7.5, 4.35, -4.2], [-7.5, 4.35, -5.8] ],
+      // 6. 9x Dry Food Storage Bays Branch
+      [ [-12.0, 4.35, -4.2], [-12.0, 4.35, -5.8] ],
+      // 7. Hospital & Surgical OT Sterile Radiators Branch
+      [ [-16.9, 4.35, -4.2], [-16.9, 4.35, -6.2], [-18.5, 4.35, -6.2] ],
+      // 8. Carpentry & Waste Management Workshop Radiators
+      [ [-22.0, 4.35, -4.2], [-22.0, 4.35, -5.8] ],
+      // 9. Habitation & Residential Living Cabins Loop (South Wing)
+      [ [0.0, 4.35, -4.2], [0.0, 4.35, -2.0], [-14.0, 4.35, -2.0], [-14.0, 4.35, -4.2] ],
+      [ [0.0, 4.35, -2.0], [8.0, 4.35, -2.0], [8.0, 4.35, -4.2] ],
+      // 10. Secondary Hydronic Return Loop to Boiler
+      [ [-22.5, 4.05, -4.0], [-10.0, 4.05, -4.0], [0.0, 4.05, -4.0], [12.5, 4.05, -4.0] ],
+      // 11. Waste Heat Recovery Coupling to Powerhouse (Overland Gantry)
+      [ [12.5, 4.35, -4.2], [14.0, 3.8, 5.0], [14.5, 3.2, 25.0], [15.0, 2.8, 50.0] ],
+    ];
+
+    segments.forEach((pts) => {
+      const curve = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(p[0], p[1], p[2])));
+      const geom = new THREE.TubeGeometry(curve, 32, 0.22, 8, false);
+      const mesh = new THREE.Mesh(geom, heatingMaterial);
+      mesh.renderOrder = 60;
+      heatingPipesGroup.add(mesh);
+    });
+
+    scene.add(heatingPipesGroup);
+    heatingPipesGroupRef.current = heatingPipesGroup;
 
     // 7. Pipeline Flow Shader (High-Performance Isolated Single-Compile Shader)
     const applyPipelineFlowShader = (
@@ -987,6 +1138,14 @@ export function MaitriStationTwin({
 
       // Update flow time uniform
       flowTimeUniformRef.current.value = elapsed;
+      if (heatingShaderUniformsRef.current) {
+        heatingShaderUniformsRef.current.uTime.value = elapsed;
+      }
+
+      // Update Polar Atmosphere & Blizzard Engine
+      if (atmosphereRef.current) {
+        atmosphereRef.current.update(delta);
+      }
 
       // Animate Lake water surface normal scrolling
       if (lakeMaterialRef.current && lakeMaterialRef.current.normalMap) {
@@ -1023,6 +1182,7 @@ export function MaitriStationTwin({
     return () => {
       window.removeEventListener("resize", handleResize);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (atmosphereRef.current) atmosphereRef.current.dispose();
       dracoLoader.dispose();
       renderer.dispose();
       pmremGenerator.dispose();
@@ -1223,6 +1383,7 @@ export function MaitriStationTwin({
 
       setActiveRoom(room);
       if (onRoomSelect) onRoomSelect(room.id);
+      polarAudio.setLocationState(true, room.id.includes("powerhouse") || room.id.includes("generator"));
 
       const camera = cameraRef.current;
       const controls = controlsRef.current;
@@ -1293,13 +1454,101 @@ export function MaitriStationTwin({
     [onRoomSelect, setFlowsActivation]
   );
 
+  // ── TOGGLE BOILER ROOM HEATING & ORANGE FLOW (TOP-DOWN OVERHEAD VIEW) ──
+  const toggleBoilerHeating = useCallback(() => {
+    if (!cameraRef.current || !controlsRef.current) return;
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+
+    setIsBoilerHeatingActive((prev) => {
+      const nextState = !prev;
+
+      if (heatingShaderUniformsRef.current) {
+        heatingShaderUniformsRef.current.uActive.value = nextState ? 1.0 : 0.0;
+      }
+
+      if (nextState) {
+        setActiveTourIndex(null);
+        setActiveRoom(null);
+        setActiveMode("flows");
+
+        // Lift roof to reveal all internal heating distribution pipes
+        if (mainRoofRef.current) {
+          gsap.to(mainRoofRef.current.position, {
+            y: 16.5,
+            duration: 1.2,
+            ease: "power2.out",
+          });
+          setRoofLifted(true);
+        }
+
+        // DIRECT TOP-DOWN / OVERHEAD VIEW (Directly above Maitri building center at X=-4.5, Z=-4.2)
+        controls.enabled = false;
+        gsap.killTweensOf(camera.position);
+        gsap.killTweensOf(controls.target);
+
+        gsap.to(camera.position, {
+          x: -4.5,
+          y: 72.0,
+          z: -4.2,
+          duration: 1.8,
+          ease: "power3.inOut",
+        });
+
+        gsap.to(controls.target, {
+          x: -4.5,
+          y: 4.2,
+          z: -4.25,
+          duration: 1.8,
+          ease: "power3.inOut",
+          onComplete: () => {
+            controls.enabled = true;
+            controls.minDistance = 10.0;
+            controls.maxDistance = 250.0;
+            controls.enablePan = true;
+          },
+        });
+
+        gsap.to(camera, {
+          fov: 52,
+          duration: 1.5,
+          onUpdate: () => camera.updateProjectionMatrix(),
+        });
+      } else {
+        if (mainRoofRef.current) {
+          gsap.to(mainRoofRef.current.position, {
+            y: 0,
+            duration: 1.2,
+            ease: "power2.inOut",
+          });
+          setRoofLifted(false);
+        }
+      }
+
+      return nextState;
+    });
+  }, []);
+
   // ── SELECT FACILITY SYSTEM FROM HARDWARE DOCK & FLY CAMERA ──
   const handleSelectSystem = useCallback(
     (system: SystemFacilityItem) => {
       setActiveSystemId(system.id);
+      if (system.id === "maitri_boiler_heating" || system.id.includes("heating")) {
+        toggleBoilerHeating();
+        return;
+      }
       const room = roomRegistryRef.current[system.targetRoomId] || MAITRI_MASTER_FACILITIES[system.targetRoomId];
       if (room) {
-        if (room.id.includes("boiler") || room.id.includes("hospital") || room.id.includes("comms") || room.id.includes("meteo")) {
+        if (
+          room.id.includes("boiler") ||
+          room.id.includes("hospital") ||
+          room.id.includes("comms") ||
+          room.id.includes("meteo") ||
+          room.id.includes("food") ||
+          room.id.includes("cold") ||
+          room.id.includes("carpentry") ||
+          room.id.includes("waste")
+        ) {
           if (!roofLifted && mainRoofRef.current) {
             gsap.to(mainRoofRef.current.position, { y: 16.5, duration: 1.4, ease: "power2.inOut" });
             setRoofLifted(true);
@@ -1308,7 +1557,7 @@ export function MaitriStationTwin({
         lockInsideRoom(room);
       }
     },
-    [lockInsideRoom, roofLifted]
+    [lockInsideRoom, roofLifted, toggleBoilerHeating]
   );
 
   // ── QUICK PREV / NEXT ROOM NAVIGATION ──
@@ -1339,6 +1588,10 @@ export function MaitriStationTwin({
     setAutoPlayTour(false);
     setActiveMode("overview");
     setFlowsActivation(null); // Turn off all flow pulses
+    setIsBoilerHeatingActive(false);
+    if (heatingShaderUniformsRef.current) {
+      heatingShaderUniformsRef.current.uActive.value = 0.0;
+    }
 
     // Stop all running mixer clips
     if (mixerRef.current) {
@@ -1347,6 +1600,9 @@ export function MaitriStationTwin({
 
     const camera = cameraRef.current;
     const controls = controlsRef.current;
+
+    // Reset soundscape to outdoor polar ambiance
+    polarAudio.setLocationState(false, false);
 
     // Smoothly restore roof back down
     if (mainRoofRef.current) {
@@ -1510,12 +1766,88 @@ export function MaitriStationTwin({
         </div>
       )}
 
-      {/* ── LIVE POLAR VITALS TICKER & ISRO SATELLITE STORE-AND-FORWARD BUFFER ── */}
-      <TwinVitalsBar station="MAITRI" />
+      {/* ── UNIFIED AEROSPACE STATION COMMAND HEADER ── */}
+      <StationHeaderBar
+        station="MAITRI"
+        activeRoom={activeRoom ? { id: activeRoom.id, name: activeRoom.name, category: activeRoom.category } : null}
+        onPrevRoom={goToPrevRoom}
+        onNextRoom={goToNextRoom}
+        onExitRoom={resetToOverview}
+        roofLifted={roofLifted}
+        onToggleRoofLift={toggleRoofLift}
+        isRotating={isRotating}
+        onToggleRotate={toggleAutoRotate}
+        atmosphereSystem={atmosphereRef.current}
+        onOpenOrbitalView={() => setIsOrbitalViewOpen(true)}
+        onOpenDossier={() => setIsReportOpen(true)}
+        onOpenAICommander={() => setIsAICommanderOpen(true)}
+        onOpenSimulation={() => setIsSimulatorOpen(true)}
+        onResetOverview={resetToOverview}
+        enableFullscreenButton={enableFullscreenButton}
+        onStartDroneTour={() => droneDirectorRef.current?.startDroneTour()}
+        isBoilerHeatingActive={isBoilerHeatingActive}
+        onToggleBoilerHeating={toggleBoilerHeating}
+      />
+
+      {/* ── FLOATING TOP-DOWN BOILER ROOM HEATING HUD ── */}
+      {isBoilerHeatingActive && !activeRoom && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto w-[94%] max-w-xl animate-in fade-in slide-in-from-top-3 duration-300">
+          <div className="p-3.5 rounded-2xl bg-[#050B16]/95 border border-amber-500/40 shadow-[0_16px_48px_rgba(0,0,0,0.85)] backdrop-blur-2xl flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FFAA00] animate-pulse" />
+                <span className="font-mono text-xs font-bold text-white tracking-wider uppercase">
+                  Maitri Hydronic Heating · Top-Down Overhead View
+                </span>
+              </div>
+              <button
+                onClick={toggleBoilerHeating}
+                className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors"
+                title="Exit Overhead Heating View"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
+              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 flex flex-col">
+                <span className="text-[9px] text-[#FFAA00] uppercase font-semibold">Supply Loop</span>
+                <span className="text-sm font-bold text-white mt-0.5">+82.4°C</span>
+                <span className="text-[8px] text-[#FFAA00]/80">Orange Arterial Pipe</span>
+              </div>
+              <div className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.08] flex flex-col">
+                <span className="text-[9px] text-white/60 uppercase font-semibold">Return Loop</span>
+                <span className="text-sm font-bold text-white mt-0.5">+68.1°C</span>
+                <span className="text-[8px] text-white/50">ΔT: 14.3°C</span>
+              </div>
+              <div className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.08] flex flex-col">
+                <span className="text-[9px] text-white/60 uppercase font-semibold">Heat Source</span>
+                <span className="text-sm font-bold text-white mt-0.5">Riello + CHP</span>
+                <span className="text-[8px] text-emerald-400">94.2% Efficiency</span>
+              </div>
+              <div className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.08] flex flex-col">
+                <span className="text-[9px] text-white/60 uppercase font-semibold">Circulation</span>
+                <span className="text-sm font-bold text-white mt-0.5">3.4 m³/h</span>
+                <span className="text-[8px] text-emerald-400">Radiators Active</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] font-mono text-[#7ABBD4] pt-1 border-t border-white/[0.08]">
+              <span>Flow: Boiler Room ➔ IMD ➔ Comms ➔ Quarters ➔ Hospital ➔ Carpentry & Waste</span>
+              <button
+                onClick={resetToOverview}
+                className="text-white/60 hover:text-white underline underline-offset-2"
+              >
+                Reset Overview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── CONTEXTUAL ROOM SCADA TELEMETRY & BI-DIRECTIONAL REMOTE ACTUATION ── */}
       {activeRoom && (
-        <div className="absolute top-28 left-4 sm:left-6 z-40 pointer-events-auto">
+        <div className="absolute top-16 left-4 sm:left-6 z-40 pointer-events-auto">
           <RoomTelemetryCard
             room={activeRoom}
             stationId="MAITRI"
@@ -1525,155 +1857,32 @@ export function MaitriStationTwin({
             }}
             onTriggerAction={(actionId, label) => {
               console.log(`[MAITRI SCADA ACTUATION] Executed ${label} (${actionId}) in ${activeRoom.name}`);
+              if (actionId === "ACTIVATE_BOILER_HEATING") {
+                toggleBoilerHeating();
+              }
             }}
           />
         </div>
       )}
 
-      {/* ── TOP-LEFT STATION IDENTITY BADGE & SWITCHER ── */}
-      <div className="absolute top-20 left-4 sm:left-6 z-30 pointer-events-auto flex items-center gap-2">
-        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#040D1A]/85 border border-white/10 backdrop-blur-2xl shadow-xl">
-          <span className="w-2 h-2 rounded-full bg-[#00D4A0] animate-pulse shadow-[0_0_8px_#00D4A0]" />
-          <span className="font-mono text-[11px] uppercase tracking-wider text-[#EBF5FC] font-semibold">
-            Maitri Station 3D Twin
-          </span>
-          <span className="text-white/20">·</span>
-          <span className="font-mono text-[10px] text-[#0DB9D0] font-medium">70°45′S, 11°44′E</span>
-        </div>
+      {/* ── WHAT-IF CRISIS SIMULATION DRAWER (Controlled) ── */}
+      <TwinWhatIfSimulator
+        station="MAITRI"
+        isOpen={isSimulatorOpen}
+        onOpenChange={setIsSimulatorOpen}
+        hideTrigger={true}
+        onSimulationChange={setActiveSimulation}
+      />
 
-        {/* Quick Station Switcher */}
-        <div className="hidden sm:flex items-center p-0.5 rounded-full bg-[#040D1A]/85 border border-white/10 backdrop-blur-2xl shadow-xl font-mono text-[10px]">
-          <span className="px-2.5 py-1 rounded-full bg-[#0DB9D0]/20 text-[#0DB9D0] border border-[#0DB9D0]/40 font-semibold uppercase tracking-wider shadow-[0_0_8px_rgba(13,185,208,0.3)]">
-            Maitri
-          </span>
-          <a
-            href="/twin/bharati"
-            className="px-2.5 py-1 rounded-full text-[#7ABBD4] hover:text-white uppercase tracking-wider transition-colors"
-          >
-            Bharati
-          </a>
-        </div>
-      </div>
-
-      {/* ── TOP-RIGHT QUICK ACTION CLUSTER ── */}
-      <div className="absolute top-20 right-4 sm:right-6 z-30 pointer-events-auto flex items-center gap-2">
-        <TwinWhatIfSimulator
-          station="MAITRI"
-          onSimulationChange={setActiveSimulation}
-        />
-        <div className="flex items-center gap-1 p-1 bg-[#040D1A]/85 border border-white/10 rounded-2xl backdrop-blur-2xl shadow-xl">
-          <button
-            onClick={resetToOverview}
-            className={`p-2 rounded-xl transition-all ${
-              activeMode === "overview" && !activeRoom && activeTourIndex === null
-                ? "bg-[#0DB9D0]/20 text-[#0DB9D0]"
-                : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
-            }`}
-            title="Reset to Station Overview"
-          >
-            <Compass size={16} weight="duotone" />
-          </button>
-
-          <button
-            onClick={toggleRoofLift}
-            className={`p-2 rounded-xl transition-all ${
-              roofLifted
-                ? "bg-[#e11d48]/20 text-[#ff4d6d] border border-[#e11d48]/40 shadow-[0_0_12px_rgba(225,29,72,0.4)]"
-                : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
-            }`}
-            title="Toggle Roof X-Ray Lift (+16.5m Sliced)"
-          >
-            <Cube size={16} weight="duotone" />
-          </button>
-
-          <button
-            onClick={toggleAutoRotate}
-            className={`p-2 rounded-xl transition-colors ${
-              isRotating ? "bg-[#0DB9D0]/20 text-[#0DB9D0]" : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
-            }`}
-            title="Toggle Auto-Orbit"
-          >
-            <ArrowsClockwise size={16} className={isRotating ? "animate-spin" : ""} />
-          </button>
-
-          <button
-            onClick={cycleLighting}
-            className="p-2 rounded-xl text-[#7ABBD4] hover:text-white hover:bg-white/10 transition-colors"
-            title={`Cycle Lighting (${lightingMode})`}
-          >
-            {lightingMode === "SUN" ? <Sun size={16} weight="duotone" /> : <Moon size={16} weight="duotone" />}
-          </button>
-
-          {enableFullscreenButton && (
-            <button
-              onClick={toggleFullscreen}
-              className="p-2 rounded-xl text-[#7ABBD4] hover:text-white hover:bg-white/10 transition-colors"
-              title="Toggle Fullscreen"
-            >
-              {isFullscreen ? <ArrowsIn size={16} /> : <ArrowsOut size={16} />}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ── ACTIVE PERSON VIEW HUD & MULTI-ROOM SWITCHER (TOP CENTER) ── */}
-      {activeRoom && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
-          <div className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full bg-[#040D1A]/95 border border-[#0DB9D0]/50 backdrop-blur-2xl shadow-[0_12px_40px_rgba(0,0,0,0.88)] animate-in fade-in slide-in-from-top-3 duration-300">
-            {/* Prev Room Button */}
-            <button
-              onClick={goToPrevRoom}
-              className="p-1 rounded-full text-[#7ABBD4] hover:text-white hover:bg-white/10 transition-colors"
-              title="Previous Facility"
-            >
-              <CaretLeft size={14} weight="bold" />
-            </button>
-
-            <div className="flex items-center gap-1.5 px-1 min-w-0">
-              <Camera size={14} className="text-[#0DB9D0] shrink-0" weight="duotone" />
-              <span className="font-sans text-xs font-bold text-white tracking-wide max-w-[140px] sm:max-w-xs truncate">
-                {activeRoom.name}
-              </span>
-              <span className="hidden md:inline-block px-1.5 py-0.5 rounded font-mono text-[9px] bg-[#00D4A0]/20 text-[#00D4A0] border border-[#00D4A0]/30 font-semibold uppercase">
-                {activeRoom.category}
-              </span>
-            </div>
-
-            {/* Next Room Button */}
-            <button
-              onClick={goToNextRoom}
-              className="p-1 rounded-full text-[#7ABBD4] hover:text-white hover:bg-white/10 transition-colors"
-              title="Next Facility"
-            >
-              <CaretRight size={14} weight="bold" />
-            </button>
-
-            <span className="text-white/20">|</span>
-
-            {/* Toggle Room Drawer */}
-            <button
-              onClick={() => setActiveMode(activeMode === "rooms" ? "overview" : "rooms")}
-              className={`px-2.5 py-0.5 rounded-full font-mono text-[10px] uppercase font-semibold transition-all ${
-                activeMode === "rooms"
-                  ? "bg-[#0DB9D0]/25 text-[#0DB9D0] border border-[#0DB9D0]/50"
-                  : "bg-white/10 hover:bg-white/20 text-[#EBF5FC]"
-              }`}
-              title="Toggle All Rooms List"
-            >
-              {activeMode === "rooms" ? "Hide List" : "All Rooms"}
-            </button>
-
-            {/* Exit Sitting Perspective */}
-            <button
-              onClick={resetToOverview}
-              className="px-2.5 py-0.5 rounded-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-mono text-[10px] uppercase font-semibold transition-colors"
-              title="Return to Station Overview"
-            >
-              Exit
-            </button>
-          </div>
-        </div>
-      )}
+      {/* ── AUTONOMOUS 4K DRONE AERIAL SURVEY DIRECTOR ── */}
+      <CinematicDroneDirector
+        ref={droneDirectorRef}
+        camera={cameraRef.current}
+        controls={controlsRef.current}
+        station="MAITRI"
+        hideTrigger={true}
+        onExitCallback={resetToOverview}
+      />
 
       {/* ── INTERACTIVE STORYTELLING CARD (SLICED BUILDING LIFELINE TOUR) ── */}
       {currentTour && currentStage && activeTourIndex !== null && !activeRoom && isStoryCardVisible && (
@@ -2010,6 +2219,51 @@ export function MaitriStationTwin({
         <span>·</span>
         <span>Scroll to Zoom</span>
       </div>
+
+      {/* ── AGENTIC AI STATION COMMANDER (HIMADRI COPILOT WITH 3D ACTUATION) ── */}
+      <StationAICommander
+        station="MAITRI"
+        isOpen={isAICommanderOpen}
+        onOpenChange={setIsAICommanderOpen}
+        hideFloatingTrigger={true}
+        onFlyToRoom={(roomId) => {
+          const room = roomRegistryRef.current[roomId] || MAITRI_MASTER_FACILITIES[roomId];
+          if (room) {
+            if (room.id.includes("boiler") || room.id.includes("hospital") || room.id.includes("comms") || room.id.includes("meteo")) {
+              if (!roofLifted && mainRoofRef.current) {
+                gsap.to(mainRoofRef.current.position, { y: 16.5, duration: 1.4, ease: "power2.inOut" });
+                setRoofLifted(true);
+              }
+            }
+            lockInsideRoom(room);
+          }
+        }}
+        onToggleBlizzard={(isBlizz) => {
+          if (atmosphereRef.current) {
+            atmosphereRef.current.setBlizzard(isBlizz);
+            atmosphereRef.current.setWindSpeed(isBlizz ? 105 : 28);
+          }
+          polarAudio.setBlizzard(isBlizz);
+        }}
+        onTriggerSimulation={(scId) => {
+          setActiveSimulation({ scenarioId: scId } as any);
+        }}
+        onResetOverview={resetToOverview}
+      />
+
+      {/* ── ISRO GSAT POLAR ORBITAL GLOBE VIEW ── */}
+      <PolarOrbitalGlobeView
+        isOpen={isOrbitalViewOpen}
+        onClose={() => setIsOrbitalViewOpen(false)}
+        currentStation="MAITRI"
+      />
+
+      {/* ── NCPOR & ATCM MISSION READINESS BRIEFING DOSSIER ── */}
+      <MissionReportModal
+        station="MAITRI"
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+      />
     </div>
   );
 }
