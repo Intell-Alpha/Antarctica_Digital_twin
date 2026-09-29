@@ -75,6 +75,33 @@ export interface InventoryCategory {
   storageLocation: string;
 }
 
+export interface NcporSeriesPoint {
+  timestamp: number;
+  value: number;
+}
+
+export interface NcporLiveFeed {
+  isLive: boolean;
+  stationName: string;
+  sourceUrl: string;
+  observationDate: string;
+  lastSyncedAt: string;
+  windKnots: number;
+  windMps: number;
+  stats?: {
+    temperature: { avg: number | null; min: number | null; max: number | null };
+    windSpeedMps: { avg: number | null; min: number | null; max: number | null };
+    airPressureHpa: { avg: number | null; min: number | null; max: number | null };
+    relativeHumidityPct: { avg: number | null; min: number | null; max: number | null };
+  };
+  series?: {
+    temperature: NcporSeriesPoint[];
+    windSpeed: NcporSeriesPoint[];
+    airPressure: NcporSeriesPoint[];
+    humidity: NcporSeriesPoint[];
+  };
+}
+
 export interface EnvironmentalTelemetry {
   tempC: number;
   tempMinC: number;
@@ -91,6 +118,7 @@ export interface EnvironmentalTelemetry {
   magneticFieldnT: number;
   seaIceThicknessM: number;
   resupplyWindowStatus: "OPEN" | "POSSIBLE" | "RESTRICTED" | "UNAVAILABLE";
+  liveFeed?: NcporLiveFeed;
 }
 
 export interface SatelliteUplink {

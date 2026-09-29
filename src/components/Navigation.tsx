@@ -36,7 +36,11 @@ export function Navigation() {
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  if (pathname?.startsWith("/dashboard")) {
+  if (
+    pathname?.startsWith("/dashboard") ||
+    pathname?.startsWith("/twin") ||
+    pathname === "/bharati"
+  ) {
     return null;
   }
 
