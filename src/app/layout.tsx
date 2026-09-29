@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Antarctic Digital Twin",
+  title: "Himdrishti",
   description:
     "Live operational telemetry, predictive twin, and life support monitoring for India's Antarctic research stations: Maitri and Bharati.",
 };

@@ -1,4 +1,4 @@
-# 🇦🇶 Antarctica Digital Twin — Backend API & Simulation Engine
+# 🇦🇶 Himdrishti — Backend API & Simulation Engine
 
 A production-ready, modular **Express + TypeScript** backend service built for the **Bharati Research Station** (commissioned March 2012) and **Maitri Research Station** (commissioned 1989) Digital Twin framework.
 
@@ -129,7 +129,7 @@ To ensure scientific and operational authenticity, every entity returned by the 
 ```json
 {
   "status": "ONLINE",
-  "system": "Antarctica Digital Twin Backend Core Engine",
+  "system": "Himdrishti Backend Core Engine",
   "stations": ["BHARATI", "MAITRI"],
   "timestamp": "2026-09-27T19:30:00.000Z",
   "version": "1.0.0"

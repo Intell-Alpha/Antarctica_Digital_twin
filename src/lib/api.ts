@@ -1,4 +1,4 @@
-// Real-Time Backend API Client & Service Layer for Antarctica Digital Twin
+// Real-Time Backend API Client & Service Layer for Himdrishti
 // Connects to Express Backend at http://localhost:5000 with automatic resilient fallback
 
 export type Station = "MAITRI" | "BHARATI";
