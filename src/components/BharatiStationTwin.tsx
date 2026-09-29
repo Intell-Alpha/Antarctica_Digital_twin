@@ -30,6 +30,11 @@ import {
   Wrench,
   Gear,
 } from "@phosphor-icons/react";
+import { RoomTelemetryCard } from "./RoomTelemetryCard";
+import { TwinWhatIfSimulator, SimulationResultPayload } from "./TwinWhatIfSimulator";
+import { TwinVitalsBar } from "./TwinVitalsBar";
+import { StationSystemDock, SystemFacilityItem } from "./StationSystemDock";
+
 
 export interface BharatiRoomEntry {
   id: string;
@@ -1176,6 +1181,7 @@ export function BharatiStationTwin({
   const l1InteriorMeshesRef = useRef<THREE.Mesh[]>([]); // Level 01: Scissor lift, workshop bench, boot wash, waste baler, doors
   const slabsMeshRef = useRef<THREE.Mesh | null>(null); // Interior_Rooms_Slabs_Walls_And_Stairs
   const mepInletMeshesRef = useRef<THREE.Mesh[]>([]);   // BHA-MEP-INLET-BOX-FUEL & BHA-MEP-INLET-BOX-SEAWATER
+  const gensetMeshesRef = useRef<THREE.Mesh[]>([]);     // BHA-CHPP-GEN-01, 02, 03 for physical What-If simulation reactions
 
   // Hardware GPU Material Clipping Plane for Clean Architectural Multi-Floor Cutaways
   const clipPlaneRef = useRef<THREE.Plane>(new THREE.Plane(new THREE.Vector3(0, -1, 0), 25.0));
@@ -1245,6 +1251,8 @@ export function BharatiStationTwin({
   const [isRotating, setIsRotating] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [lightingMode, setLightingMode] = useState<"SUN" | "AURORA" | "NIGHT">("SUN");
+  const [activeSimulation, setActiveSimulation] = useState<SimulationResultPayload | null>(null);
+  const [activeSystemId, setActiveSystemId] = useState<string | null>(null);
 
   // ── CUTAWAY / FLOOR DECK CONTROLLER (REMOVES ALL ABOVE STRUCTURES SMOOTHLY VIA GPU HARDWARE CLIPPING) ──
   const setCutawayMode = useCallback(
@@ -1433,6 +1441,65 @@ export function BharatiStationTwin({
     [isGhostHull]
   );
 
+  // ── PHYSICAL THREE.JS SCENE REACTIONS TO WHAT-IF SIMULATION CRISES ──
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    const scene = sceneRef.current;
+
+    if (!activeSimulation) {
+      // Revert to nominal atmospheric baseline
+      if (lightingMode === "SUN") {
+        scene.background = new THREE.Color("#030712");
+        scene.fog = new THREE.FogExp2(0x030712, 0.0014);
+        if (sunLightRef.current) {
+          sunLightRef.current.intensity = 2.2;
+          sunLightRef.current.color.set(0xfff7e6);
+        }
+      }
+      flowCategoryUniformsRef.current.heattrace.value = 0.0;
+      gensetMeshesRef.current.forEach((mesh) => {
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        mats.forEach((m: any) => {
+          if (m && m.emissive) {
+            m.emissive.set(0x000000);
+          }
+        });
+      });
+      return;
+    }
+
+    if (activeSimulation.scenarioId === "EXTREME_WEATHER") {
+      // Katabatic Blizzard (-40°C): Dense ice fog, howling dim storm lighting, boosted heat-trace line
+      scene.background = new THREE.Color("#081220");
+      scene.fog = new THREE.FogExp2(0x0e1b2e, 0.0048);
+      if (sunLightRef.current) {
+        sunLightRef.current.intensity = 0.75;
+        sunLightRef.current.color.set(0x88b0d0);
+      }
+      flowCategoryUniformsRef.current.heattrace.value = 2.5;
+    } else if (activeSimulation.scenarioId === "GENERATOR_FAILURE") {
+      // GenSet 01 Failure: Cut camera to Level 02 Power hall & pulse GenSet 01 emissive red
+      setCutawayMode("l2_power");
+      gensetMeshesRef.current.forEach((mesh) => {
+        if (mesh.name.includes("GEN-01") || mesh.name.includes("01")) {
+          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          mats.forEach((m: any) => {
+            if (m && m.emissive) {
+              m.emissive.set(0xff0033);
+            }
+          });
+        }
+      });
+      if (sunLightRef.current) {
+        sunLightRef.current.intensity = 1.1;
+      }
+    } else if (activeSimulation.scenarioId === "COMMUNICATION_OUTAGE") {
+      // Satcom Outage: Cut to Level 04 Terrace to inspect radomes
+      setCutawayMode("l4_terrace");
+    }
+  }, [activeSimulation, lightingMode, setCutawayMode]);
+
+
   // ── CONTINUOUS BIM CUTAWAY SLIDER (MANUAL ELEVATION SCRUBBING) ──
   const setManualCutHeight = useCallback(
     (height: number) => {
@@ -1590,6 +1657,18 @@ export function BharatiStationTwin({
       });
     },
     [onRoomSelect, setFlowsActivation, setCutawayMode]
+  );
+
+  // ── SELECT FACILITY SYSTEM FROM HARDWARE DOCK & FLY CAMERA ──
+  const handleSelectSystem = useCallback(
+    (system: SystemFacilityItem) => {
+      setActiveSystemId(system.id);
+      const room = BHARATI_ROOM_REGISTRY[system.targetRoomId];
+      if (room) {
+        lockInsideRoom(room);
+      }
+    },
+    [lockInsideRoom]
   );
 
 
@@ -1806,6 +1885,7 @@ export function BharatiStationTwin({
       l2InteriorMeshesRef.current = [];
       l1InteriorMeshesRef.current = [];
       mepInletMeshesRef.current = [];
+      gensetMeshesRef.current = [];
       interactiveMeshesRef.current = [];
 
       const roomList = Object.values(BHARATI_ROOM_REGISTRY);
@@ -1944,6 +2024,10 @@ export function BharatiStationTwin({
             });
             node.material = Array.isArray(mat) ? clonedMats : clonedMats[0];
             l2InteriorMeshesRef.current.push(node);
+
+            if (meshName.includes("BHA-CHPP-GEN-")) {
+              gensetMeshesRef.current.push(node);
+            }
 
             if (meshName.includes("BHA-MEP-INLET-BOX-")) {
               mepInletMeshesRef.current.push(node);
@@ -2539,6 +2623,7 @@ export function BharatiStationTwin({
 
   // ── RESET TO STATION EXTERIOR OVERVIEW ──
   const resetToOverview = useCallback(() => {
+    setActiveSystemId(null);
     if (!cameraRef.current || !controlsRef.current) return;
     setActiveRoom(null);
     setActiveTourIndex(null);
@@ -2741,6 +2826,26 @@ export function BharatiStationTwin({
         </div>
       )}
 
+      {/* ── LIVE POLAR VITALS TICKER & ISRO SATELLITE STORE-AND-FORWARD BUFFER ── */}
+      <TwinVitalsBar station="BHARATI" />
+
+      {/* ── CONTEXTUAL ROOM SCADA TELEMETRY & BI-DIRECTIONAL REMOTE ACTUATION ── */}
+      {activeRoom && (
+        <div className="absolute top-28 left-4 sm:left-6 z-40 pointer-events-auto">
+          <RoomTelemetryCard
+            room={activeRoom}
+            stationId="BHARATI"
+            onClose={() => {
+              setActiveRoom(null);
+              setActiveSystemId(null);
+            }}
+            onTriggerAction={(actionId, label) => {
+              console.log(`[BHARATI SCADA ACTUATION] Executed ${label} (${actionId}) in ${activeRoom.name}`);
+            }}
+          />
+        </div>
+      )}
+
       {/* ── TOP-LEFT STATION IDENTITY BADGE & CUTAWAY VIEW SELECTOR ── */}
       <div className="absolute top-20 left-4 sm:left-6 z-30 pointer-events-auto flex flex-col gap-2">
         <div className="flex items-center gap-2">
@@ -2898,8 +3003,13 @@ export function BharatiStationTwin({
         )}
       </div>
 
-      {/* ── TOP-RIGHT QUICK ACTIONS (LIGHTING, ROTATE, FULLSCREEN) ── */}
+      {/* ── TOP-RIGHT QUICK ACTIONS (WHAT-IF SIMULATOR, LIGHTING, ROTATE, FULLSCREEN) ── */}
       <div className="absolute top-20 right-4 sm:right-6 z-30 pointer-events-auto flex items-center gap-1.5">
+        <TwinWhatIfSimulator
+          station="BHARATI"
+          onSimulationChange={setActiveSimulation}
+        />
+
         <button
           onClick={cycleLighting}
           className="p-2 rounded-2xl bg-[#040D1A]/90 hover:bg-white/10 border border-white/10 text-[#7ABBD4] hover:text-white backdrop-blur-2xl transition-all shadow-xl"
@@ -3338,63 +3448,16 @@ export function BharatiStationTwin({
           </div>
         )}
 
-        {/* MAIN DOCK BAR */}
-        <div className="flex items-center p-1.5 rounded-full bg-[#040D1A]/90 border border-white/15 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] gap-1">
-          <button
-            onClick={resetToOverview}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono text-xs font-semibold tracking-wider uppercase transition-all ${
-              activeMode === "overview" && !activeRoom && cutawayViewMode === "exterior"
-                ? "bg-[#00A8FF] text-[#03060E] shadow-[0_0_20px_rgba(0,168,255,0.4)]"
-                : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
-            }`}
-          >
-            <Compass size={15} weight="duotone" />
-            <span>Station View</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (activeMode === "flows") {
-                setActiveMode("overview");
-              } else {
-                setActiveMode("flows");
-                playTour(activeTourIndex ?? 0);
-              }
-            }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono text-xs font-semibold tracking-wider uppercase transition-all ${
-              activeMode === "flows"
-                ? "bg-[#00A8FF] text-[#03060E] shadow-[0_0_20px_rgba(0,168,255,0.4)]"
-                : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
-            }`}
-          >
-            <Lightning size={15} weight="duotone" />
-            <span>Lifeline Flows</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMode(activeMode === "cutaways" ? "overview" : "cutaways")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono text-xs font-semibold tracking-wider uppercase transition-all ${
-              activeMode === "cutaways" || cutawayViewMode !== "exterior"
-                ? "bg-[#FFAA00] text-[#03060E] shadow-[0_0_20px_rgba(255,170,0,0.4)]"
-                : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
-            }`}
-          >
-            <Stack size={15} weight="duotone" />
-            <span>Decks ({cutawayViewMode === "exterior" ? "Exterior" : cutawayViewMode.toUpperCase()})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMode(activeMode === "rooms" ? "overview" : "rooms")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono text-xs font-semibold tracking-wider uppercase transition-all ${
-              activeMode === "rooms" || activeRoom
-                ? "bg-[#00A8FF] text-[#03060E] shadow-[0_0_20px_rgba(0,168,255,0.4)]"
-                : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
-            }`}
-          >
-            <Cpu size={15} weight="duotone" />
-            <span>Facilities ({rooms.length})</span>
-          </button>
-        </div>
+        {/* ── STATION SYSTEMS HARDWARE DOCK (DIRECT FACILITY FLY & CARD LAUNCHER) ── */}
+        <StationSystemDock
+          station="BHARATI"
+          activeSystemId={activeRoom?.id || activeSystemId}
+          onSelectSystem={handleSelectSystem}
+          onResetOverview={() => {
+            setActiveSystemId(null);
+            resetToOverview();
+          }}
+        />
       </div>
 
       {/* ── MINIMAL VIEWPORT HINT (BOTTOM RIGHT) ── */}

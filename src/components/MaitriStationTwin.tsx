@@ -27,11 +27,15 @@ import {
   Gear,
   Cpu,
 } from "@phosphor-icons/react";
+import { RoomTelemetryCard } from "./RoomTelemetryCard";
+import { TwinWhatIfSimulator, SimulationResultPayload } from "./TwinWhatIfSimulator";
+import { TwinVitalsBar } from "./TwinVitalsBar";
+import { StationSystemDock, SystemFacilityItem } from "./StationSystemDock";
 
 export interface RoomEntry {
   id: string;
   name: string;
-  category: "Science Labs" | "Operations" | "Medical & Living";
+  category: "Science Labs" | "Operations" | "Medical & Living" | string;
   camera_name?: string;
   position: [number, number, number];
   target: [number, number, number];
@@ -40,6 +44,90 @@ export interface RoomEntry {
   maxDistance?: number;
   description?: string;
 }
+
+export const MAITRI_MASTER_FACILITIES: Record<string, RoomEntry> = {
+  room_powerhouse: {
+    id: "room_powerhouse",
+    name: "Powerhouse Generation Hall",
+    category: "Operations",
+    position: [15.00, -50.00, 3.5],
+    target: [15.00, -53.20, 1.8],
+    fov: 65,
+    description: "3x Kirloskar-Cummins diesel generator sets (62.5 kVA each) supplying 415V 3-phase microgrid.",
+  },
+  lab_imd_meteo: {
+    id: "lab_imd_meteo",
+    name: "IMD Meteorological Observatory",
+    category: "Science Labs",
+    position: [6.95, 4.50, 4.15],
+    target: [6.95, 5.66, 4.05],
+    fov: 68,
+    description: "AWS weather instrumentation recording katabatic winds, barometric pressure, and polar radiation.",
+  },
+  lab_comms_telemetry: {
+    id: "lab_comms_telemetry",
+    name: "Communications & Telemetry Center",
+    category: "Science Labs",
+    position: [3.35, 4.60, 4.15],
+    target: [3.35, 5.86, 4.12],
+    fov: 68,
+    description: "High-latitude HF/VHF radios, satellite transceivers, and store-and-forward telemetry buffer.",
+  },
+  room_boiler: {
+    id: "room_boiler",
+    name: "Industrial Boiler & Heating Plant",
+    category: "Operations",
+    position: [12.20, 4.20, 4.25],
+    target: [11.00, 5.80, 3.50],
+    fov: 70,
+    description: "Freshwater intake arrival, 500L DHW calorifiers, and Riello burner hydronic distribution.",
+  },
+  fuel_farm: {
+    id: "fuel_farm",
+    name: "Bulk Fuel Tank Farm",
+    category: "Operations",
+    position: [85.0, -35.0, 3.5],
+    target: [85.0, -42.0, 1.5],
+    fov: 62,
+    description: "ISO tank containers and 50kL bulk fuel tanks holding Arctic ATF-50 diesel.",
+  },
+  lab_kamet_geomag: {
+    id: "lab_kamet_geomag",
+    name: "IIG Kamet Geomagnetic Observatory",
+    category: "Science Labs",
+    position: [-16.66, 114.70, 2.5],
+    target: [-16.80, 115.86, 1.9],
+    fov: 68,
+    description: "Magnetic variometers recording Earth's 3-axis geomagnetic field and auroral currents.",
+  },
+  lab_ncpor_physics: {
+    id: "lab_ncpor_physics",
+    name: "NCPOR Atmospheric Physics Lab",
+    category: "Science Labs",
+    position: [-124.60, -34.40, 3.0],
+    target: [-124.60, -33.00, 2.5],
+    fov: 70,
+    description: "Aerosol particle sizers, solar radiation flux monitors, and greenhouse gas analyzers.",
+  },
+  room_hospital: {
+    id: "room_hospital",
+    name: "Hospital & Surgical Suite",
+    category: "Medical & Living",
+    position: [-16.90, 3.00, 4.25],
+    target: [-17.90, 6.80, 3.80],
+    fov: 70,
+    description: "Autonomous surgical operating theatre, telemedicine terminal, and critical care berths.",
+  },
+  room_stp: {
+    id: "room_stp",
+    name: "Central Sewage Treatment Facility",
+    category: "Operations",
+    position: [-75.00, -139.00, 3.5],
+    target: [-75.00, -144.50, 2.2],
+    fov: 68,
+    description: "MBBR biological digestion, ultra-filtration, and UV sterilization adhering to Madrid Protocol.",
+  },
+};
 
 export interface TourStage {
   id: string;
@@ -458,6 +546,47 @@ export function MaitriStationTwin({
   const [isRotating, setIsRotating] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [lightingMode, setLightingMode] = useState<"SUN" | "AURORA" | "NIGHT">("SUN");
+  const [activeSimulation, setActiveSimulation] = useState<SimulationResultPayload | null>(null);
+  const [activeSystemId, setActiveSystemId] = useState<string | null>(null);
+
+  // ── PHYSICAL THREE.JS SCENE REACTIONS TO WHAT-IF SIMULATION CRISES ──
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    const scene = sceneRef.current;
+
+    if (!activeSimulation) {
+      if (lightingMode === "SUN") {
+        scene.background = new THREE.Color("#7db4db");
+        scene.fog = new THREE.FogExp2(0x7db4db, 0.0012);
+        if (sunLightRef.current) {
+          sunLightRef.current.intensity = 1.35;
+          sunLightRef.current.color.set(0xfff7ee);
+        }
+      }
+      flowCategoryUniformsRef.current.heattrace.value = 0.0;
+      return;
+    }
+
+    if (activeSimulation.scenarioId === "EXTREME_WEATHER") {
+      // Katabatic Blizzard (-40°C): Dense ice fog, howling dim storm lighting, boosted heat-trace line
+      scene.background = new THREE.Color("#081220");
+      scene.fog = new THREE.FogExp2(0x0e1b2e, 0.0045);
+      if (sunLightRef.current) {
+        sunLightRef.current.intensity = 0.7;
+        sunLightRef.current.color.set(0x88b0d0);
+      }
+      flowCategoryUniformsRef.current.heattrace.value = 2.5;
+    } else if (activeSimulation.scenarioId === "GENERATOR_FAILURE") {
+      // GenSet Failure: Lift roof to reveal powerhouse hall
+      if (!roofLifted && mainRoofRef.current) {
+        gsap.to(mainRoofRef.current.position, { y: 16.5, duration: 1.5, ease: "power2.out" });
+        setRoofLifted(true);
+      }
+      if (sunLightRef.current) {
+        sunLightRef.current.intensity = 0.9;
+      }
+    }
+  }, [activeSimulation, lightingMode, roofLifted]);
 
   // Main Three.js Scene Setup
   useEffect(() => {
@@ -1164,6 +1293,24 @@ export function MaitriStationTwin({
     [onRoomSelect, setFlowsActivation]
   );
 
+  // ── SELECT FACILITY SYSTEM FROM HARDWARE DOCK & FLY CAMERA ──
+  const handleSelectSystem = useCallback(
+    (system: SystemFacilityItem) => {
+      setActiveSystemId(system.id);
+      const room = roomRegistryRef.current[system.targetRoomId] || MAITRI_MASTER_FACILITIES[system.targetRoomId];
+      if (room) {
+        if (room.id.includes("boiler") || room.id.includes("hospital") || room.id.includes("comms") || room.id.includes("meteo")) {
+          if (!roofLifted && mainRoofRef.current) {
+            gsap.to(mainRoofRef.current.position, { y: 16.5, duration: 1.4, ease: "power2.inOut" });
+            setRoofLifted(true);
+          }
+        }
+        lockInsideRoom(room);
+      }
+    },
+    [lockInsideRoom, roofLifted]
+  );
+
   // ── QUICK PREV / NEXT ROOM NAVIGATION ──
   const goToPrevRoom = useCallback(() => {
     const allRooms = Object.values(roomRegistryRef.current);
@@ -1183,6 +1330,7 @@ export function MaitriStationTwin({
 
   // ── RESET TO STATION EXTERIOR OVERVIEW ──
   const resetToOverview = useCallback(() => {
+    setActiveSystemId(null);
     if (!cameraRef.current || !controlsRef.current) return;
     activeTourCameraNodeRef.current = null;
     setActiveRoom(null);
@@ -1362,6 +1510,26 @@ export function MaitriStationTwin({
         </div>
       )}
 
+      {/* ── LIVE POLAR VITALS TICKER & ISRO SATELLITE STORE-AND-FORWARD BUFFER ── */}
+      <TwinVitalsBar station="MAITRI" />
+
+      {/* ── CONTEXTUAL ROOM SCADA TELEMETRY & BI-DIRECTIONAL REMOTE ACTUATION ── */}
+      {activeRoom && (
+        <div className="absolute top-28 left-4 sm:left-6 z-40 pointer-events-auto">
+          <RoomTelemetryCard
+            room={activeRoom}
+            stationId="MAITRI"
+            onClose={() => {
+              setActiveRoom(null);
+              setActiveSystemId(null);
+            }}
+            onTriggerAction={(actionId, label) => {
+              console.log(`[MAITRI SCADA ACTUATION] Executed ${label} (${actionId}) in ${activeRoom.name}`);
+            }}
+          />
+        </div>
+      )}
+
       {/* ── TOP-LEFT STATION IDENTITY BADGE & SWITCHER ── */}
       <div className="absolute top-20 left-4 sm:left-6 z-30 pointer-events-auto flex items-center gap-2">
         <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#040D1A]/85 border border-white/10 backdrop-blur-2xl shadow-xl">
@@ -1388,7 +1556,11 @@ export function MaitriStationTwin({
       </div>
 
       {/* ── TOP-RIGHT QUICK ACTION CLUSTER ── */}
-      <div className="absolute top-20 right-4 sm:right-6 z-30 pointer-events-auto">
+      <div className="absolute top-20 right-4 sm:right-6 z-30 pointer-events-auto flex items-center gap-2">
+        <TwinWhatIfSimulator
+          station="MAITRI"
+          onSimulationChange={setActiveSimulation}
+        />
         <div className="flex items-center gap-1 p-1 bg-[#040D1A]/85 border border-white/10 rounded-2xl backdrop-blur-2xl shadow-xl">
           <button
             onClick={resetToOverview}
@@ -1820,51 +1992,16 @@ export function MaitriStationTwin({
           </div>
         )}
 
-        {/* MAIN DOCK BAR */}
-        <div className="flex items-center p-1.5 rounded-full bg-[#040D1A]/90 border border-white/15 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] gap-1">
-          <button
-            onClick={resetToOverview}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono text-xs font-semibold tracking-wider uppercase transition-all ${
-              activeMode === "overview" && !activeRoom && activeTourIndex === null
-                ? "bg-[#0DB9D0] text-[#03060E] shadow-[0_0_20px_rgba(13,185,208,0.4)]"
-                : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
-            }`}
-          >
-            <Compass size={15} weight="duotone" />
-            <span>Station View</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (activeMode === "flows" && activeTourIndex !== null) {
-                resetToOverview();
-              } else {
-                setActiveMode("flows");
-                playTour(0); // Open Freshwater Lifeline with Story Card
-              }
-            }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono text-xs font-semibold tracking-wider uppercase transition-all ${
-              activeMode === "flows" || activeTourIndex !== null
-                ? "bg-[#0DB9D0] text-[#03060E] shadow-[0_0_20px_rgba(13,185,208,0.4)]"
-                : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
-            }`}
-          >
-            <Lightning size={15} weight="duotone" />
-            <span>Lifeline Flows</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMode(activeMode === "rooms" ? "overview" : "rooms")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono text-xs font-semibold tracking-wider uppercase transition-all ${
-              activeMode === "rooms" || activeRoom
-                ? "bg-[#0DB9D0] text-[#03060E] shadow-[0_0_20px_rgba(13,185,208,0.4)]"
-                : "text-[#7ABBD4] hover:text-white hover:bg-white/10"
-            }`}
-          >
-            <Cpu size={15} weight="duotone" />
-            <span>Explore Rooms ({rooms.length})</span>
-          </button>
-        </div>
+        {/* ── STATION SYSTEMS HARDWARE DOCK (DIRECT FACILITY FLY & CARD LAUNCHER) ── */}
+        <StationSystemDock
+          station="MAITRI"
+          activeSystemId={activeRoom?.id || activeSystemId}
+          onSelectSystem={handleSelectSystem}
+          onResetOverview={() => {
+            setActiveSystemId(null);
+            resetToOverview();
+          }}
+        />
       </div>
 
       {/* ── MINIMAL VIEWPORT HINT (BOTTOM RIGHT) ── */}

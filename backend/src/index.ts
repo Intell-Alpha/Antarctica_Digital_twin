@@ -11,6 +11,7 @@ import networkRoutes from "./routes/networkRoutes";
 import simulationRoutes from "./routes/simulationRoutes";
 import telemetryRoutes from "./routes/telemetryRoutes";
 import syntheticDataRoutes from "./routes/syntheticDataRoutes";
+import { startNcporLivePolling } from "./services/ncporLiveService";
 
 const app = express();
 
@@ -51,4 +52,7 @@ app.listen(CONFIG.PORT, () => {
   console.log(`📡 URL: http://localhost:${CONFIG.PORT}`);
   console.log(`🇦🇶 Stations: BHARATI Research Station & MAITRI Research Station`);
   console.log(`=======================================================`);
+
+  // Start background real-time AWS synchronization with NCPOR live portal
+  startNcporLivePolling(10);
 });

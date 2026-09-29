@@ -221,29 +221,61 @@ export const api = {
 
   // 4.6 Environmental & Science Twin
   async getEnvironment(station: Station) {
-    const data = await fetchWithTimeout<{ success: boolean; telemetry: any; scientificInstruments?: any[] }>(`/api/environment?station=${station}`);
+    const data = await fetchWithTimeout<{
+      success: boolean;
+      telemetry: any;
+      liveFeed?: any;
+      provenance?: any;
+      scientificInstruments?: any[];
+    }>(`/api/environment?station=${station}`);
 
     if (data?.success && data.telemetry) {
       const t = data.telemetry;
+      const live = data.liveFeed || t.liveFeed;
       return {
-        tempC: t.outsideTempC ?? -22.4,
-        windSpeedKmh: t.katabaticWindKmh ?? 38.5,
+        tempC: t.tempC ?? t.outsideTempC ?? (station === "BHARATI" ? -13.6 : -9.8),
+        tempMinC: t.tempMinC ?? -38.9,
+        tempMaxC: t.tempMaxC ?? 7.6,
+        windSpeedKmh: t.windSpeedKmh ?? t.katabaticWindKmh ?? 38.5,
+        windStatus: t.windStatus || "MODERATE_EASTERLY",
         radiationGammaNgyh: t.radiationGammaNgyh ?? 125.0,
         magneticFieldnT: t.magneticFieldnT ?? 54210,
         apparentWindChillC: t.apparentWindChillC,
-        surfacePressureHpa: t.surfacePressureHpa,
-        humidityPct: t.humidityPct,
+        pressureHpa: t.pressureHpa ?? 988.4,
+        humidityPct: t.humidityPct ?? 68,
         scientificInstruments: data.scientificInstruments || [],
+        liveFeed: live || null,
+        provenance: data.provenance,
+        isLiveNcpor: Boolean(live?.isLive),
+        observationDate: live?.observationDate,
+        windKnots: live?.windKnots,
+        stats: live?.stats,
+        series: live?.series,
       };
     }
 
     // Resilient Fallback
     return {
-      tempC: -22.4,
-      windSpeedKmh: 38.5,
+      tempC: station === "BHARATI" ? -13.64 : -9.82,
+      tempMinC: station === "BHARATI" ? -20.88 : -12.9,
+      tempMaxC: station === "BHARATI" ? -13.64 : -9.82,
+      windSpeedKmh: station === "BHARATI" ? 27.5 : 88.8,
+      windStatus: station === "BHARATI" ? "MODERATE_EASTERLY" : "KATABATIC_GALE",
       radiationGammaNgyh: 125.0,
       magneticFieldnT: 54210,
+      pressureHpa: station === "BHARATI" ? 977.1 : 943.9,
+      humidityPct: station === "BHARATI" ? 84.4 : 83.5,
+      liveFeed: null,
+      isLiveNcpor: false,
     };
+  },
+
+  /**
+   * Trigger on-demand real-time synchronization with NCPOR live AWS portal
+   */
+  async syncEnvironment(station?: Station) {
+    const url = station ? `/api/environment/sync?station=${station}` : `/api/environment/sync`;
+    return fetchWithTimeout<{ success: boolean; message: string; data: any }>(url, { method: "POST" }, 12000);
   },
 
   // 4.7 Satellite & Network Twin
