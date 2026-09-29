@@ -33,6 +33,7 @@ import { RoomTelemetryCard } from "./RoomTelemetryCard";
 import { TwinWhatIfSimulator, SimulationResultPayload } from "./TwinWhatIfSimulator";
 import { StationSystemDock, SystemFacilityItem } from "./StationSystemDock";
 import { PolarAtmosphereSystem } from "./PolarAtmosphereSystem";
+import { StationOperationalPosture } from "./StationOperationalPostureBar";
 import { polarAudio } from "@/lib/polarAudioEngine";
 import { PolarOrbitalGlobeView } from "./PolarOrbitalGlobeView";
 import { CinematicDroneDirector, CinematicDroneDirectorHandle } from "./CinematicDroneDirector";
@@ -616,12 +617,105 @@ export function MaitriStationTwin({
   const [isAICommanderOpen, setIsAICommanderOpen] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [isBoilerHeatingActive, setIsBoilerHeatingActive] = useState(false);
+  const [currentPosture, setCurrentPosture] = useState<StationOperationalPosture>("NOMINAL");
   const heatingPipesGroupRef = useRef<THREE.Group | null>(null);
   const heatingShaderUniformsRef = useRef<{ uTime: { value: number }; uActive: { value: number } }>({
     uTime: { value: 0 },
     uActive: { value: 0 },
   });
   const droneDirectorRef = useRef<CinematicDroneDirectorHandle | null>(null);
+
+  // ── DYNAMIC 3D SCENE & ATMOSPHERE REACTION TO OPERATIONAL POSTURE DIRECTIVES ──
+  const handleSelectPosture = useCallback((posture: StationOperationalPosture) => {
+    setCurrentPosture(posture);
+    if (!sceneRef.current) return;
+    const scene = sceneRef.current;
+
+    switch (posture) {
+      case "BLIZZARD_LOCKDOWN": {
+        if (atmosphereRef.current) {
+          atmosphereRef.current.setBlizzard(true);
+          atmosphereRef.current.setWindSpeed(115);
+        }
+        polarAudio.setBlizzard(true);
+        heatingShaderUniformsRef.current.uActive.value = 1.0;
+        if (sunLightRef.current) {
+          sunLightRef.current.intensity = 0.55;
+          sunLightRef.current.color.set(0x80a8c8);
+        }
+        scene.fog = new THREE.FogExp2(0x0e1b2e, 0.005);
+        break;
+      }
+      case "ENERGY_CONSERVATION": {
+        if (atmosphereRef.current) {
+          atmosphereRef.current.setBlizzard(false);
+          atmosphereRef.current.setWindSpeed(25);
+        }
+        polarAudio.setBlizzard(false);
+        heatingShaderUniformsRef.current.uActive.value = 0.45;
+        if (sunLightRef.current) {
+          sunLightRef.current.intensity = 1.1;
+          sunLightRef.current.color.set(0xffeedd);
+        }
+        scene.fog = new THREE.FogExp2(0x7db4db, 0.0012);
+        Object.values(interiorLightsRef.current).forEach((light) => {
+          light.intensity = 0.8;
+        });
+        break;
+      }
+      case "DEEP_SCIENCE": {
+        if (atmosphereRef.current) {
+          atmosphereRef.current.setBlizzard(false);
+          atmosphereRef.current.setWindSpeed(20);
+        }
+        polarAudio.setBlizzard(false);
+        heatingShaderUniformsRef.current.uActive.value = 0.8;
+        if (sunLightRef.current) {
+          sunLightRef.current.intensity = 1.35;
+          sunLightRef.current.color.set(0xfff7ee);
+        }
+        scene.fog = new THREE.FogExp2(0x7db4db, 0.001);
+        break;
+      }
+      case "BLACK_START": {
+        if (atmosphereRef.current) {
+          atmosphereRef.current.setBlizzard(false);
+          atmosphereRef.current.setWindSpeed(30);
+        }
+        polarAudio.setBlizzard(false);
+        heatingShaderUniformsRef.current.uActive.value = 0.3;
+        if (sunLightRef.current) {
+          sunLightRef.current.intensity = 0.25;
+          sunLightRef.current.color.set(0xff6622);
+        }
+        scene.fog = new THREE.FogExp2(0x050810, 0.006);
+        Object.values(interiorLightsRef.current).forEach((light) => {
+          light.color.setHex(0xff5500);
+          light.intensity = 0.5;
+        });
+        break;
+      }
+      case "NOMINAL":
+      default: {
+        if (atmosphereRef.current) {
+          atmosphereRef.current.setBlizzard(false);
+          atmosphereRef.current.setWindSpeed(28);
+        }
+        polarAudio.setBlizzard(false);
+        heatingShaderUniformsRef.current.uActive.value = isBoilerHeatingActive ? 1.0 : 0.0;
+        if (sunLightRef.current) {
+          sunLightRef.current.intensity = 1.35;
+          sunLightRef.current.color.set(0xfff7ee);
+        }
+        scene.fog = new THREE.FogExp2(0x7db4db, 0.0012);
+        Object.values(interiorLightsRef.current).forEach((light) => {
+          light.color.setHex(0xffe8d6);
+          light.intensity = 1.5;
+        });
+        break;
+      }
+    }
+  }, [isBoilerHeatingActive]);
 
   // ── PHYSICAL THREE.JS SCENE REACTIONS TO WHAT-IF SIMULATION CRISES ──
   useEffect(() => {
@@ -1787,6 +1881,8 @@ export function MaitriStationTwin({
         onStartDroneTour={() => droneDirectorRef.current?.startDroneTour()}
         isBoilerHeatingActive={isBoilerHeatingActive}
         onToggleBoilerHeating={toggleBoilerHeating}
+        currentPosture={currentPosture}
+        onSelectPosture={handleSelectPosture}
       />
 
       {/* ── FLOATING TOP-DOWN BOILER ROOM HEATING HUD ── */}

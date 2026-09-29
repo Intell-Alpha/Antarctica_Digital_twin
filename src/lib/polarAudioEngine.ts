@@ -341,6 +341,49 @@ class PolarAudioEngine {
     osc.start(now);
     osc.stop(now + 0.05);
   }
+
+  public playAlert(type: "warning" | "critical" | "success" = "warning") {
+    if (this.isMuted || !this.ctx || !this.masterGain) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    if (type === "critical") {
+      // 2-tone urgent klaxon chime (740Hz -> 920Hz)
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(740, now);
+      osc.frequency.setValueAtTime(920, now + 0.08);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(now);
+      osc.stop(now + 0.24);
+    } else if (type === "warning") {
+      // Amber tone warning ping (580Hz)
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(580, now);
+      osc.frequency.exponentialRampToValueAtTime(440, now + 0.12);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } else {
+      // Harmonic success affirmative (523Hz -> 659Hz -> 784Hz)
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(523, now);
+      osc.frequency.setValueAtTime(659, now + 0.06);
+      osc.frequency.setValueAtTime(784, now + 0.12);
+      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(now);
+      osc.stop(now + 0.22);
+    }
+  }
 }
 
 export const polarAudio = new PolarAudioEngine();

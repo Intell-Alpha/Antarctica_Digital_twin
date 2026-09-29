@@ -7,6 +7,7 @@ import {
   GasPump,
   Heartbeat,
   ShieldCheck,
+  ShieldWarning,
   WarningCircle,
   SlidersHorizontal,
   X,
@@ -26,8 +27,15 @@ import {
   Package,
   Power,
   ArrowsLeftRight,
+  LockSimple,
+  LockSimpleOpen,
+  Fire,
+  ToggleLeft,
+  ToggleRight,
+  Faders,
 } from "@phosphor-icons/react";
 import { api, Station } from "@/lib/api";
+import { polarAudio } from "@/lib/polarAudioEngine";
 
 export interface RoomTelemetryData {
   id: string;
@@ -82,6 +90,14 @@ const INITIAL_MAITRI_GENERATORS: GeneratorUnit[] = [
   { id: "aditya_4", name: "Aditya Gen 04 (62.5 kVA)", complex: "Aditya", ratingKva: 62.5, outputKw: 0, tempC: 15, rpm: 0, status: "MAINTENANCE" },
 ];
 
+export interface RoomBreaker {
+  id: string;
+  name: string;
+  kwLoad: number;
+  isClosed: boolean;
+  isCritical: boolean;
+}
+
 export function RoomTelemetryCard({
   room,
   stationId,
@@ -93,6 +109,60 @@ export function RoomTelemetryCard({
   const [executingAction, setExecutingAction] = useState<string | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState<{ id: string; text: string; ok: boolean } | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // ── SCADA REMOTE MANAGEMENT & TELE-OPERATION STATE ──
+  // 1. Zone Thermostat Setpoint & Modulating 3-Way Valve
+  const [thermostatSetpoint, setThermostatSetpoint] = useState<number>(21.0);
+  const [modulatingValveOpening, setModulatingValveOpening] = useState<number>(68);
+
+  // 2. Motorized Circuit Breakers (Remote Load Shedding Matrix)
+  const [breakers, setBreakers] = useState<RoomBreaker[]>([
+    { id: "brk_1", name: "Primary HVAC Fan Coils", kwLoad: 24.0, isClosed: true, isCritical: true },
+    { id: "brk_2", name: "Hydronic Radiant Heating Loops", kwLoad: 16.5, isClosed: true, isCritical: false },
+    { id: "brk_3", name: "Secondary Lighting & Auxiliary Berths", kwLoad: 6.2, isClosed: true, isCritical: false },
+    { id: "brk_4", name: "Precision Instrumentation & De-Icer Skid", kwLoad: 14.0, isClosed: true, isCritical: true },
+  ]);
+
+  // 3. Two-Stage Armed Safety Interlock & Satellite Handshake
+  const [isInterlockArmed, setIsInterlockArmed] = useState<boolean>(false);
+  const [uplinkStage, setUplinkStage] = useState<"IDLE" | "INTERLOCK" | "GSAT_UPLINK" | "PLC_VERIFIED">("IDLE");
+  const [uplinkActionLabel, setUplinkActionLabel] = useState<string>("");
+
+  const activeBranchKw = useMemo(
+    () => breakers.filter((b) => b.isClosed).reduce((sum, b) => sum + b.kwLoad, 0),
+    [breakers]
+  );
+  const shedBranchKw = useMemo(
+    () => breakers.filter((b) => !b.isClosed).reduce((sum, b) => sum + b.kwLoad, 0),
+    [breakers]
+  );
+
+  const toggleBreaker = (breakerId: string) => {
+    setBreakers((prev) =>
+      prev.map((b) => {
+        if (b.id !== breakerId) return b;
+        const nextState = !b.isClosed;
+        polarAudio.playClickFeedback();
+        return { ...b, isClosed: nextState };
+      })
+    );
+    const target = breakers.find((b) => b.id === breakerId);
+    const willBeClosed = !target?.isClosed;
+    setFeedbackMsg({
+      id: breakerId,
+      text: `Motorized Breaker [${target?.name}] remotely switched ${
+        willBeClosed ? "[CLOSED - ENERGIZED]" : "[OPEN - LOAD SHED (-" + target?.kwLoad + " kW)]"
+      }. Station grid updated.`,
+      ok: true,
+    });
+  };
+
+  const handleSetpointChange = (temp: number) => {
+    setThermostatSetpoint(temp);
+    const calculatedValve = Math.min(100, Math.max(12, Math.round(((temp - 14) / 14) * 100)));
+    setModulatingValveOpening(calculatedValve);
+    polarAudio.playClickFeedback();
+  };
 
   // Interactive Generator State (3 Complexes x 4 Generators = 12 Units Total)
   const [generators, setGenerators] = useState<GeneratorUnit[]>(INITIAL_MAITRI_GENERATORS);
@@ -565,6 +635,52 @@ export function RoomTelemetryCard({
     }
   };
 
+  const executeRemoteCommand = async (actionId: string, label: string, risk: "LOW" | "MEDIUM" | "HIGH") => {
+    if (risk !== "LOW" && !isInterlockArmed) {
+      polarAudio.playAlert("warning");
+      setFeedbackMsg({
+        id: actionId,
+        text: `SAFETY INTERLOCK ACTIVE: Toggle the Arm Switch above to authorize ${risk}-risk remote telemetry actuation.`,
+        ok: false,
+      });
+      return;
+    }
+
+    setExecutingAction(actionId);
+    setUplinkActionLabel(label);
+    setFeedbackMsg(null);
+
+    if (risk === "LOW") {
+      try {
+        await handleAction(actionId, label);
+      } finally {
+        setExecutingAction(null);
+      }
+      return;
+    }
+
+    // 2-Stage Satellite Handshake to Antarctica
+    setUplinkStage("INTERLOCK");
+    setTimeout(() => {
+      setUplinkStage("GSAT_UPLINK");
+
+      setTimeout(async () => {
+        setUplinkStage("PLC_VERIFIED");
+        polarAudio.playAlert("critical");
+
+        try {
+          await handleAction(actionId, label);
+        } finally {
+          setTimeout(() => {
+            setUplinkStage("IDLE");
+            setExecutingAction(null);
+            setIsInterlockArmed(false); // Disarm after execution for safety
+          }, 650);
+        }
+      }, 540); // 540ms satellite latency to station
+    }, 280);
+  };
+
   return (
     <div className="relative w-[420px] sm:w-[480px] max-w-[calc(100vw-32px)] select-none font-sans animate-in fade-in zoom-in-95 duration-200">
       {/* ── SCADA INSTRUMENTATION CASING (Single Layer Titanium Panel) ── */}
@@ -822,13 +938,197 @@ export function RoomTelemetryCard({
 
         {/* ── TAB 2: REMOTE SCADA ACTUATION & CONTROLS ── */}
         {activeTab === "controls" && (
-          <div className="flex flex-col gap-2">
-            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 font-mono text-[10px] flex items-center gap-2">
-              <WarningCircle size={14} className="shrink-0" />
-              <span>Encrypted bidirectional remote SCADA link active. Operations require telemetry confirmation.</span>
+          <div className="flex flex-col gap-2.5 max-h-[64vh] overflow-y-auto pr-1 no-scrollbar">
+            
+            {/* 1. SCADA Tele-Command Security & Armed Interlock Bar */}
+            <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div
+                  className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+                    isInterlockArmed
+                      ? "bg-amber-500/25 text-amber-300 animate-pulse border border-amber-500/50"
+                      : "bg-white/5 text-white/50 border border-white/10"
+                  }`}
+                >
+                  {isInterlockArmed ? <LockSimpleOpen size={13} weight="bold" /> : <LockSimple size={13} />}
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-mono text-[9px] font-bold text-white uppercase tracking-wider truncate">
+                    {isInterlockArmed ? "SCADA INTERLOCK: ARMED" : "SCADA INTERLOCK: DISARMED"}
+                  </span>
+                  <span className="font-mono text-[8px] text-[#7ABBD4] truncate">
+                    HMAC-SHA256 Encrypted · GSAT 540ms Latency
+                  </span>
+                </div>
+              </div>
+
+              {/* Armed Switch Toggle Button */}
+              <button
+                onClick={() => {
+                  const next = !isInterlockArmed;
+                  setIsInterlockArmed(next);
+                  polarAudio.playClickFeedback();
+                }}
+                className={`px-2.5 py-1 rounded-lg font-mono text-[9px] font-bold tracking-wider uppercase transition-all shrink-0 border ${
+                  isInterlockArmed
+                    ? "bg-amber-500/25 border-amber-400 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.35)]"
+                    : "bg-white/5 hover:bg-white/10 border-white/15 text-white/70 hover:text-white"
+                }`}
+                title={isInterlockArmed ? "Click to Disarm Safety Interlock" : "Click to Arm Safety Interlock for Remote Operations"}
+              >
+                {isInterlockArmed ? "DISARM [SAFE]" : "ARM INTERLOCK ⚠️"}
+              </button>
             </div>
 
-            {/* Powerhouse 3 Complexes Quick Selectors */}
+            {/* 2. Active Satellite Uplink Handshake Status (if executing command) */}
+            {uplinkStage !== "IDLE" && (
+              <div className="p-2.5 rounded-xl bg-cyan-950/60 border border-cyan-400/50 flex items-center gap-2.5 animate-pulse">
+                <ArrowsClockwise size={15} className="text-[#00E5FF] animate-spin shrink-0" />
+                <div className="flex flex-col text-left">
+                  <span className="font-mono text-[10px] font-bold text-cyan-200 uppercase tracking-wide">
+                    {uplinkStage === "INTERLOCK" && "STAGE 1/3: Checking Permissive Registers & Safety Bus..."}
+                    {uplinkStage === "GSAT_UPLINK" && "STAGE 2/3: Uplinking Tele-Command via GSAT-7A (540ms)..."}
+                    {uplinkStage === "PLC_VERIFIED" && "STAGE 3/3: Remote RTU Verified: Command Executed!"}
+                  </span>
+                  <span className="font-mono text-[8px] text-cyan-400/80">
+                    Executing: {uplinkActionLabel}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* 3. ZONE CLIMATE & HYDRONIC MODULATING VALVE ACTUATOR */}
+            <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.08] flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <ThermometerCold size={13} className="text-[#00A8FF]" weight="bold" />
+                  <span className="font-mono text-[10px] font-bold text-white uppercase tracking-wider">
+                    Zone Thermostat & Hydronic 3-Way Valve
+                  </span>
+                </div>
+                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-200 border border-sky-500/30">
+                  {modulatingValveOpening}% Open · 4.2 Bar
+                </span>
+              </div>
+
+              {/* Slider & Real-time Readout */}
+              <div className="flex items-center justify-between font-mono text-xs pt-1">
+                <span className="text-[#7ABBD4] text-[10px]">Setpoint Target:</span>
+                <span className="font-bold text-white text-sm tracking-tight">{thermostatSetpoint.toFixed(1)}°C</span>
+              </div>
+
+              <input
+                type="range"
+                min="16.0"
+                max="26.0"
+                step="0.5"
+                value={thermostatSetpoint}
+                onChange={(e) => handleSetpointChange(parseFloat(e.target.value))}
+                className="w-full accent-[#00A8FF] h-1.5 bg-white/10 rounded-lg cursor-pointer"
+              />
+
+              <div className="flex justify-between font-mono text-[8px] text-[#4A7A8E]">
+                <span>16.0°C (Min Cryo)</span>
+                <span>21.0°C (ISO 7730)</span>
+                <span>26.0°C (Max Hold)</span>
+              </div>
+
+              {/* Setpoint Quick Presets */}
+              <div className="grid grid-cols-3 gap-1.5 pt-1">
+                <button
+                  onClick={() => handleSetpointChange(18.0)}
+                  className={`p-1.5 rounded-lg border font-mono text-[9px] font-semibold transition-all ${
+                    thermostatSetpoint === 18.0
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                      : "bg-white/[0.03] text-white/70 border-white/[0.06] hover:bg-white/[0.06]"
+                  }`}
+                >
+                  18.0°C Eco (-18%)
+                </button>
+                <button
+                  onClick={() => handleSetpointChange(21.0)}
+                  className={`p-1.5 rounded-lg border font-mono text-[9px] font-semibold transition-all ${
+                    thermostatSetpoint === 21.0
+                      ? "bg-sky-500/20 text-sky-300 border-sky-500/40"
+                      : "bg-white/[0.03] text-white/70 border-white/[0.06] hover:bg-white/[0.06]"
+                  }`}
+                >
+                  21.0°C Nominal
+                </button>
+                <button
+                  onClick={() => handleSetpointChange(23.5)}
+                  className={`p-1.5 rounded-lg border font-mono text-[9px] font-semibold transition-all ${
+                    thermostatSetpoint === 23.5
+                      ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                      : "bg-white/[0.03] text-white/70 border-white/[0.06] hover:bg-white/[0.06]"
+                  }`}
+                >
+                  23.5°C Comfort
+                </button>
+              </div>
+            </div>
+
+            {/* 4. MOTORIZED CIRCUIT BREAKER MATRIX (ACTIVE REMOTE LOAD SHEDDING) */}
+            <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.08] flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Lightning size={13} className="text-[#FFAA00]" weight="bold" />
+                  <span className="font-mono text-[10px] font-bold text-white uppercase tracking-wider">
+                    Motorized Breakers (Load Shedding Matrix)
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 font-mono text-[9px]">
+                  <span className="text-emerald-400 font-bold">{activeBranchKw.toFixed(1)} kW Closed</span>
+                  {shedBranchKw > 0 && (
+                    <span className="text-amber-400 font-bold">-{shedBranchKw.toFixed(1)} kW Shed</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Breakers 2x2 Grid */}
+              <div className="grid grid-cols-2 gap-1.5 pt-1">
+                {breakers.map((brk) => (
+                  <div
+                    key={brk.id}
+                    className={`p-2 rounded-xl border flex flex-col justify-between gap-1.5 transition-all ${
+                      brk.isClosed
+                        ? "bg-emerald-500/[0.06] border-emerald-500/25"
+                        : "bg-amber-500/[0.06] border-amber-500/25"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[9px] text-[#7ABBD4] font-semibold truncate">
+                        {brk.name}
+                      </span>
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          brk.isClosed ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+                        }`}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between pt-0.5">
+                      <span className="font-mono text-[10px] font-bold text-white">
+                        {brk.kwLoad.toFixed(1)} kW
+                      </span>
+                      <button
+                        onClick={() => toggleBreaker(brk.id)}
+                        className={`px-2 py-0.5 rounded font-mono text-[8px] font-bold uppercase transition-all ${
+                          brk.isClosed
+                            ? "bg-emerald-500/20 text-emerald-300 hover:bg-rose-500/25 hover:text-rose-200"
+                            : "bg-amber-500/20 text-amber-300 hover:bg-emerald-500/25 hover:text-emerald-200"
+                        }`}
+                        title={brk.isClosed ? "Click to Shed Load (Trip Breaker)" : "Click to Energize Circuit (Close Breaker)"}
+                      >
+                        {brk.isClosed ? "SHED [OPEN]" : "ENERGIZE"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 5. Powerhouse 3 Complexes Quick Selectors */}
             {sysData.isPowerhouse && stationId === "MAITRI" && (
               <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] flex flex-col gap-2">
                 <span className="font-mono text-[10px] font-bold text-white uppercase tracking-wider">
@@ -836,19 +1136,19 @@ export function RoomTelemetryCard({
                 </span>
                 <div className="grid grid-cols-3 gap-1.5">
                   <button
-                    onClick={() => engageComplexPreset("Ravi")}
+                    onClick={() => executeRemoteCommand("ENGAGE_RAVI", "Engage Ravi Complex (150kVA)", "MEDIUM")}
                     className="p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-200 font-mono text-[10px] font-semibold transition-colors text-center"
                   >
                     Engage Ravi (150kVA)
                   </button>
                   <button
-                    onClick={() => engageComplexPreset("Surya")}
+                    onClick={() => executeRemoteCommand("ENGAGE_SURYA", "Engage Surya Complex (62.5kVA)", "MEDIUM")}
                     className="p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-200 font-mono text-[10px] font-semibold transition-colors text-center"
                   >
                     Engage Surya (62.5kVA)
                   </button>
                   <button
-                    onClick={() => engageComplexPreset("Aditya")}
+                    onClick={() => executeRemoteCommand("ENGAGE_ADITYA", "Engage Aditya Complex (62.5kVA)", "MEDIUM")}
                     className="p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-200 font-mono text-[10px] font-semibold transition-colors text-center"
                   >
                     Engage Aditya (62.5kVA)
@@ -857,15 +1157,20 @@ export function RoomTelemetryCard({
               </div>
             )}
 
-            <div className="flex flex-col gap-1.5 mt-0.5">
+            {/* 6. Facility Specific SCADA Actions */}
+            <div className="flex flex-col gap-1.5">
+              <span className="font-mono text-[9px] uppercase tracking-wider text-[#7ABBD4] px-0.5">
+                Facility Subsystem Tele-Actuation Directives
+              </span>
               {sysData.actions.map((act: any) => {
                 const isRunning = executingAction === act.id;
                 const isSuccess = feedbackMsg?.id === act.id && Boolean(feedbackMsg?.ok);
+                const requiresInterlock = act.risk !== "LOW" && !isInterlockArmed;
 
                 return (
                   <button
                     key={act.id}
-                    onClick={() => handleAction(act.id, act.label)}
+                    onClick={() => executeRemoteCommand(act.id, act.label, act.risk)}
                     disabled={executingAction !== null}
                     className={`group w-full p-2.5 rounded-xl border text-left font-mono text-xs font-medium flex items-center justify-between transition-colors ${
                       isSuccess
@@ -880,31 +1185,41 @@ export function RoomTelemetryCard({
                         <ArrowsClockwise size={13} className="animate-spin text-amber-400 shrink-0" />
                       ) : isSuccess ? (
                         <CheckCircle size={13} className="text-emerald-400 shrink-0" />
+                      ) : requiresInterlock ? (
+                        <LockSimple size={13} className="text-white/40 shrink-0" />
                       ) : (
                         <SlidersHorizontal size={13} className="text-[#7ABBD4] shrink-0" />
                       )}
                       <span className="truncate">{act.label}</span>
                     </div>
 
-                    <span
-                      className={`text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded font-mono shrink-0 ml-2 ${
-                        act.risk === "HIGH"
-                          ? "bg-rose-500/20 text-rose-300"
-                          : act.risk === "MEDIUM"
-                          ? "bg-amber-500/20 text-amber-300"
-                          : "bg-white/10 text-white/70"
-                      }`}
-                    >
-                      {act.risk}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      {requiresInterlock && (
+                        <span className="text-[8px] font-mono text-amber-300/80 bg-amber-500/10 px-1 py-0.5 rounded">
+                          LOCKED
+                        </span>
+                      )}
+                      <span
+                        className={`text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded font-mono ${
+                          act.risk === "HIGH"
+                            ? "bg-rose-500/20 text-rose-300"
+                            : act.risk === "MEDIUM"
+                            ? "bg-amber-500/20 text-amber-300"
+                            : "bg-white/10 text-white/70"
+                        }`}
+                      >
+                        {act.risk}
+                      </span>
+                    </div>
                   </button>
                 );
               })}
             </div>
 
+            {/* Execution / Feedback Banner */}
             {feedbackMsg && (
               <div
-                className={`p-2.5 rounded-xl text-[10px] font-mono mt-1 ${
+                className={`p-2.5 rounded-xl text-[10px] font-mono mt-0.5 ${
                   feedbackMsg.ok
                     ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-300"
                     : "bg-rose-500/15 border border-rose-500/30 text-rose-300"

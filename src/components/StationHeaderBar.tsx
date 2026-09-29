@@ -32,6 +32,7 @@ import {
 import { api, Station } from "@/lib/api";
 import { polarAudio } from "@/lib/polarAudioEngine";
 import { PolarAtmosphereSystem, PolarSeason } from "./PolarAtmosphereSystem";
+import { StationOperationalPostureBar, StationOperationalPosture } from "./StationOperationalPostureBar";
 
 interface StationHeaderBarProps {
   station: Station;
@@ -54,6 +55,8 @@ interface StationHeaderBarProps {
   isDroneActive?: boolean;
   isBoilerHeatingActive?: boolean;
   onToggleBoilerHeating?: () => void;
+  currentPosture?: StationOperationalPosture;
+  onSelectPosture?: (posture: StationOperationalPosture) => void;
 }
 
 export function StationHeaderBar({
@@ -77,6 +80,8 @@ export function StationHeaderBar({
   isDroneActive,
   isBoilerHeatingActive = false,
   onToggleBoilerHeating,
+  currentPosture = "NOMINAL",
+  onSelectPosture,
 }: StationHeaderBarProps) {
   // Live Vitals State
   const [vitals, setVitals] = useState({
@@ -330,6 +335,15 @@ export function StationHeaderBar({
 
         {/* RIGHT WING: Precision Tool Group */}
         <div className="flex items-center gap-1.5">
+
+          {/* Station Operational Posture Directive Bar (Remote Management) */}
+          {onSelectPosture && (
+            <StationOperationalPostureBar
+              station={station}
+              currentPosture={currentPosture}
+              onSelectPosture={onSelectPosture}
+            />
+          )}
           
           {/* 1. Environment & Atmosphere Dropdown */}
           <div className="relative">
@@ -477,26 +491,6 @@ export function StationHeaderBar({
               title={roofLifted ? "Restore Roof Skin" : "Lift Roof (+16.5m Sliced)"}
             >
               <Cube size={14} weight={roofLifted ? "fill" : "regular"} />
-            </button>
-          )}
-
-          {/* 4a. Boiler Hydronic Room Heating Flow (Overhead Top-Down View) */}
-          {onToggleBoilerHeating && (
-            <button
-              onClick={onToggleBoilerHeating}
-              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border font-mono text-[11px] font-semibold transition-all ${
-                isBoilerHeatingActive
-                  ? "bg-amber-500/25 text-[#FFAA00] border-amber-500/50 shadow-[0_0_16px_rgba(255,170,0,0.35)] animate-pulse"
-                  : "bg-white/[0.03] hover:bg-white/[0.08] text-[#A6C4D6] hover:text-[#FFAA00] border-white/[0.08]"
-              }`}
-              title={
-                isBoilerHeatingActive
-                  ? "Exit Boiler Heating View"
-                  : "View Hydronic Boiler Room Heating Flow (Top-Down Overhead)"
-              }
-            >
-              <Fire size={14} weight={isBoilerHeatingActive ? "fill" : "bold"} className={isBoilerHeatingActive ? "text-[#FFAA00]" : "text-amber-400/80"} />
-              <span className="hidden xl:inline">Heating Flow</span>
             </button>
           )}
 
