@@ -68,9 +68,16 @@ export function Navigation() {
           href="/"
           className="group flex items-center pl-5 pr-4 h-full hover:opacity-80 transition-opacity"
         >
-          <span className="font-sans font-bold text-[12px] tracking-[0.2em] text-[#EBF5FC]">
-            NCPOR
-          </span>
+          <div className="flex flex-col items-start justify-center">
+            <div className="flex items-center gap-[2px]">
+              <span className="font-sans font-black text-[14px] tracking-[0.25em] text-[#EBF5FC]">
+                HIM
+              </span>
+              <span className="font-sans font-black text-[14px] tracking-[0.25em] bg-clip-text text-transparent bg-gradient-to-r from-[#0DB9D0] to-[#00D4A0]">
+                DRISHTI
+              </span>
+            </div>
+          </div>
         </Link>
 
         {/* ── Divider ── */}
@@ -132,9 +139,16 @@ export function Navigation() {
           href="/"
           className="flex items-center px-5 py-2 rounded-full bg-[#04101E]/80 border border-[#0DB9D0]/15 backdrop-blur-xl hover:bg-[#0DB9D0]/10 transition-colors"
         >
-          <span className="font-sans font-bold text-[12px] tracking-[0.2em] text-[#EBF5FC]">
-            NCPOR
-          </span>
+          <div className="flex flex-col items-start justify-center">
+            <div className="flex items-center gap-[2px]">
+              <span className="font-sans font-black text-[14px] tracking-[0.25em] text-[#EBF5FC]">
+                HIM
+              </span>
+              <span className="font-sans font-black text-[14px] tracking-[0.25em] bg-clip-text text-transparent bg-gradient-to-r from-[#0DB9D0] to-[#00D4A0]">
+                DRISHTI
+              </span>
+            </div>
+          </div>
         </Link>
 
         {/* Hamburger */}

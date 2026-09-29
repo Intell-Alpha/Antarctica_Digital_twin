@@ -28,7 +28,7 @@ app.use((req: Request, res: Response, next) => {
 app.get("/", (req: Request, res: Response) => {
   res.json({
     status: "ONLINE",
-    system: "Antarctica Digital Twin Backend Core Engine",
+    system: "Himdrishti Backend Core Engine",
     stations: ["BHARATI", "MAITRI"],
     timestamp: new Date().toISOString(),
     version: "1.0.0"
@@ -51,7 +51,7 @@ app.use("/api/commander", commanderRoutes);
 
 app.listen(CONFIG.PORT, () => {
   console.log(`=======================================================`);
-  console.log(`🚀 Antarctica Digital Twin Backend Engine Running`);
+  console.log(`🚀 Himdrishti Backend Engine Running`);
   console.log(`📡 URL: http://localhost:${CONFIG.PORT}`);
   console.log(`🇦🇶 Stations: BHARATI Research Station & MAITRI Research Station`);
   console.log(`=======================================================`);

@@ -1,4 +1,4 @@
-# Antarctic Digital Twin: Remote Management & 3D Telemetry Framework
+# Himdrishti: Remote Management & 3D Telemetry Framework
 
 ## Executive Summary
 In alignment with your statement:

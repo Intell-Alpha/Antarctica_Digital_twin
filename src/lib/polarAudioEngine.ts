@@ -1,6 +1,6 @@
 /**
  * polarAudioEngine.ts
- * Procedural Web Audio API soundscape engine for the Antarctica Digital Twin.
+ * Procedural Web Audio API soundscape engine for Himdrishti.
  * Synthesizes dynamic katabatic polar wind, mechanical 50Hz powerhouse hum,
  * and high-latitude ISRO/Inmarsat satcom telemetry pings with zero external assets.
  */
