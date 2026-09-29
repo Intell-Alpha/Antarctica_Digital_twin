@@ -1,14 +1,14 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import { Broadcast, Waves, Cpu } from "@phosphor-icons/react";
 
-const fadeLeft = {
+const fadeLeft: Variants = {
   hidden: { opacity: 0, x: 40 },
   visible: (i = 0) => ({
     opacity: 1,
     x: 0,
-    transition: { duration: 0.8, delay: 1.5 + i * 0.15, ease: [0.32, 0.72, 0, 1] },
+    transition: { duration: 0.8, delay: 1.5 + i * 0.15, ease: [0.32, 0.72, 0, 1] as const },
   }),
 };
 
