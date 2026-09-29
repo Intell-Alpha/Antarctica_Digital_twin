@@ -266,7 +266,7 @@ const UTILITY_TOURS: UtilityTour[] = [
         totalStages: 4,
         title: "Sliced Boiler Hall & Hot Calorifiers",
         badge: "STAGE 3 · SLICED MECHANICAL CORE",
-        narrative: "With the station roof sliced open (+16.5m): incoming freshwater enters the mechanical wing into dual 1,000L hot water calorifiers. Secondary plate heat exchangers draw waste heat from the active diesel gensets and the central Riello fuel burner.",
+        narrative: "With the station roof removed in X-Ray mode: incoming freshwater enters the mechanical wing into dual 1,000L hot water calorifiers. Secondary plate heat exchangers draw waste heat from the active diesel gensets and the central Riello fuel burner.",
         telemetry: [
           { label: "Calorifier Core", value: "+64.5°C", color: "#FFB703" },
           { label: "Thermal Reserve", value: "2,000 L" },
@@ -504,12 +504,12 @@ const UTILITY_TOURS: UtilityTour[] = [
         id: "all_stage_1",
         stageNumber: 1,
         totalStages: 2,
-        title: "All Lifeline Networks (Macro X-Ray Sliced)",
+        title: "All Lifeline Networks (Macro X-Ray View)",
         badge: "STAGE 1 · MACRO SYNCHRONY",
-        narrative: "High elevated overview with the station roof sliced $+16.5m$: all 5 lifelines (Freshwater, Fuel, Power, Sewage, Heat-Tracing) pulsate simultaneously in real-time coordination, simulating complete station thermodynamic and fluid dynamics.",
+        narrative: "High elevated overview with the station roof removed in X-Ray mode: all 5 lifelines (Freshwater, Fuel, Power, Sewage, Heat-Tracing) pulsate simultaneously in real-time coordination, simulating complete station thermodynamic and fluid dynamics.",
         telemetry: [
           { label: "Simulated Lines", value: "5 / 5 Active", color: "#0DB9D0" },
-          { label: "Roof Slice", value: "+16.5m Sliced" },
+          { label: "Roof State", value: "Removed" },
           { label: "System Health", value: "NOMINAL", color: "#00D4A0" },
         ],
         cameraPos: [-65, 46, 65],
@@ -745,9 +745,10 @@ export function MaitriStationTwin({
       }
       flowCategoryUniformsRef.current.heattrace.value = 2.5;
     } else if (activeSimulation.scenarioId === "GENERATOR_FAILURE") {
-      // GenSet Failure: Lift roof to reveal powerhouse hall
+      // GenSet Failure: Remove roof to reveal station interior
       if (!roofLifted && mainRoofRef.current) {
-        gsap.to(mainRoofRef.current.position, { y: 16.5, duration: 1.5, ease: "power2.out" });
+        mainRoofRef.current.visible = false;
+        mainRoofRef.current.position.set(-0.75, 4.1, 0.06);
         setRoofLifted(true);
       }
       if (sunLightRef.current) {
@@ -864,47 +865,126 @@ export function MaitriStationTwin({
         varying vec2 vUv;
         void main() {
           if (uActive < 0.01) discard;
-          float wave = sin(vUv.x * 38.0 - uTime * 7.0);
-          float pulse = smoothstep(0.15, 0.9, wave);
-          vec3 baseOrange = vec3(1.0, 0.40, 0.0); // #FF6600
-          vec3 glowHot = vec3(1.0, 0.90, 0.28);  // #FFE547
+          float wave = sin(vUv.x * 24.0 - uTime * 6.5);
+          float pulse = smoothstep(0.1, 0.9, wave);
+          vec3 baseOrange = vec3(1.0, 0.40, 0.0); // Vibrant Neon Orange
+          vec3 glowHot = vec3(1.0, 0.92, 0.28);   // Molten Gold/Yellow
           vec3 col = mix(baseOrange, glowHot, pulse);
-          float alpha = (0.75 + pulse * 0.25) * uActive;
-          gl_FragColor = vec4(col, alpha);
+          float alpha = (0.85 + pulse * 0.15) * uActive;
+          gl_FragColor = vec4(col * (1.2 + pulse * 1.8), alpha);
         }
       `,
       side: THREE.DoubleSide,
     });
 
     const segments: [number, number, number][][] = [
-      // 1. Central Boiler Distribution Arterial Spine (spans entire building along main corridor at Z = -4.2)
-      [ [12.5, 4.35, -4.2], [6.0, 4.35, -4.2], [0.0, 4.35, -4.2], [-6.0, 4.35, -4.2], [-14.0, 4.35, -4.2], [-22.5, 4.35, -4.2] ],
-      // 2. Boiler Room Calorifiers & Burner Injection (East Wing)
-      [ [12.5, 4.35, -4.2], [12.5, 4.35, -5.8], [11.0, 4.35, -5.8] ],
-      // 3. IMD Meteorological Observatory Radiator Branch
-      [ [6.95, 4.35, -4.2], [6.95, 4.35, -5.66] ],
-      // 4. Communications & Telemetry NOC Radiator Branch
-      [ [3.35, 4.35, -4.2], [3.35, 4.35, -5.86] ],
-      // 5. Dual -4°C Cold Storage Freezer Heated Jacket / Defrost Line
-      [ [-7.5, 4.35, -4.2], [-7.5, 4.35, -5.8] ],
-      // 6. 9x Dry Food Storage Bays Branch
-      [ [-12.0, 4.35, -4.2], [-12.0, 4.35, -5.8] ],
-      // 7. Hospital & Surgical OT Sterile Radiators Branch
-      [ [-16.9, 4.35, -4.2], [-16.9, 4.35, -6.2], [-18.5, 4.35, -6.2] ],
-      // 8. Carpentry & Waste Management Workshop Radiators
-      [ [-22.0, 4.35, -4.2], [-22.0, 4.35, -5.8] ],
-      // 9. Habitation & Residential Living Cabins Loop (South Wing)
-      [ [0.0, 4.35, -4.2], [0.0, 4.35, -2.0], [-14.0, 4.35, -2.0], [-14.0, 4.35, -4.2] ],
-      [ [0.0, 4.35, -2.0], [8.0, 4.35, -2.0], [8.0, 4.35, -4.2] ],
-      // 10. Secondary Hydronic Return Loop to Boiler
-      [ [-22.5, 4.05, -4.0], [-10.0, 4.05, -4.0], [0.0, 4.05, -4.0], [12.5, 4.05, -4.0] ],
-      // 11. Waste Heat Recovery Coupling to Powerhouse (Overland Gantry)
-      [ [12.5, 4.35, -4.2], [14.0, 3.8, 5.0], [14.5, 3.2, 25.0], [15.0, 2.8, 50.0] ],
+      // 1. Central Connecting Cross-Corridor Header (spans full width between wings at Z = -5.5)
+      [
+        [-24.0, 4.35, -5.5],
+        [-12.0, 4.35, -5.5],
+        [0.0, 4.35, -5.5],
+        [12.2, 4.35, -5.5],
+        [24.0, 4.35, -5.5],
+      ],
+      // 2. West Wing Main Hydronic Supply Trunk (Hospital, Kitchen, Food Storage, Cabins to Z = -68)
+      [
+        [-24.0, 4.35, -5.5],
+        [-24.0, 4.35, -20.0],
+        [-24.0, 4.35, -38.0],
+        [-24.0, 4.35, -54.0],
+        [-24.0, 4.35, -68.0],
+      ],
+      // 3. East Wing Main Hydronic Supply Trunk (Boiler Core, Science Labs, Geophysics to Z = -68)
+      [
+        [24.0, 4.35, -5.5],
+        [24.0, 4.35, -20.0],
+        [24.0, 4.35, -38.0],
+        [24.0, 4.35, -54.0],
+        [24.0, 4.35, -68.0],
+      ],
+      // 4. North Wing Rear Interconnect (connects rear of both wings at Z = -68)
+      [
+        [-24.0, 4.35, -68.0],
+        [-12.0, 4.35, -68.0],
+        [0.0, 4.35, -68.0],
+        [12.0, 4.35, -68.0],
+        [24.0, 4.35, -68.0],
+      ],
+      // 5. Central Habitation Block Radiator Spine
+      [
+        [0.0, 4.35, -5.5],
+        [0.0, 4.35, -22.0],
+        [0.0, 4.35, -38.0],
+        [0.0, 4.35, -54.0],
+        [0.0, 4.35, -68.0],
+      ],
+      // 6. Central Boiler Room Calorifiers & Riello Burner Manifold
+      [
+        [12.2, 4.35, -4.2],
+        [12.2, 4.35, -5.5],
+        [20.0, 4.35, -5.5],
+        [20.0, 4.35, -7.5],
+      ],
+      // 7. IMD Meteorological Observatory Radiator Branch
+      [
+        [6.95, 4.35, -5.5],
+        [6.95, 4.35, -4.2],
+        [6.95, 4.35, -3.2],
+      ],
+      // 8. Communications & Telemetry NOC Radiator Branch
+      [
+        [3.35, 4.35, -5.5],
+        [3.35, 4.35, -4.2],
+        [3.35, 4.35, -3.2],
+      ],
+      // 9. Hospital & Surgical OT Sterile Radiators Loop
+      [
+        [-16.9, 4.35, -5.5],
+        [-16.9, 4.35, -4.2],
+        [-18.5, 4.35, -4.2],
+        [-18.5, 4.35, -3.0],
+      ],
+      // 10. Galley Kitchen & Dining Mess Heating Loop
+      [
+        [-23.6, 4.35, -5.5],
+        [-23.6, 4.35, -4.2],
+        [-23.6, 4.35, -3.0],
+      ],
+      // 11. Dual -4°C Cold Storage & Dry Food Frost Protection
+      [
+        [-24.0, 4.35, -20.0],
+        [-18.0, 4.35, -20.0],
+        [-18.0, 4.35, -26.0],
+        [-24.0, 4.35, -26.0],
+      ],
+      // 12. East Wing Science Labs & Geophysics Wing Branches
+      [
+        [24.0, 4.35, -25.0],
+        [18.0, 4.35, -25.0],
+      ],
+      [
+        [24.0, 4.35, -45.0],
+        [18.0, 4.35, -45.0],
+      ],
+      // 13. Combined Heat & Power (CHP) Waste Heat Coupling to Powerhouse
+      [
+        [12.2, 4.35, -5.5],
+        [14.0, 3.8, 5.0],
+        [14.5, 3.0, 25.0],
+        [15.0, 2.2, 50.0],
+      ],
+      // 14. Lake Priyadarshini Heated Gantry Ingress Line
+      [
+        [-84.1, 1.2, -127.1],
+        [-57.4, 2.0, -107.6],
+        [-24.0, 3.8, -71.4],
+        [12.2, 4.35, -5.5],
+      ],
     ];
 
     segments.forEach((pts) => {
       const curve = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(p[0], p[1], p[2])));
-      const geom = new THREE.TubeGeometry(curve, 32, 0.22, 8, false);
+      const geom = new THREE.TubeGeometry(curve, 64, 0.28, 8, false);
       const mesh = new THREE.Mesh(geom, heatingMaterial);
       mesh.renderOrder = 60;
       heatingPipesGroup.add(mesh);
@@ -929,6 +1009,7 @@ export function MaitriStationTwin({
       material.onBeforeCompile = (shader) => {
         shader.uniforms.uTime = flowTimeUniformRef.current;
         shader.uniforms.uFlowActive = flowCategoryUniformsRef.current[category];
+        shader.uniforms.uHeatingActive = heatingShaderUniformsRef.current.uActive;
         shader.uniforms.uFlowColor = { value: new THREE.Color(colorHex) };
         shader.uniforms.uFlowDir = { value: direction.clone().normalize() };
         shader.uniforms.uFlowSpeed = { value: speed };
@@ -949,6 +1030,7 @@ export function MaitriStationTwin({
         shader.fragmentShader = `
           uniform float uTime;
           uniform float uFlowActive;
+          uniform float uHeatingActive;
           uniform vec3 uFlowColor;
           uniform vec3 uFlowDir;
           uniform float uFlowSpeed;
@@ -966,6 +1048,16 @@ export function MaitriStationTwin({
             float pulse = smoothstep(0.35, 0.95, wave) * uFlowActive;
             vec3 fluidGlow = uFlowColor * (0.08 * uFlowActive + pulse * uPulseIntensity);
             gl_FragColor.rgb += fluidGlow;
+          }
+          if (uHeatingActive > 0.01) {
+            // Radiant Hydronic Heating Pulse through all connected station pipes
+            float heatDist = vFlowWorldPos.x * 0.7 + vFlowWorldPos.z * 0.7;
+            float heatWave = sin(heatDist * 0.5 - uTime * 6.5);
+            float heatPulse = smoothstep(0.12, 0.9, heatWave);
+            vec3 neonOrange = vec3(1.0, 0.40, 0.0);
+            vec3 moltenGold = vec3(1.0, 0.92, 0.28);
+            vec3 heatCol = mix(neonOrange, moltenGold, heatPulse);
+            gl_FragColor.rgb += heatCol * (0.55 * uHeatingActive + heatPulse * 4.2);
           }
           `
         );
@@ -988,6 +1080,10 @@ export function MaitriStationTwin({
         scene.add(root);
 
         mainRoofRef.current = root.getObjectByName("Maitri_Building_Main_Roof") || null;
+        if (mainRoofRef.current) {
+          mainRoofRef.current.position.set(-0.75, 4.1, 0.06);
+          mainRoofRef.current.visible = true;
+        }
 
         // Hide standalone floating spheres
         const standaloneSpheres = [
@@ -1102,60 +1198,86 @@ export function MaitriStationTwin({
               }
             }
 
-            // Pipeline Flow Shaders (Isolated per Utility Network)
+            // Pipeline Flow Shaders (Connected Physical Utility Networks + Hydronic Heating)
+            const lowerMesh = meshName.toLowerCase();
+            const mats = Array.isArray(mat) ? mat : [mat];
+            const hasMat = (kw: string) => mats.some((m: any) => (m?.name || "").toLowerCase().includes(kw));
+
+            // Water, Boiler Hydronic Heating & HeatTrace Lines (Lake intake gantry, distribution grid, boiler headers, DHW calorifiers)
             if (
-              meshName === "Maitri_Pipe_Lake_Pumphouse" ||
-              meshName === "Maitri_Pipe_Water_Distribution" ||
-              meshName === "Maitri_Water_Cold_Header"
+              lowerMesh.includes("pipe") ||
+              lowerMesh.includes("water") ||
+              lowerMesh.includes("boiler") ||
+              lowerMesh.includes("heating") ||
+              lowerMesh.includes("dhw") ||
+              lowerMesh.includes("header") ||
+              lowerMesh.includes("calorifier") ||
+              lowerMesh.includes("heattrace") ||
+              hasMat("water") ||
+              hasMat("heating") ||
+              hasMat("boiler") ||
+              hasMat("dhw") ||
+              hasMat("heattrace") ||
+              hasMat("hot_water") ||
+              hasMat("cold_water") ||
+              hasMat("jacket")
             ) {
               const waterDir = new THREE.Vector3(106, 5, 119).normalize();
-              const pipeMat = Array.isArray(mat) ? mat[0] : mat;
-              if (pipeMat) applyPipelineFlowShader(pipeMat, "#00E5FF", waterDir, "water", 4.5, 0.25, 2.2);
+              mats.forEach((m: any) => {
+                if (m) applyPipelineFlowShader(m, "#00E5FF", waterDir, "water", 4.5, 0.25, 2.2);
+              });
             }
 
+            // Bulk Fuel Piping
             if (
-              meshName === "Maitri_Pipe_Fuel_Network" ||
-              meshName === "Maitri_Fuel_Supply_Header" ||
-              meshName === "Maitri_Boiler_Fuel_Branch" ||
-              (meshName.includes("Generator") && meshName.includes("Fuel"))
+              lowerMesh.includes("fuel") ||
+              hasMat("fuel")
             ) {
               const fuelDir = new THREE.Vector3(-145, 0.8, -100).normalize();
-              const pipeMat = Array.isArray(mat) ? mat[0] : mat;
-              if (pipeMat) applyPipelineFlowShader(pipeMat, "#FFB703", fuelDir, "fuel", 4.0, 0.25, 2.2);
+              mats.forEach((m: any) => {
+                if (m) applyPipelineFlowShader(m, "#FFB703", fuelDir, "fuel", 4.0, 0.25, 2.2);
+              });
             }
 
+            // Sewage & Greywater Drainage
             if (
-              meshName === "Maitri_Pipe_Sewage" ||
-              meshName === "Maitri_Greywater_Main" ||
-              meshName.includes("Greywater_Branch")
+              lowerMesh.includes("sewage") ||
+              lowerMesh.includes("greywater") ||
+              lowerMesh.includes("waste") ||
+              hasMat("greywater") ||
+              hasMat("sewage")
             ) {
               const sewageDir = new THREE.Vector3(-93, -0.5, 143).normalize();
-              const pipeMat = Array.isArray(mat) ? mat[0] : mat;
-              if (pipeMat) applyPipelineFlowShader(pipeMat, "#00D4A0", sewageDir, "sewage", 4.0, 0.22, 2.0);
+              mats.forEach((m: any) => {
+                if (m) applyPipelineFlowShader(m, "#00D4A0", sewageDir, "sewage", 4.0, 0.22, 2.0);
+              });
             }
 
-            if (meshName.includes("HeatTrace") && meshName.includes("Line")) {
-              const traceDir = new THREE.Vector3(106, 5, 119).normalize();
-              const pipeMat = Array.isArray(mat) ? mat[0] : mat;
-              if (pipeMat) applyPipelineFlowShader(pipeMat, "#FF0055", traceDir, "heattrace", 5.5, 0.35, 2.4);
-            }
-
+            // Electrical Power Trays & Cabling
             if (
-              meshName.includes("Power") ||
-              meshName.includes("Cable") ||
-              meshName.includes("Ladder") ||
-              meshName.includes("Tray")
+              lowerMesh.includes("power") ||
+              lowerMesh.includes("cable") ||
+              lowerMesh.includes("ladder") ||
+              lowerMesh.includes("tray") ||
+              hasMat("wire") ||
+              hasMat("cable")
             ) {
               const powerDir = new THREE.Vector3(1, 0, 0).normalize();
-              const pipeMat = Array.isArray(mat) ? mat[0] : mat;
-              if (pipeMat) applyPipelineFlowShader(pipeMat, "#F97316", powerDir, "power", 5.0, 0.3, 2.4);
+              mats.forEach((m: any) => {
+                if (m) applyPipelineFlowShader(m, "#F97316", powerDir, "power", 5.0, 0.3, 2.4);
+              });
             }
           }
         });
 
-        // Setup Animation Mixer
+        // Setup Animation Mixer (Strip roof animation tracks so mixer never moves roof)
         clipsRef.current = gltf.animations || [];
         if (clipsRef.current.length > 0) {
+          clipsRef.current.forEach((clip) => {
+            clip.tracks = clip.tracks.filter(
+              (t) => !t.name.includes("Maitri_Building_Main_Roof") && !t.name.toLowerCase().includes("roof")
+            );
+          });
           const mixer = new THREE.AnimationMixer(root);
           mixerRef.current = mixer;
 
@@ -1332,14 +1454,11 @@ export function MaitriStationTwin({
     const camera = cameraRef.current;
     const controls = controlsRef.current;
 
-    // 1. SLICE THE TOP OF THE BUILDING:
-    // Elevate the main roof by +16.5m so all internal piping and machinery are exposed from above
+    // 1. REVEAL INTERNAL MACHINERY FROM ABOVE:
+    // Remove roof completely (no floating in mid-air)
     if (mainRoofRef.current) {
-      gsap.to(mainRoofRef.current.position, {
-        y: 16.5,
-        duration: 1.4,
-        ease: "power2.out",
-      });
+      mainRoofRef.current.visible = false;
+      mainRoofRef.current.position.set(-0.75, 4.1, 0.06);
       setRoofLifted(true);
     }
 
@@ -1451,15 +1570,12 @@ export function MaitriStationTwin({
     return () => clearInterval(timer);
   }, [activeTourIndex, activeStageIndex, autoPlayTour, activeMode, activeRoom, goToStage]);
 
-  // Toggle Roof X-Ray Lift
+  // Toggle Roof Complete Removal (X-Ray Interior)
   const toggleRoofLift = useCallback(() => {
     if (mainRoofRef.current) {
       const nextLift = !roofLifted;
-      gsap.to(mainRoofRef.current.position, {
-        y: nextLift ? 16.5 : 0.0,
-        duration: 1.4,
-        ease: "power2.inOut",
-      });
+      mainRoofRef.current.visible = !nextLift;
+      mainRoofRef.current.position.set(-0.75, 4.1, 0.06);
       setRoofLifted(nextLift);
     }
   }, [roofLifted]);
@@ -1560,31 +1676,35 @@ export function MaitriStationTwin({
       if (heatingShaderUniformsRef.current) {
         heatingShaderUniformsRef.current.uActive.value = nextState ? 1.0 : 0.0;
       }
+      if (flowCategoryUniformsRef.current) {
+        flowCategoryUniformsRef.current.heattrace.value = nextState ? 1.0 : 0.0;
+        flowCategoryUniformsRef.current.water.value = nextState ? 1.0 : 0.0;
+      }
+      if (heatingPipesGroupRef.current) {
+        heatingPipesGroupRef.current.visible = nextState;
+      }
 
       if (nextState) {
         setActiveTourIndex(null);
         setActiveRoom(null);
         setActiveMode("flows");
 
-        // Lift roof to reveal all internal heating distribution pipes
+        // Completely remove roof so all internal heating pipes are fully exposed (never float in air)
         if (mainRoofRef.current) {
-          gsap.to(mainRoofRef.current.position, {
-            y: 16.5,
-            duration: 1.2,
-            ease: "power2.out",
-          });
+          mainRoofRef.current.visible = false;
+          mainRoofRef.current.position.set(-0.75, 4.1, 0.06);
           setRoofLifted(true);
         }
 
-        // DIRECT TOP-DOWN / OVERHEAD VIEW (Directly above Maitri building center at X=-4.5, Z=-4.2)
+        // DIRECT TOP-DOWN / OVERHEAD VIEW (Directly above full Maitri building complex at X=-4.5, Z=-35.0)
         controls.enabled = false;
         gsap.killTweensOf(camera.position);
         gsap.killTweensOf(controls.target);
 
         gsap.to(camera.position, {
           x: -4.5,
-          y: 72.0,
-          z: -4.2,
+          y: 88.0,
+          z: -35.0,
           duration: 1.8,
           ease: "power3.inOut",
         });
@@ -1592,7 +1712,7 @@ export function MaitriStationTwin({
         gsap.to(controls.target, {
           x: -4.5,
           y: 4.2,
-          z: -4.25,
+          z: -35.0,
           duration: 1.8,
           ease: "power3.inOut",
           onComplete: () => {
@@ -1604,17 +1724,15 @@ export function MaitriStationTwin({
         });
 
         gsap.to(camera, {
-          fov: 52,
+          fov: 55,
           duration: 1.5,
           onUpdate: () => camera.updateProjectionMatrix(),
         });
       } else {
+        // Completely restore roof back onto building in its exact rest position
         if (mainRoofRef.current) {
-          gsap.to(mainRoofRef.current.position, {
-            y: 0,
-            duration: 1.2,
-            ease: "power2.inOut",
-          });
+          mainRoofRef.current.visible = true;
+          mainRoofRef.current.position.set(-0.75, 4.1, 0.06);
           setRoofLifted(false);
         }
       }
@@ -1644,7 +1762,8 @@ export function MaitriStationTwin({
           room.id.includes("waste")
         ) {
           if (!roofLifted && mainRoofRef.current) {
-            gsap.to(mainRoofRef.current.position, { y: 16.5, duration: 1.4, ease: "power2.inOut" });
+            mainRoofRef.current.visible = false;
+            mainRoofRef.current.position.set(-0.75, 4.1, 0.06);
             setRoofLifted(true);
           }
         }
@@ -1686,6 +1805,9 @@ export function MaitriStationTwin({
     if (heatingShaderUniformsRef.current) {
       heatingShaderUniformsRef.current.uActive.value = 0.0;
     }
+    if (heatingPipesGroupRef.current) {
+      heatingPipesGroupRef.current.visible = false;
+    }
 
     // Stop all running mixer clips
     if (mixerRef.current) {
@@ -1698,13 +1820,10 @@ export function MaitriStationTwin({
     // Reset soundscape to outdoor polar ambiance
     polarAudio.setLocationState(false, false);
 
-    // Smoothly restore roof back down
+    // Completely restore roof back onto building in its exact rest position
     if (mainRoofRef.current) {
-      gsap.to(mainRoofRef.current.position, {
-        y: 0,
-        duration: 1.4,
-        ease: "power2.inOut",
-      });
+      mainRoofRef.current.visible = true;
+      mainRoofRef.current.position.set(-0.75, 4.1, 0.06);
       setRoofLifted(false);
     }
 
@@ -2327,7 +2446,8 @@ export function MaitriStationTwin({
           if (room) {
             if (room.id.includes("boiler") || room.id.includes("hospital") || room.id.includes("comms") || room.id.includes("meteo")) {
               if (!roofLifted && mainRoofRef.current) {
-                gsap.to(mainRoofRef.current.position, { y: 16.5, duration: 1.4, ease: "power2.inOut" });
+                mainRoofRef.current.visible = false;
+                mainRoofRef.current.position.set(-0.75, 4.1, 0.06);
                 setRoofLifted(true);
               }
             }
