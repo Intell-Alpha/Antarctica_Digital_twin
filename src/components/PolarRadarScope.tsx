@@ -13,6 +13,7 @@ import {
 } from "@phosphor-icons/react";
 import { HeartbeatDot } from "@/components/HeartbeatDot";
 import { TelemetryValue } from "@/components/TelemetryValue";
+import { DraggablePanel } from "./DraggablePanel";
 import Link from "next/link";
 
 interface StationNode {
@@ -107,7 +108,8 @@ export function PolarRadarScope() {
   const [activeNode, setActiveNode] = useState<StationNode>(NODES[0]);
 
   return (
-    <div className="relative w-full aspect-square max-w-[560px] mx-auto select-none flex items-center justify-center">
+    <DraggablePanel className="w-full max-w-[560px] mx-auto">
+      <div className="relative w-full aspect-square max-w-[560px] mx-auto select-none flex items-center justify-center">
       {/* Outer Tactical Glow Rings */}
       <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#4FD1FF]/[0.08] via-transparent to-[#39FF88]/[0.04] blur-2xl pointer-events-none" />
 
@@ -266,8 +268,8 @@ export function PolarRadarScope() {
             </motion.div>
           </AnimatePresence>
         </div>
-
       </div>
     </div>
+  </DraggablePanel>
   );
 }

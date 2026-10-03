@@ -36,6 +36,7 @@ import {
 } from "@phosphor-icons/react";
 import { api, Station } from "@/lib/api";
 import { polarAudio } from "@/lib/polarAudioEngine";
+import { DraggablePanel } from "./DraggablePanel";
 
 export interface RoomTelemetryData {
   id: string;
@@ -682,7 +683,8 @@ export function RoomTelemetryCard({
   };
 
   return (
-    <div className="relative w-[420px] sm:w-[480px] max-w-[calc(100vw-32px)] select-none font-sans animate-in fade-in zoom-in-95 duration-200">
+    <DraggablePanel>
+      <div className="relative w-[420px] sm:w-[480px] max-w-[calc(100vw-32px)] select-none font-sans animate-in fade-in zoom-in-95 duration-200">
       {/* ── SCADA INSTRUMENTATION CASING (Single Layer Titanium Panel) ── */}
       <div className="rounded-2xl bg-[#060D1A]/98 border border-white/[0.14] p-4 sm:p-5 flex flex-col gap-3 shadow-[0_24px_64px_rgba(0,0,0,0.92)] backdrop-blur-2xl">
         
@@ -1251,5 +1253,6 @@ export function RoomTelemetryCard({
         )}
       </div>
     </div>
+  </DraggablePanel>
   );
 }

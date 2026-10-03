@@ -14,6 +14,7 @@ import {
   CaretDown,
 } from "@phosphor-icons/react";
 import { polarAudio } from "@/lib/polarAudioEngine";
+import { DraggablePanel } from "./DraggablePanel";
 import { PolarAtmosphereSystem, PolarSeason } from "./PolarAtmosphereSystem";
 
 interface PolarAtmosphereControlsProps {
@@ -136,9 +137,10 @@ export function PolarAtmosphereControls({
       )}
 
       {/* ── 2. DOUBLE-BEZEL FLOATING ATMOSPHERE CONTROLS BAR ── */}
-      <div
-        className={`pointer-events-auto flex items-center gap-1.5 p-1 rounded-2xl bg-[#040D1A]/90 border border-white/10 backdrop-blur-2xl shadow-2xl select-none ${className}`}
-      >
+      <DraggablePanel>
+        <div
+          className={`pointer-events-auto flex items-center gap-1.5 p-1 rounded-2xl bg-[#040D1A]/90 border border-white/10 backdrop-blur-2xl shadow-2xl select-none ${className}`}
+        >
         {/* Audio Mute / Unmute & Volume Hover Popup */}
         <div
           className="relative"
@@ -304,6 +306,7 @@ export function PolarAtmosphereControls({
           )}
         </div>
       </div>
+      </DraggablePanel>
     </>
   );
 }

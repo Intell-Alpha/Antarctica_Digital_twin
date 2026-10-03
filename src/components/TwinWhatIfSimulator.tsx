@@ -18,6 +18,7 @@ import {
   ThermometerCold,
 } from "@phosphor-icons/react";
 import { api, Station } from "@/lib/api";
+import { DraggablePanel } from "./DraggablePanel";
 
 export interface SimulationResultPayload {
   scenarioId: string;
@@ -159,7 +160,8 @@ export function TwinWhatIfSimulator({
 
       {/* ── WHAT-IF SIMULATION POPOVER DRAWER ── */}
       {isOpen && (
-        <div className="absolute top-20 right-4 sm:right-6 z-40 w-[380px] max-w-[calc(100vw-32px)] rounded-2xl bg-[#070D18]/98 border border-white/[0.14] backdrop-blur-2xl shadow-[0_24px_64px_rgba(0,0,0,0.92)] animate-in fade-in slide-in-from-top-3 duration-250 font-sans select-none overflow-hidden">
+        <DraggablePanel className="absolute top-20 right-4 sm:right-6 z-40">
+          <div className="w-[380px] max-w-[calc(100vw-32px)] rounded-2xl bg-[#070D18]/98 border border-white/[0.14] backdrop-blur-2xl shadow-[0_24px_64px_rgba(0,0,0,0.92)] animate-in fade-in slide-in-from-top-3 duration-250 font-sans select-none overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
             <div className="flex items-center gap-2">
@@ -340,6 +342,7 @@ export function TwinWhatIfSimulator({
             </div>
           )}
         </div>
+      </DraggablePanel>
       )}
     </>
   );

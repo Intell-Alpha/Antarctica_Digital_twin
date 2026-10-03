@@ -20,8 +20,10 @@ import {
   Gauge,
   ArrowsClockwise,
   Fire,
+  DotsSixVertical,
 } from "@phosphor-icons/react";
 import { api, Station } from "@/lib/api";
+import { DraggablePanel } from "./DraggablePanel";
 
 export type DomainCategoryKey = "infra" | "energy" | "logistics" | "environment";
 
@@ -680,44 +682,46 @@ export function StationSystemDock({
     <div
       className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex flex-col items-center select-none max-w-[calc(100vw-24px)] ${className}`}
     >
-      {/* ── SUB-DIVISIONS POPUP DRAWER (FLOATING ABOVE DOCK) ── */}
+      {/* ── SUB-DIVISIONS POPUP DRAWER (FLOATING ABOVE DOCK - DRAGGABLE ANYWHERE) ── */}
       {currentOpenDomain && (
-        <div className="mb-2 w-full max-w-3xl rounded-2xl bg-[#060D1A]/95 border border-white/[0.14] shadow-[0_24px_60px_rgba(0,0,0,0.92)] backdrop-blur-2xl p-3 animate-in slide-in-from-bottom-2 fade-in duration-200">
-          {/* Drawer Header */}
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/[0.08] px-1">
-            <div className="flex items-center gap-2">
-              <div
-                className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
-                style={{
-                  backgroundColor: `${currentOpenDomain.color}25`,
-                  color: currentOpenDomain.color,
-                }}
-              >
-                <currentOpenDomain.icon size={14} weight="bold" />
+        <DraggablePanel className="mb-2 w-full max-w-3xl">
+          <div className="w-full rounded-2xl bg-[#060D1A]/95 border border-white/[0.14] shadow-[0_24px_60px_rgba(0,0,0,0.92)] backdrop-blur-2xl p-3 animate-in slide-in-from-bottom-2 fade-in duration-200">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/[0.08] px-1 cursor-grab active:cursor-grabbing">
+              <div className="flex items-center gap-2">
+                <DotsSixVertical size={16} className="text-white/40 hover:text-cyan-400 transition-colors shrink-0" />
+                <div
+                  className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                  style={{
+                    backgroundColor: `${currentOpenDomain.color}25`,
+                    color: currentOpenDomain.color,
+                  }}
+                >
+                  <currentOpenDomain.icon size={14} weight="bold" />
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-white">
+                    {currentOpenDomain.label}
+                  </span>
+                  <span className="font-mono text-[10px] text-[#7ABBD4]">
+                    Sub-Divisions ({currentOpenDomain.subdivisions.length})
+                  </span>
+                </div>
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-white">
-                  {currentOpenDomain.label}
-                </span>
-                <span className="font-mono text-[10px] text-[#7ABBD4]">
-                  Sub-Divisions ({currentOpenDomain.subdivisions.length})
-                </span>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <span className="hidden sm:inline font-mono text-[9px] text-white/35">
-                Press [1-4] to switch · [Esc] close
-              </span>
-              <button
-                onClick={() => setOpenDomainId(null)}
-                className="w-6 h-6 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
-                title="Close Drawer (Esc)"
-              >
-                <X size={13} weight="bold" />
-              </button>
+              <div className="flex items-center gap-2">
+                <span className="hidden sm:inline font-mono text-[9px] text-white/40">
+                  Drag header to move anywhere · Press [1-4] switch · [Esc] close
+                </span>
+                <button
+                  onClick={() => setOpenDomainId(null)}
+                  className="w-6 h-6 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                  title="Close Drawer (Esc)"
+                >
+                  <X size={13} weight="bold" />
+                </button>
+              </div>
             </div>
-          </div>
 
           {/* Sub-divisions Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-[320px] overflow-y-auto pr-0.5 no-scrollbar">
@@ -787,12 +791,14 @@ export function StationSystemDock({
             })}
           </div>
         </div>
+      </DraggablePanel>
       )}
 
-      {/* ── CORE 4 DOMAINS INSTRUMENT DOCK ── */}
-      <div className="rounded-2xl bg-[#060D1A]/95 border border-white/[0.12] px-2 py-1.5 flex items-center gap-1.5 shadow-[0_16px_48px_rgba(0,0,0,0.88)] backdrop-blur-2xl overflow-x-auto no-scrollbar">
-        
-        {/* Campus Overview Button */}
+      {/* ── CORE 4 DOMAINS INSTRUMENT DOCK (DRAGGABLE ANYWHERE) ── */}
+      <DraggablePanel>
+        <div className="rounded-2xl bg-[#060D1A]/95 border border-white/[0.12] px-2 py-1.5 flex items-center gap-1.5 shadow-[0_16px_48px_rgba(0,0,0,0.88)] backdrop-blur-2xl overflow-x-auto no-scrollbar">
+          
+          {/* Campus Overview Button */}
         {onResetOverview && (
           <button
             onClick={() => {
@@ -881,7 +887,8 @@ export function StationSystemDock({
             </button>
           );
         })}
-      </div>
+        </div>
+      </DraggablePanel>
     </div>
   );
 }
