@@ -19,6 +19,7 @@ import {
   ArrowsClockwise,
 } from "@phosphor-icons/react";
 import { api, Station } from "@/lib/api";
+import { DraggablePanel } from "./DraggablePanel";
 import { polarAudio } from "@/lib/polarAudioEngine";
 
 interface StationAICommanderProps {
@@ -269,8 +270,9 @@ export function StationAICommander({
 
       {/* ── 2. AGENTIC AI COMMANDER OVERLAY (Aerospace Telemetry Terminal) ── */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 pointer-events-auto flex items-end sm:items-center justify-center sm:justify-end sm:pr-8 sm:pb-8 p-3 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full sm:w-[480px] max-h-[85vh] flex flex-col rounded-2xl bg-[#070D18] border border-white/[0.14] shadow-[0_24px_64px_rgba(0,0,0,0.92)] animate-in slide-in-from-bottom-3 duration-250 overflow-hidden">
+        <div className="fixed inset-0 z-50 pointer-events-none flex items-end sm:items-center justify-center sm:justify-end sm:pr-8 sm:pb-8 p-3 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <DraggablePanel className="w-full sm:w-[480px]">
+            <div className="w-full max-h-[85vh] flex flex-col rounded-2xl bg-[#070D18] border border-white/[0.14] shadow-[0_24px_64px_rgba(0,0,0,0.92)] animate-in slide-in-from-bottom-3 duration-250 overflow-hidden">
             {/* Header */}
             <div className="px-4 py-3 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
               <div className="flex items-center gap-2.5">
@@ -406,7 +408,8 @@ export function StationAICommander({
               </button>
             </div>
           </div>
-        </div>
+        </DraggablePanel>
+      </div>
       )}
     </>
   );

@@ -16,6 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { api, Station } from "@/lib/api";
+import { DraggablePanel } from "./DraggablePanel";
 
 interface PolarOrbitalGlobeViewProps {
   isOpen: boolean;
@@ -258,10 +259,11 @@ export function PolarOrbitalGlobeView({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 pointer-events-auto bg-black/85 backdrop-blur-2xl flex flex-col items-center justify-center p-3 sm:p-6 animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-50 pointer-events-none bg-black/85 backdrop-blur-2xl flex flex-col items-center justify-center p-3 sm:p-6 animate-in fade-in duration-300">
       {/* ── DOUBLE-BEZEL CONTAINER ── */}
-      <div className="relative w-full max-w-6xl h-[88vh] rounded-[2.5rem] bg-black/60 ring-1 ring-white/15 p-2 shadow-[0_30px_90px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden">
-        <div className="relative flex-1 rounded-[calc(2.5rem-0.5rem)] bg-[#040D1A]/95 border border-white/10 flex flex-col overflow-hidden">
+      <DraggablePanel className="w-full max-w-6xl h-[88vh]">
+        <div className="relative w-full h-full rounded-[2.5rem] bg-black/60 ring-1 ring-white/15 p-2 shadow-[0_30px_90px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden">
+          <div className="relative flex-1 rounded-[calc(2.5rem-0.5rem)] bg-[#040D1A]/95 border border-white/10 flex flex-col overflow-hidden">
           
           {/* Header Bar */}
           <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-white/[0.02] z-10">
@@ -441,6 +443,7 @@ export function PolarOrbitalGlobeView({
 
         </div>
       </div>
-    </div>
+    </DraggablePanel>
+  </div>
   );
 }

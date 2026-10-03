@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { HeartbeatDot, HeartbeatStatus } from "./HeartbeatDot";
+import { DraggablePanel } from "./DraggablePanel";
 
 interface HudPanelProps {
   children?: React.ReactNode;
@@ -17,6 +18,7 @@ interface HudPanelProps {
   sourceTag?: "SIMULATED" | "SENSOR" | "INFERRED";
   cornerIndicator?: React.ReactNode;
   hoverEffect?: boolean;
+  draggable?: boolean;
 }
 
 export function HudPanel({
@@ -31,11 +33,12 @@ export function HudPanel({
   sourceTag = "SIMULATED",
   cornerIndicator,
   hoverEffect = true,
+  draggable = true,
 }: HudPanelProps) {
   const panelContent = (
     <div
       className={cn(
-        "bezel-shell relative overflow-hidden group flex flex-col justify-between",
+        "bezel-shell relative overflow-hidden group flex flex-col justify-between h-full",
         hoverEffect && "cursor-pointer",
         className
       )}
@@ -99,12 +102,22 @@ export function HudPanel({
   );
 
   if (href) {
-    return (
-      <Link href={href} className="block transition-transform duration-200 hover:-translate-y-0.5">
+    const linkContent = (
+      <Link href={href} className="block h-full transition-transform duration-200 hover:-translate-y-0.5">
         {panelContent}
       </Link>
     );
+
+    if (draggable) {
+      return <DraggablePanel className="h-full">{linkContent}</DraggablePanel>;
+    }
+    return linkContent;
+  }
+
+  if (draggable) {
+    return <DraggablePanel className="h-full">{panelContent}</DraggablePanel>;
   }
 
   return panelContent;
 }
+

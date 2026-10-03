@@ -16,6 +16,7 @@ import {
   Certificate,
 } from "@phosphor-icons/react";
 import { api, Station } from "@/lib/api";
+import { DraggablePanel } from "./DraggablePanel";
 
 interface MissionReportModalProps {
   station: Station;
@@ -74,11 +75,12 @@ export function MissionReportModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 pointer-events-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
-      <div className="w-full max-w-4xl max-h-[90vh] rounded-[2rem] bg-black/60 ring-1 ring-white/15 p-2 shadow-[0_30px_90px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden">
-        <div className="flex-1 rounded-[calc(2rem-0.5rem)] bg-[#040D1A]/98 border border-white/10 flex flex-col overflow-hidden text-[#EBF5FC]">
-          
-          {/* Header Bar */}
+    <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <DraggablePanel className="w-full max-w-4xl max-h-[90vh]">
+        <div className="w-full rounded-[2rem] bg-black/60 ring-1 ring-white/15 p-2 shadow-[0_30px_90px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden">
+          <div className="flex-1 rounded-[calc(2rem-0.5rem)] bg-[#040D1A]/98 border border-white/10 flex flex-col overflow-hidden text-[#EBF5FC]">
+            
+            {/* Header Bar */}
           <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-white/[0.02] print:hidden">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-[#00D4A0]/20 border border-[#00D4A0]/40 flex items-center justify-center text-[#00D4A0]">
@@ -235,6 +237,7 @@ export function MissionReportModal({
 
         </div>
       </div>
-    </div>
+    </DraggablePanel>
+  </div>
   );
 }
