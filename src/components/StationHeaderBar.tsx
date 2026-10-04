@@ -28,6 +28,7 @@ import {
   Lightning,
   Sparkle,
   Fire,
+  SquaresFour,
 } from "@phosphor-icons/react";
 import { api, Station } from "@/lib/api";
 import { polarAudio } from "@/lib/polarAudioEngine";
@@ -223,6 +224,16 @@ export function StationHeaderBar({
         
         {/* LEFT WING: Station Identity & Switcher */}
         <div className="flex items-center gap-3">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0DB9D0]/10 hover:bg-[#0DB9D0]/20 text-[#0DB9D0] border border-[#0DB9D0]/30 hover:border-[#0DB9D0]/60 transition-all font-mono text-[10px] uppercase font-bold tracking-wider group shrink-0"
+            title="Return to NCPOR Cockpit Dashboard"
+          >
+            <CaretLeft size={13} weight="bold" className="group-hover:-translate-x-0.5 transition-transform" />
+            <SquaresFour size={13} weight="bold" />
+            <span className="hidden sm:inline">Back to Dashboard</span>
+          </Link>
+
           <Link
             href="/"
             className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-[#7ABBD4] hover:text-white border border-white/[0.06] transition-colors"
