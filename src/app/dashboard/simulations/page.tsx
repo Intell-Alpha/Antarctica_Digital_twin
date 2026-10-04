@@ -20,7 +20,7 @@ export default function SimulationsEngine() {
   };
 
   return (
-    <div className="flex flex-col space-y-8 h-full animate-in fade-in duration-700">
+    <div className="flex flex-col space-y-8 min-h-full pb-12 animate-in fade-in duration-700">
       <header className="flex justify-between items-end border-b border-[#0D3040]/60 pb-6 shrink-0">
         <div>
           <div className="flex items-center gap-3 mb-2">

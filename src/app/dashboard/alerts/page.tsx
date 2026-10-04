@@ -15,7 +15,7 @@ export default function AlertsDashboard() {
   if (!summaryData) return <div className="text-[#D93030] font-mono text-sm uppercase tracking-widest animate-pulse">Fetching Alert Registry...</div>;
 
   return (
-    <div className="flex flex-col space-y-8 animate-in fade-in duration-700 h-full">
+    <div className="flex flex-col space-y-8 animate-in fade-in duration-700 min-h-full pb-12">
       <header className="flex justify-between items-end border-b border-[#D93030]/30 pb-6">
         <div>
           <div className="flex items-center gap-3 mb-2">
