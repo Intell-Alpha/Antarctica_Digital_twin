@@ -20,7 +20,7 @@ function TwinPageContent() {
   }, [stationParam]);
 
   return (
-    <div className="h-screen w-screen bg-[#03060E] text-[#EBF5FC] font-sans flex flex-col relative overflow-hidden select-none">
+    <div className="h-screen w-screen bg-theme-base text-foreground font-sans flex flex-col relative overflow-hidden select-none">
       {/* ── FULL-BLEED 3D VIEWPORT ── */}
       <main className="w-full h-full flex-1 relative overflow-hidden">
         {activeStation === "maitri" ? (
@@ -37,7 +37,7 @@ export default function TwinPage() {
   return (
     <Suspense
       fallback={
-        <div className="h-screen w-screen bg-[#03060E] flex items-center justify-center font-mono text-xs text-[#0DB9D0]">
+        <div className="h-screen w-screen bg-theme-base flex items-center justify-center font-mono text-xs text-accent">
           Initializing Antarctic Twin Telemetry...
         </div>
       }
