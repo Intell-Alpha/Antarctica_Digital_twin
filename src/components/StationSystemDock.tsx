@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import {
   Buildings,
   Lightning,
@@ -15,12 +16,14 @@ import {
   Wrench,
   Compass,
   CaretUp,
+  CaretLeft,
   CaretRight,
   X,
   Gauge,
   ArrowsClockwise,
   Fire,
   DotsSixVertical,
+  SquaresFour,
 } from "@phosphor-icons/react";
 import { api, Station } from "@/lib/api";
 import { DraggablePanel } from "./DraggablePanel";
@@ -798,6 +801,17 @@ export function StationSystemDock({
       <DraggablePanel>
         <div className="rounded-2xl bg-[#060D1A]/95 border border-white/[0.12] px-2 py-1.5 flex items-center gap-1.5 shadow-[0_16px_48px_rgba(0,0,0,0.88)] backdrop-blur-2xl overflow-x-auto no-scrollbar">
           
+          {/* Back to Dashboard Button */}
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-mono text-[11px] font-semibold text-[#0DB9D0] bg-[#0DB9D0]/10 hover:bg-[#0DB9D0]/20 border border-[#0DB9D0]/30 transition-all shrink-0 group"
+            title="Return to NCPOR Cockpit Dashboard"
+          >
+            <CaretLeft size={13} weight="bold" className="group-hover:-translate-x-0.5 transition-transform" />
+            <SquaresFour size={13} weight="bold" />
+            <span className="hidden sm:inline uppercase tracking-wider text-[10px]">Dashboard</span>
+          </Link>
+
           {/* Campus Overview Button */}
         {onResetOverview && (
           <button
