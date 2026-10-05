@@ -9,8 +9,8 @@
   --color-aurora-violet: #7B5EC8;
   --color-polar-amber: #D49020;
   --color-ice-alert: #D93030;
-  --color-text-primary: #EBF5FC;
-  --color-text-secondary: #4A7A8E;
+  --color-text-primary: var(--text-primary, #EBF5FC);
+  --color-text-secondary: var(--text-secondary, #4A7A8E);
   --font-sans: var(--font-sans);
   --font-headline: var(--font-sans);
   --font-body: var(--font-sans);
@@ -27,16 +27,381 @@
 
 :root {
   --ease-engineered: cubic-bezier(0.32, 0.72, 0, 1);
+  --bg-primary: #03060E;
+  --bg-surface: #050F1C;
+  --bg-panel: rgba(7, 15, 28, 0.85);
+  --text-primary: #EBF5FC;
+  --text-secondary: #7ABBD4;
+  --text-muted: #3A6A7A;
+  --accent-primary: #0DB9D0;
+  --accent-secondary: #00D4A0;
+  --border-color: rgba(13, 185, 208, 0.12);
+  --aurora-core-bg: radial-gradient(ellipse at center, rgba(13, 185, 208, 0.12) 0%, rgba(0, 212, 160, 0.05) 40%, transparent 70%);
 }
 
-/* ─── Polar Night Base ─────────────────────────────────────────── */
+/* ─── THEME 1: POLAR NIGHT (DARK - DEFAULT) ─── */
+[data-theme="dark"], html.theme-dark {
+  --bg-primary: #03060E;
+  --bg-surface: #050F1C;
+  --bg-panel: rgba(7, 15, 28, 0.85);
+  --text-primary: #EBF5FC;
+  --text-secondary: #7ABBD4;
+  --text-muted: #4A7A8E;
+  --accent-primary: #0DB9D0;
+  --accent-secondary: #00D4A0;
+  --border-color: rgba(13, 185, 208, 0.12);
+  --aurora-core-bg: radial-gradient(ellipse at center, rgba(13, 185, 208, 0.12) 0%, rgba(0, 212, 160, 0.05) 40%, transparent 70%);
+}
+
+/* ─── THEME 2: POLAR DAYLIGHT (LIGHT MODE ULTRA HIGH CONTRAST) ─── */
+[data-theme="light"], html.theme-light {
+  --bg-primary: #F1F5F9;
+  --bg-surface: #FFFFFF;
+  --bg-panel: #FFFFFF;
+  --text-primary: #0F172A;
+  --text-secondary: #1E293B;
+  --text-muted: #334155;
+  --accent-primary: #0284C7;
+  --accent-secondary: #0D9488;
+  --border-color: #CBD5E1;
+  --aurora-core-bg: radial-gradient(ellipse at center, rgba(2, 132, 199, 0.08) 0%, rgba(13, 148, 136, 0.04) 40%, transparent 70%);
+}
+
+/* Light Theme Component & Text Overrides */
+[data-theme="light"] body, html.theme-light body {
+  background-color: #F1F5F9 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] h3,
+[data-theme="light"] h4,
+[data-theme="light"] h5,
+[data-theme="light"] h6 {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .text-white,
+[data-theme="light"] .text-\[\#EBF5FC\],
+[data-theme="light"] .text-\[\#F8FAFC\],
+[data-theme="light"] .text-foreground {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .text-\[\#7ABBD4\],
+[data-theme="light"] .text-\[\#A6C4D6\],
+[data-theme="light"] .text-\[\#94A3B8\],
+[data-theme="light"] .text-slate-300,
+[data-theme="light"] .text-zinc-300,
+[data-theme="light"] .text-muted {
+  color: #1E293B !important;
+}
+
+[data-theme="light"] .text-\[\#4A7A8E\],
+[data-theme="light"] .text-\[\#3A6A7A\],
+[data-theme="light"] .text-\[\#2A5A6A\],
+[data-theme="light"] .text-\[\#64748B\],
+[data-theme="light"] .text-slate-400,
+[data-theme="light"] .text-zinc-400,
+[data-theme="light"] .text-zinc-500 {
+  color: #334155 !important;
+}
+
+[data-theme="light"] .text-\[\#0DB9D0\] {
+  color: #0284C7 !important;
+}
+
+[data-theme="light"] .text-\[\#00D4A0\] {
+  color: #0D9488 !important;
+}
+
+/* Panels & Cards in Light Mode */
+[data-theme="light"] .bezel-core,
+[data-theme="light"] .hud-panel {
+  background-color: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08) !important;
+}
+
+[data-theme="light"] .bezel-shell {
+  background-color: #F8FAFC !important;
+  border: 1px solid #CBD5E1 !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06) !important;
+}
+
+[data-theme="light"] header,
+[data-theme="light"] aside {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05) !important;
+}
+
+/* Sidebar navigation links in Light Mode */
+[data-theme="light"] aside nav a {
+  color: #1E293B !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="light"] aside nav a:hover {
+  color: #0284C7 !important;
+  background-color: #F1F5F9 !important;
+}
+
+[data-theme="light"] aside nav a.bg-accent\/15,
+[data-theme="light"] aside nav a[class*="bg-accent"] {
+  background-color: #E0F2FE !important;
+  color: #0369A1 !important;
+  border-color: #0284C7 !important;
+  font-weight: 700 !important;
+}
+
+/* Priority Alert Panel in Light Mode */
+[data-theme="light"] .border-rose-500\/40,
+[data-theme="light"] .border-\[\#D93030\]\/30 {
+  background-color: #FFF1F2 !important;
+  border-color: #FECDD3 !important;
+}
+
+[data-theme="light"] .text-rose-700,
+[data-theme="light"] .text-rose-600,
+[data-theme="light"] .text-\[\#D93030\] {
+  color: #991B1B !important;
+}
+
+[data-theme="light"] .bg-rose-500\/10,
+[data-theme="light"] .bg-\[\#D93030\]\/10 {
+  background-color: #FFFFFF !important;
+  border-color: #FECDD3 !important;
+  box-shadow: 0 2px 8px rgba(225, 29, 72, 0.08) !important;
+}
+
+[data-theme="light"] aside .bg-black\/30 {
+  background-color: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+}
+
+/* ─── THEME 3: TACTICAL SCADA MODE ─── */
+[data-theme="scada"], html.theme-scada {
+  --bg-primary: #000000;
+  --bg-surface: #040D04;
+  --bg-panel: rgba(0, 18, 0, 0.92);
+  --text-primary: #33FF66;
+  --text-secondary: #22CC55;
+  --text-muted: #118833;
+  --accent-primary: #33FF66;
+  --accent-secondary: #CCFF00;
+  --border-color: rgba(51, 255, 102, 0.30);
+  --aurora-core-bg: radial-gradient(ellipse at center, rgba(51, 255, 102, 0.18) 0%, rgba(204, 255, 0, 0.06) 40%, transparent 70%);
+}
+
+/* SCADA Theme Overrides */
+[data-theme="scada"] body, html.theme-scada body {
+  background-color: #000000 !important;
+  color: #33FF66 !important;
+  font-family: var(--font-mono), monospace !important;
+}
+
+[data-theme="scada"] .hud-panel {
+  background: rgba(2, 18, 5, 0.94) !important;
+  border: 1px solid rgba(51, 255, 102, 0.35) !important;
+  box-shadow: 0 0 25px rgba(51, 255, 102, 0.12), inset 0 0 10px rgba(51, 255, 102, 0.08) !important;
+  color: #33FF66 !important;
+}
+
+[data-theme="scada"] .hud-panel:hover {
+  border-color: #33FF66 !important;
+  box-shadow: 0 0 35px rgba(51, 255, 102, 0.22) !important;
+}
+
+[data-theme="scada"] .bezel-shell {
+  background: rgba(51, 255, 102, 0.03) !important;
+  border-color: rgba(51, 255, 102, 0.35) !important;
+  box-shadow: 0 0 30px rgba(51, 255, 102, 0.15) !important;
+}
+
+[data-theme="scada"] .bezel-core {
+  background: rgba(0, 10, 2, 0.96) !important;
+  border-color: rgba(51, 255, 102, 0.3) !important;
+  color: #33FF66 !important;
+}
+
+[data-theme="scada"] header, [data-theme="scada"] aside {
+  background-color: rgba(0, 14, 3, 0.95) !important;
+  border-color: rgba(51, 255, 102, 0.3) !important;
+  color: #33FF66 !important;
+}
+
+/* ─── THEME 4: AURORA NIGHT MODE ─── */
+[data-theme="aurora"], html.theme-aurora {
+  --bg-primary: #0C0515;
+  --bg-surface: #140A24;
+  --bg-panel: rgba(20, 10, 36, 0.88);
+  --text-primary: #F3E8FF;
+  --text-secondary: #E9D5FF;
+  --text-muted: #A855F7;
+  --accent-primary: #00FF99;
+  --accent-secondary: #C084FC;
+  --border-color: rgba(192, 132, 252, 0.25);
+  --aurora-core-bg: radial-gradient(ellipse at center, rgba(0, 255, 153, 0.22) 0%, rgba(192, 132, 252, 0.15) 40%, transparent 70%);
+}
+
+/* Aurora Night Overrides */
+[data-theme="aurora"] body, html.theme-aurora body {
+  background-color: #0C0515 !important;
+  color: #F3E8FF !important;
+}
+
+[data-theme="aurora"] .hud-panel {
+  background: rgba(20, 10, 36, 0.88) !important;
+  border: 1px solid rgba(192, 132, 252, 0.25) !important;
+  box-shadow: 0 8px 32px rgba(160, 32, 240, 0.25), inset 0 1px 1px rgba(0, 255, 153, 0.15) !important;
+  color: #F3E8FF !important;
+}
+
+[data-theme="aurora"] .hud-panel:hover {
+  border-color: rgba(0, 255, 153, 0.45) !important;
+  box-shadow: 0 12px 40px rgba(0, 255, 153, 0.2) !important;
+}
+
+[data-theme="aurora"] .bezel-shell {
+  background: rgba(192, 132, 252, 0.05) !important;
+  border-color: rgba(192, 132, 252, 0.25) !important;
+  box-shadow: 0 20px 50px rgba(12, 5, 21, 0.8) !important;
+}
+
+[data-theme="aurora"] .bezel-core {
+  background: rgba(16, 8, 30, 0.94) !important;
+  border-color: rgba(0, 255, 153, 0.20) !important;
+  color: #F3E8FF !important;
+}
+
+[data-theme="aurora"] header, [data-theme="aurora"] aside {
+  background-color: rgba(18, 8, 32, 0.92) !important;
+  border-color: rgba(192, 132, 252, 0.25) !important;
+  color: #F3E8FF !important;
+}
+
+/* ─── THEME SWITCHER DROPDOWN STYLING ─── */
+.theme-dropdown {
+  background-color: var(--bg-dropdown, #071322);
+  border: 1px solid var(--border-dropdown, rgba(13, 185, 208, 0.25));
+  color: var(--text-dropdown-primary, #EBF5FC);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.theme-dropdown-header {
+  border-bottom: 1px solid var(--border-dropdown-subtle, rgba(255, 255, 255, 0.1));
+  color: var(--text-dropdown-primary, #EBF5FC);
+}
+
+.theme-dropdown-item {
+  color: var(--text-dropdown-primary, #EBF5FC) !important;
+}
+
+.theme-dropdown-item:hover {
+  background-color: var(--bg-dropdown-hover, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.theme-dropdown-item-active {
+  background-color: var(--bg-dropdown-active, rgba(13, 185, 208, 0.2)) !important;
+  border-color: var(--border-dropdown-active, rgba(13, 185, 208, 0.5)) !important;
+  color: var(--text-dropdown-primary, #EBF5FC) !important;
+}
+
+.theme-dropdown-muted {
+  color: var(--text-dropdown-muted, #94A3B8) !important;
+}
+
+/* Light Theme Dropdown High Contrast Overrides */
+[data-theme="light"] .theme-dropdown {
+  --bg-dropdown: #FFFFFF;
+  --border-dropdown: #CBD5E1;
+  --text-dropdown-primary: #0F172A;
+  --text-dropdown-muted: #334155;
+  --bg-dropdown-hover: #F1F5F9;
+  --bg-dropdown-active: #E0F2FE;
+  --border-dropdown-active: #0284C7;
+  --border-dropdown-subtle: #E2E8F0;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(0,0,0,0.06) !important;
+}
+
+[data-theme="light"] .theme-dropdown .text-accent {
+  color: #0284C7 !important;
+}
+
+[data-theme="light"] .theme-dropdown-item {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .theme-dropdown-item:hover {
+  background-color: #F1F5F9 !important;
+}
+
+[data-theme="light"] .theme-dropdown-item-active {
+  background-color: #E0F2FE !important;
+  border-color: #0284C7 !important;
+  color: #0369A1 !important;
+}
+
+[data-theme="light"] .theme-dropdown-muted {
+  color: #334155 !important;
+}
+
+/* Dark Theme Dropdown Overrides */
+[data-theme="dark"] .theme-dropdown {
+  --bg-dropdown: #071322;
+  --border-dropdown: rgba(13, 185, 208, 0.25);
+  --text-dropdown-primary: #EBF5FC;
+  --text-dropdown-muted: #94A3B8;
+  --bg-dropdown-hover: rgba(255, 255, 255, 0.08);
+  --bg-dropdown-active: rgba(13, 185, 208, 0.2);
+  --border-dropdown-active: rgba(13, 185, 208, 0.5);
+  --border-dropdown-subtle: rgba(255, 255, 255, 0.1);
+}
+
+/* SCADA Theme Dropdown Overrides */
+[data-theme="scada"] .theme-dropdown {
+  --bg-dropdown: #000E02;
+  --border-dropdown: rgba(51, 255, 102, 0.4);
+  --text-dropdown-primary: #33FF66;
+  --text-dropdown-muted: #22CC55;
+  --bg-dropdown-hover: rgba(51, 255, 102, 0.15);
+  --bg-dropdown-active: rgba(51, 255, 102, 0.25);
+  --border-dropdown-active: #33FF66;
+  --border-dropdown-subtle: rgba(51, 255, 102, 0.2);
+}
+
+/* Aurora Theme Dropdown Overrides */
+[data-theme="aurora"] .theme-dropdown {
+  --bg-dropdown: #17092C;
+  --border-dropdown: rgba(192, 132, 252, 0.35);
+  --text-dropdown-primary: #F3E8FF;
+  --text-dropdown-muted: #D8B4FE;
+  --bg-dropdown-hover: rgba(192, 132, 252, 0.18);
+  --bg-dropdown-active: rgba(0, 255, 153, 0.2);
+  --border-dropdown-active: #00FF99;
+  --border-dropdown-subtle: rgba(192, 132, 252, 0.18);
+}
+
+/* ─── BASE BODY & UTILITIES ─── */
 body {
-  background-color: #03060E;
-  color: #EBF5FC;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   font-family: var(--font-body), system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
   min-height: 100vh;
+  transition: background-color 0.3s var(--ease-engineered), color 0.3s var(--ease-engineered);
 }
+
+.text-foreground { color: var(--text-primary); }
+.text-muted { color: var(--text-secondary); }
+.text-accent { color: var(--accent-primary); }
+.bg-theme-base { background-color: var(--bg-primary); }
+.bg-theme-panel { background-color: var(--bg-panel); }
+.border-theme { border-color: var(--border-color); }
 
 /* ─── Realistic Aurora Australis ──────────────────────────── */
 .polar-aurora {
@@ -47,18 +412,16 @@ body {
   overflow: hidden;
 }
 
-/* Aurora Ambient Base Glow */
 .polar-aurora-core {
   position: fixed;
   top: -20vh; left: -10vw; right: -10vw; height: 70vh;
-  background: radial-gradient(ellipse at center, rgba(13, 185, 208, 0.12) 0%, rgba(0, 212, 160, 0.05) 40%, transparent 70%);
+  background: var(--aurora-core-bg);
   filter: blur(80px);
   pointer-events: none;
   z-index: 0;
   animation: aurora-breathe 12s ease-in-out infinite alternate;
 }
 
-/* Wavy Aurora Curtain */
 .polar-aurora::after {
   content: '';
   position: absolute;
@@ -81,7 +444,6 @@ body {
   -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.5) 40%, transparent 100%);
   transform-origin: top center;
   animation: aurora-curtain-wave 40s linear infinite;
-  /* Perspective trick to make it look like a hanging curtain in the sky */
   transform: perspective(800px) rotateX(30deg);
 }
 
@@ -99,7 +461,6 @@ body {
 }
 
 /* ─── Realistic Parallax Snowfall ──────────────────────────────── */
-/* 3 layers of distinct snowflakes falling at different speeds/depths */
 .polar-snow, .polar-snow::before, .polar-snow::after {
   position: absolute;
   inset: 0;
@@ -107,7 +468,6 @@ body {
   z-index: 20;
 }
 
-/* Foreground: Sparse, sharp, fast snow */
 .polar-snow {
   background-image: 
     radial-gradient(4px 4px at 100px 100px, rgba(255,255,255,0.9) 50%, transparent),
@@ -118,7 +478,6 @@ body {
   animation: snow-fall-1 14s linear infinite;
 }
 
-/* Midground: Slightly blurred, sparser, varying sizes */
 .polar-snow::before {
   content: '';
   background-image: 
@@ -131,7 +490,6 @@ body {
   filter: blur(1.5px);
 }
 
-/* Background: Very large, highly blurred, extremely sparse */
 .polar-snow::after {
   content: '';
   background-image: 
@@ -156,7 +514,7 @@ body {
   100% { background-position: -150px 600px; }
 }
 
-/* ─── Polar Vignette (edge darkening) ────────────────────────── */
+/* ─── Polar Vignette ────────────────────────────────────────── */
 .polar-vignette {
   position: fixed;
   inset: 0;
@@ -165,11 +523,10 @@ body {
   background:
     radial-gradient(ellipse 80% 80% at 50% 50%,
       transparent 40%,
-      rgba(3, 6, 14, 0.45) 100%); /* Adjusted color and opacity */
+      rgba(3, 6, 14, 0.45) 100%);
 }
 
 /* ─── Noise Grain Overlay ─────────────────────────────────────── */
-/* Kills flat-black banding; film-grain texture at low opacity */
 .polar-noise {
   position: fixed;
   inset: 0;
@@ -180,45 +537,33 @@ body {
   background-size: 256px 256px;
 }
 
-/* ─── HUD Glass Panel Base (Double-Bezel Compatible) ─────────── */
+/* ─── HUD Glass Panel Base ─────────────────────────────────────── */
 .hud-panel {
-  background: rgba(7, 15, 28, 0.80);
+  background: var(--bg-panel);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(13, 185, 208, 0.08);
-  box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.6), inset 0 1px 1px 0 rgba(13, 185, 208, 0.06);
-  transition: border-color 0.25s var(--ease-engineered), box-shadow 0.25s var(--ease-engineered);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.6);
+  transition: border-color 0.25s var(--ease-engineered), box-shadow 0.25s var(--ease-engineered), background 0.25s var(--ease-engineered);
 }
 
-.hud-panel:hover {
-  border-color: rgba(13, 185, 208, 0.18);
-  box-shadow: 0 12px 40px -4px rgba(0, 0, 0, 0.7), inset 0 1px 1px 0 rgba(13, 185, 208, 0.10);
-}
-
-/* ─── Double-Bezel Hardware Enclosure ─────────────────────────── */
 .bezel-shell {
   padding: 0.25rem;
   border-radius: 1.5rem;
   background: rgba(13, 185, 208, 0.015);
-  border: 1px solid rgba(13, 185, 208, 0.08);
+  border: 1px solid var(--border-color);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   transition: all 0.3s var(--ease-engineered);
-}
-
-.bezel-shell:hover {
-  background: rgba(13, 185, 208, 0.03);
-  border-color: rgba(13, 185, 208, 0.18);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 30px rgba(13, 185, 208, 0.04);
 }
 
 .bezel-core {
   padding: 1.25rem;
   border-radius: calc(1.5rem - 0.25rem);
-  background: rgba(4, 10, 22, 0.90);
+  background: var(--bg-surface);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(13, 185, 208, 0.04);
-  box-shadow: inset 0 1px 1px rgba(13, 185, 208, 0.06);
+  border: 1px solid var(--border-color);
+  transition: background 0.25s var(--ease-engineered);
 }
 
 /* ─── Telemetry Font Utilities ─────────────────────────────────── */
@@ -236,9 +581,9 @@ body {
 
 /* ─── Polar Scrollbar ─────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #03060E; }
-::-webkit-scrollbar-thumb { background: rgba(13, 185, 208, 0.2); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(13, 185, 208, 0.4); }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-primary); }
 
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar { display: none; }

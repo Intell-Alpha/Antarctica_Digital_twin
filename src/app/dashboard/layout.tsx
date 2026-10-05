@@ -16,6 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 
 const DASHBOARD_LINKS = [
   { href: "/dashboard", label: "Overview", icon: SquaresFour },
@@ -53,29 +54,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#03060E] text-[#EBF5FC] font-sans flex">
+    <div className="min-h-screen bg-theme-base text-foreground font-sans flex">
       {/* ── SIDEBAR ── */}
-      <aside className="w-64 border-r border-[#0DB9D0]/10 bg-[#040A15]/80 flex flex-col pt-4 pb-4 shrink-0 relative z-20">
-        <div className="px-4 mb-6">
+      <aside className="w-64 border-r border-theme bg-theme-panel flex flex-col pt-4 pb-4 shrink-0 relative z-20">
+        <div className="px-4 mb-6 flex items-center justify-between">
           <Link 
             href="/" 
-            className="flex items-center gap-2 px-3 py-2 bg-[#0D3040]/30 hover:bg-[#0DB9D0]/20 text-[#7ABBD4] hover:text-[#0DB9D0] border border-[#0D3040]/50 hover:border-[#0DB9D0]/50 rounded-lg transition-all duration-300 font-mono text-[10px] uppercase tracking-wider w-fit group"
+            className="flex items-center gap-2 px-3 py-2 bg-white/[0.04] hover:bg-white/[0.08] text-muted hover:text-foreground border border-white/[0.08] rounded-lg transition-all duration-300 font-mono text-[10px] uppercase tracking-wider w-fit group"
           >
             <CaretLeft size={14} className="group-hover:-translate-x-1 transition-transform" /> 
             Back to Home
           </Link>
         </div>
 
-        <div className="px-6 mb-8 flex flex-col">
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#0DB9D0] mb-1">
+        <div className="px-6 mb-6 flex flex-col">
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent mb-1">
             NCPOR Mission Command
           </span>
-          <span className="font-sans font-bold text-lg tracking-wide text-white">
+          <span className="font-sans font-bold text-lg tracking-wide text-foreground">
             Digital Twin
           </span>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1">
+        <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
           {DASHBOARD_LINKS.map((link) => {
             const active = pathname === link.href;
             return (
@@ -85,16 +86,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
                   active
-                    ? "bg-[#0DB9D0]/10 text-[#0DB9D0]"
-                    : "text-[#4A7A8E] hover:text-[#7ABBD4] hover:bg-white/[0.02]"
+                    ? "bg-accent/15 text-accent font-semibold border border-accent/25"
+                    : "text-muted hover:text-foreground hover:bg-white/[0.04]"
                 )}
               >
                 <link.icon 
                   size={18} 
                   weight={active ? "fill" : "regular"} 
-                  className={active ? "drop-shadow-[0_0_8px_rgba(13,185,208,0.5)]" : "group-hover:text-[#0DB9D0] transition-colors"}
+                  className={active ? "drop-shadow-[0_0_8px_rgba(13,185,208,0.5)]" : "group-hover:text-accent transition-colors"}
                 />
-                <span className="font-mono text-[11px] uppercase tracking-wider font-semibold">
+                <span className="font-mono text-[11px] uppercase tracking-wider">
                   {link.label}
                 </span>
               </Link>
@@ -103,15 +104,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         {/* ── LIVE BACKEND STATUS WIDGET ── */}
-        <div className="mt-auto px-4 pt-4 border-t border-[#0DB9D0]/10">
-          <div className="p-2.5 rounded-xl bg-[#03060E]/90 border border-white/[0.08] flex items-center justify-between shadow-inner">
+        <div className="px-4 pt-4 border-t border-theme">
+          <div className="p-2.5 rounded-xl bg-black/30 border border-white/[0.08] flex items-center justify-between shadow-inner">
             <div className="flex items-center gap-2.5">
               <span className={`w-2 h-2 rounded-full shrink-0 ${backendOnline ? 'bg-[#00D4A0] shadow-[0_0_8px_#00D4A0] animate-pulse' : 'bg-[#D49020]'}`} />
               <div className="flex flex-col">
-                <span className="font-mono text-[9px] uppercase tracking-wider text-zinc-300 font-semibold">
+                <span className="font-mono text-[9px] uppercase tracking-wider text-foreground font-semibold">
                   {backendOnline ? "EXPRESS :5000" : "LOCAL STORE"}
                 </span>
-                <span className="font-mono text-[8px] text-zinc-500">
+                <span className="font-mono text-[8px] text-muted">
                   {backendOnline ? "LIVE TELEMETRY" : "STANDALONE"}
                 </span>
               </div>
@@ -124,14 +125,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── MAIN CONTENT AREA ── */}
-      <main className="flex-1 relative overflow-hidden flex flex-col h-screen">
+      <main className="flex-1 relative overflow-hidden flex flex-col h-screen bg-theme-base">
+        {/* Top Header Bar inside Dashboard */}
+        <header className="h-14 px-8 border-b border-theme flex items-center justify-between shrink-0 bg-theme-panel backdrop-blur-xl z-20">
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-xs font-bold uppercase tracking-widest text-accent">
+              ANTARCTICA DIGITAL TWIN
+            </span>
+            <span className="text-muted">/</span>
+            <span className="font-mono text-xs font-semibold uppercase text-foreground">
+              {DASHBOARD_LINKS.find(l => l.href === pathname)?.label || "Telemetry Cockpit"}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <ThemeSwitcher variant="pill" showLabel={true} />
+          </div>
+        </header>
+
         {/* Subtle grid background for the software environment */}
         <div 
           className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" 
-          style={{ backgroundImage: 'radial-gradient(#0DB9D0 1px, transparent 1px)', backgroundSize: '32px 32px' }}
+          style={{ backgroundImage: 'radial-gradient(var(--accent-primary) 1px, transparent 1px)', backgroundSize: '32px 32px' }}
         />
         
-        <div className="flex-1 overflow-y-auto z-10 p-8 sm:p-12 relative">
+        <div className="flex-1 overflow-y-auto z-10 p-6 sm:p-10 relative">
           {children}
         </div>
       </main>

@@ -34,6 +34,7 @@ import { api, Station } from "@/lib/api";
 import { polarAudio } from "@/lib/polarAudioEngine";
 import { PolarAtmosphereSystem, PolarSeason } from "./PolarAtmosphereSystem";
 import { StationOperationalPostureBar, StationOperationalPosture } from "./StationOperationalPostureBar";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 
 interface StationHeaderBarProps {
   station: Station;
@@ -346,6 +347,9 @@ export function StationHeaderBar({
 
         {/* RIGHT WING: Precision Tool Group */}
         <div className="flex items-center gap-1.5">
+
+          {/* Theme Switcher */}
+          <ThemeSwitcher variant="pill" showLabel={true} />
 
           {/* Station Operational Posture Directive Bar (Remote Management) */}
           {onSelectPosture && (

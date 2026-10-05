@@ -12,6 +12,7 @@ import {
   X,
   Cube,
 } from "@phosphor-icons/react";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 
 const NAV_LINKS = [
   { href: "/", label: "Home", icon: House },
@@ -49,14 +50,14 @@ export function Navigation() {
 
       {/* ══════════════════════════════════════════════════════════════════
           SINGLE UNIFIED GLASS PILL — Desktop
-          Brand · Divider · Nav Links · Subsystems · Divider · Clock · CTA
+          Brand · Divider · Nav Links · Theme Switcher · CTA
       ══════════════════════════════════════════════════════════════════ */}
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.32, 0.72, 0, 1] as const }}
         className={cn(
-          "pointer-events-auto hidden lg:flex items-center h-11 rounded-full border transition-all duration-500",
+          "pointer-events-auto hidden lg:flex items-center h-11 rounded-full border transition-all duration-500 gap-1 pr-1.5",
           scrolled
             ? "bg-[#04101E]/92 border-[#0DB9D0]/20 shadow-[0_8px_40px_rgba(0,0,0,0.7),0_0_0_1px_rgba(13,185,208,0.08)] backdrop-blur-2xl"
             : "bg-[#04101E]/75 border-[#0DB9D0]/12 shadow-[0_4px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl"
@@ -86,7 +87,7 @@ export function Navigation() {
         {/* ── Nav Links ── */}
         <nav>
           <ul className="flex items-center">
-            {NAV_LINKS.map(({ href, label, icon: Icon }) => {
+            {NAV_LINKS.map(({ href, label }) => {
               const active = pathname === href;
               return (
                 <li key={href}>
@@ -96,7 +97,7 @@ export function Navigation() {
                       "relative px-4 h-11 flex items-center gap-1.5 font-sans text-[11px] font-semibold uppercase tracking-widest transition-colors duration-200",
                       active
                         ? "text-[#EBF5FC]"
-                        : "text-[#2A5A6A] hover:text-[#7ABBD4]"
+                        : "text-[#4A7A8E] hover:text-[#7ABBD4]"
                     )}
                   >
                     {active && (
@@ -111,17 +112,18 @@ export function Navigation() {
                 </li>
               );
             })}
-
-            {/* Subsystems dropdown removed to eliminate dashboard redundancy */}
           </ul>
         </nav>
 
-
+        {/* ── Theme Switcher ── */}
+        <div className="px-2">
+          <ThemeSwitcher variant="pill" showLabel={true} />
+        </div>
 
         {/* ── CTA ── */}
         <Link
           href="/dashboard"
-          className="group mr-1.5 flex items-center gap-1.5 pl-3.5 pr-2.5 h-8 rounded-full bg-[#0DB9D0] hover:bg-[#0FCEE8] text-[#03060E] font-mono text-[10px] uppercase tracking-wider font-bold transition-all duration-200 shadow-[0_0_20px_rgba(13,185,208,0.35)] hover:shadow-[0_0_28px_rgba(13,185,208,0.5)] active:scale-95"
+          className="group flex items-center gap-1.5 pl-3.5 pr-2.5 h-8 rounded-full bg-[#0DB9D0] hover:bg-[#0FCEE8] text-[#03060E] font-mono text-[10px] uppercase tracking-wider font-bold transition-all duration-200 shadow-[0_0_20px_rgba(13,185,208,0.35)] hover:shadow-[0_0_28px_rgba(13,185,208,0.5)] active:scale-95"
         >
           <span>Dashboard</span>
           <ArrowUpRight size={11} weight="bold" className="group-hover:translate-x-px group-hover:-translate-y-px transition-transform" />
@@ -132,12 +134,12 @@ export function Navigation() {
       {/* ══════════════════════════════════════════════════════════════════
           MOBILE — Compact pill with hamburger
       ══════════════════════════════════════════════════════════════════ */}
-      <div className="pointer-events-auto lg:hidden flex items-center justify-between w-full max-w-sm mx-auto">
+      <div className="pointer-events-auto lg:hidden flex items-center justify-between w-full max-w-sm mx-auto gap-2">
 
         {/* Brand pill */}
         <Link
           href="/"
-          className="flex items-center px-5 py-2 rounded-full bg-[#04101E]/80 border border-[#0DB9D0]/15 backdrop-blur-xl hover:bg-[#0DB9D0]/10 transition-colors"
+          className="flex items-center px-4 py-2 rounded-full bg-[#04101E]/80 border border-[#0DB9D0]/15 backdrop-blur-xl hover:bg-[#0DB9D0]/10 transition-colors"
         >
           <div className="flex flex-col items-start justify-center">
             <div className="flex items-center gap-[2px]">
@@ -150,6 +152,9 @@ export function Navigation() {
             </div>
           </div>
         </Link>
+
+        {/* Theme Switcher Mobile */}
+        <ThemeSwitcher variant="pill" showLabel={false} />
 
         {/* Hamburger */}
         <button
@@ -187,6 +192,10 @@ export function Navigation() {
                   <span>{label}</span>
                 </Link>
               ))}
+            </div>
+
+            <div className="pt-3 border-t border-white/10 flex justify-center">
+              <ThemeSwitcher variant="pill" showLabel={true} />
             </div>
 
           </motion.div>
