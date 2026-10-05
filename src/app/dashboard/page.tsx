@@ -16,8 +16,7 @@ export default function DashboardOverview() {
 
   if (!stationData || !summaryData) {
     return (
-      <div className="flex items-center justify-center h-full text-accent font-mono text-sm uppercase tracking-widest animate-pulse">
-      <div className="flex items-center justify-center min-h-[400px] text-[#0DB9D0] font-mono text-sm uppercase tracking-widest animate-pulse">
+      <div className="flex items-center justify-center min-h-[400px] text-accent font-mono text-sm uppercase tracking-widest animate-pulse">
         Initializing Cockpit Data Link...
       </div>
     );
@@ -76,7 +75,6 @@ export default function DashboardOverview() {
 
       {/* ACTIVE ALERTS */}
       <div className="flex-1 min-h-[200px] border border-rose-500/40 bg-rose-500/10 dark:bg-rose-500/5 rounded-2xl p-6 flex flex-col shadow-sm relative overflow-hidden">
-      <div className="border border-[#D93030]/30 bg-gradient-to-b from-[#D93030]/5 to-transparent rounded-2xl p-6 flex flex-col shadow-[0_0_30px_rgba(217,48,48,0.05)] relative">
         {/* Subtle scanning laser line effect at top */}
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-rose-500 to-transparent opacity-60" />
         
