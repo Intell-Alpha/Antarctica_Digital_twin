@@ -221,10 +221,10 @@ export function StationHeaderBar({
   return (
     <>
       {/* ── 1. UNIFIED POLAR COMMAND HEADER STRIP ── */}
-      <header className="absolute top-0 left-0 right-0 z-30 pointer-events-auto h-13 px-3 sm:px-5 flex items-center justify-between bg-[#040812]/92 border-b border-white/[0.08] backdrop-blur-2xl select-none">
+      <header className="absolute top-0 left-0 right-0 z-30 pointer-events-auto min-h-[3.25rem] py-2 px-3 sm:px-5 flex flex-wrap items-center justify-between gap-y-2 bg-[#040812]/92 border-b border-white/[0.08] backdrop-blur-2xl select-none">
         
         {/* LEFT WING: Station Identity & Switcher */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Link
             href="/dashboard"
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0DB9D0]/10 hover:bg-[#0DB9D0]/20 text-[#0DB9D0] border border-[#0DB9D0]/30 hover:border-[#0DB9D0]/60 transition-all font-mono text-[10px] uppercase font-bold tracking-wider group shrink-0"
@@ -316,7 +316,7 @@ export function StationHeaderBar({
         </div>
 
         {/* CENTER STRIP: Restrained Industrial Telemetry Readout */}
-        <div className="hidden xl:flex items-center gap-4 font-mono text-[11px] text-[#A6C4D6]">
+        <div className="hidden xl:flex flex-wrap items-center gap-4 font-mono text-[11px] text-[#A6C4D6]">
           <span className="text-white/40">{utcTime}</span>
           <span className="text-white/10">|</span>
 
@@ -346,7 +346,7 @@ export function StationHeaderBar({
         </div>
 
         {/* RIGHT WING: Precision Tool Group */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
 
           {/* Theme Switcher */}
           <ThemeSwitcher variant="pill" showLabel={true} />
