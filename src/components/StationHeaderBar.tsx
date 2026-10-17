@@ -203,14 +203,21 @@ export function StationHeaderBar({
     polarAudio.playClickFeedback();
   };
 
+  // Sync fullscreen state with document (handles Esc key and window changes)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
   const toggleFullscreen = () => {
     if (typeof document === "undefined") return;
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
     } else {
       document.exitFullscreen().catch(() => {});
-      setIsFullscreen(false);
     }
   };
 
