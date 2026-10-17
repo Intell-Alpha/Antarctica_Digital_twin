@@ -16,11 +16,13 @@ import {
 interface ThemeSwitcherProps {
   variant?: "pill" | "compact" | "dropdown";
   showLabel?: boolean;
+  align?: "left" | "right" | "auto";
 }
 
-export function ThemeSwitcher({ variant = "pill", showLabel = true }: ThemeSwitcherProps) {
+export function ThemeSwitcher({ variant = "pill", showLabel = true, align = "auto" }: ThemeSwitcherProps) {
   const { theme, setTheme, themeMeta } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownAlign, setDropdownAlign] = useState<"left" | "right">("right");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -33,6 +35,29 @@ export function ThemeSwitcher({ variant = "pill", showLabel = true }: ThemeSwitc
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Compute responsive alignment to prevent overflowing off-screen on the left or right
+  useEffect(() => {
+    if (isOpen && dropdownRef.current) {
+      if (align === "left" || align === "right") {
+        setDropdownAlign(align);
+        return;
+      }
+      const rect = dropdownRef.current.getBoundingClientRect();
+      const dropdownWidth = 260; // w-64 = 256px + buffer
+
+      // If aligning right-0 causes the dropdown to extend beyond the left edge of the screen
+      if (rect.right - dropdownWidth < 12) {
+        setDropdownAlign("left");
+      } else if (window.innerWidth - rect.left < dropdownWidth) {
+        // If aligning left-0 causes it to extend past the right edge
+        setDropdownAlign("right");
+      } else {
+        // Default to left if button is close to the left boundary
+        setDropdownAlign(rect.left < dropdownWidth ? "left" : "right");
+      }
+    }
+  }, [isOpen, align]);
 
   const getThemeIcon = (id: ThemeMode) => {
     switch (id) {
@@ -82,7 +107,9 @@ export function ThemeSwitcher({ variant = "pill", showLabel = true }: ThemeSwitc
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="absolute right-0 mt-2 w-64 p-2 rounded-2xl backdrop-blur-2xl z-50 theme-dropdown space-y-1"
+            className={`absolute ${
+              dropdownAlign === "left" ? "left-0" : "right-0"
+            } mt-2 w-64 max-w-[calc(100vw-1.5rem)] p-2 rounded-2xl backdrop-blur-2xl z-50 theme-dropdown space-y-1 shadow-2xl`}
           >
             <div className="px-3 py-2 theme-dropdown-header mb-1 flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-xs font-mono font-bold">
