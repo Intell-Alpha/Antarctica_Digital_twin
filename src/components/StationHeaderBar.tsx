@@ -29,6 +29,7 @@ import {
   Sparkle,
   Fire,
   SquaresFour,
+  GameController,
 } from "@phosphor-icons/react";
 import { api, Station } from "@/lib/api";
 import { polarAudio } from "@/lib/polarAudioEngine";
@@ -59,6 +60,8 @@ interface StationHeaderBarProps {
   onToggleBoilerHeating?: () => void;
   currentPosture?: StationOperationalPosture;
   onSelectPosture?: (posture: StationOperationalPosture) => void;
+  isJoystickActive?: boolean;
+  onToggleJoystick?: () => void;
 }
 
 export function StationHeaderBar({
@@ -84,6 +87,8 @@ export function StationHeaderBar({
   onToggleBoilerHeating,
   currentPosture = "NOMINAL",
   onSelectPosture,
+  isJoystickActive = false,
+  onToggleJoystick,
 }: StationHeaderBarProps) {
   // Live Vitals State
   const [vitals, setVitals] = useState({
@@ -528,6 +533,25 @@ export function StationHeaderBar({
               title="Launch Autonomous 4K Drone Survey (Press D)"
             >
               <VideoCamera size={14} weight={isDroneActive ? "fill" : "regular"} />
+            </button>
+          )}
+
+          {/* 4c. Virtual Joystick & WASD Free-Roam Navigation Toggle */}
+          {onToggleJoystick && (
+            <button
+              onClick={onToggleJoystick}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border font-mono text-[11px] transition-all ${
+                isJoystickActive
+                  ? "bg-[#0DB9D0]/20 text-[#0DB9D0] border-[#0DB9D0]/50 shadow-[0_0_12px_rgba(13,185,208,0.25)]"
+                  : "bg-white/[0.03] hover:bg-white/[0.08] text-[#A6C4D6] hover:text-white border-white/[0.08]"
+              }`}
+              title={isJoystickActive ? "Disable Virtual Joystick & WASD Navigation (Press J)" : "Enable Virtual Joystick & WASD Navigation (Press J)"}
+            >
+              <GameController size={14} weight={isJoystickActive ? "fill" : "regular"} className={isJoystickActive ? "text-[#0DB9D0]" : "text-[#7ABBD4]"} />
+              <span className="hidden md:inline">Joystick</span>
+              {isJoystickActive && (
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00D4A0] animate-pulse" />
+              )}
             </button>
           )}
 
