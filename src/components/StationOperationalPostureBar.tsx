@@ -15,9 +15,11 @@ import {
   Gauge,
   Lightning,
   Fire,
+  DotsSixVertical,
 } from "@phosphor-icons/react";
 import { Station } from "@/lib/api";
 import { polarAudio } from "@/lib/polarAudioEngine";
+import { DraggablePanel } from "./DraggablePanel";
 
 export type StationOperationalPosture =
   | "NOMINAL"
@@ -257,143 +259,159 @@ export function StationOperationalPostureBar({
         />
       </button>
 
-      {/* ── MODAL POSTURE COMMAND CONSOLE DRAWER ── */}
+      {/* ── MODAL POSTURE COMMAND CONSOLE DRAWER (DRAGGABLE HUD PANEL) ── */}
       {isOpen && (
-        <div className="absolute top-11 left-0 sm:left-auto sm:right-0 z-50 w-[94vw] sm:w-[520px] max-w-lg p-3.5 rounded-2xl bg-[#040C1A]/95 border border-white/[0.12] shadow-[0_24px_64px_rgba(0,0,0,0.92)] backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200">
-          
-          {/* Header */}
-          <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.08]">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-[#00A8FF]/20 text-[#00A8FF] flex items-center justify-center">
-                <Radio size={14} weight="bold" />
-              </div>
-              <div>
-                <h4 className="font-mono text-xs font-bold text-white uppercase tracking-wider">
-                  Station Operational Posture Command
-                </h4>
-                <p className="font-mono text-[9px] text-[#7ABBD4]">
-                  Supervisory macro directives uplinked to {station} Remote Operations PLC
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-white/50 hover:text-white"
-            >
-              <X size={14} />
-            </button>
-          </div>
-
-          {/* Satellite Uplink Handshake Status (if active) */}
-          {uplinkStep !== "IDLE" && (
-            <div className="my-2.5 p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/40 flex items-center gap-3 animate-pulse">
-              <ArrowsClockwise size={16} className="text-[#00E5FF] animate-spin shrink-0" />
-              <div className="flex flex-col text-left">
-                <span className="font-mono text-[10px] font-bold text-cyan-200 uppercase tracking-wide">
-                  {uplinkStep === "INTERLOCK" && "Verifying Pre-Command Safety Interlocks..."}
-                  {uplinkStep === "SATELLITE" && "Uplinking Command via GSAT-7A (540ms Latency)..."}
-                  {uplinkStep === "VERIFIED" && "Station RTU Acknowledged: Directive Executed!"}
-                </span>
-                <span className="font-mono text-[9px] text-cyan-400/80">
-                  Target: {selectedTarget ? STATION_POSTURES[selectedTarget].label : ""}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Posture Grid */}
-          <div className="grid grid-cols-1 gap-2 pt-2.5 max-h-[60vh] overflow-y-auto pr-1 no-scrollbar">
-            {(Object.keys(STATION_POSTURES) as StationOperationalPosture[]).map((postureKey) => {
-              const def = STATION_POSTURES[postureKey];
-              const isCurrent = postureKey === currentPosture;
-              const PostureIcon = def.icon;
-
-              return (
-                <div
-                  key={def.id}
-                  className={`p-3 rounded-xl border text-left transition-all ${
-                    isCurrent
-                      ? "bg-white/[0.08] border-white/30 shadow-md ring-1 ring-white/20"
-                      : "bg-white/[0.02] hover:bg-white/[0.06] border-white/[0.08]"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div
-                        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: `${def.color}25`, color: def.color }}
-                      >
-                        <PostureIcon size={16} weight="bold" />
-                      </div>
-                      <div className="flex flex-col leading-tight min-w-0">
-                        <span className="font-sans text-xs font-bold text-white truncate">
-                          {def.label}
-                        </span>
-                        <span className="text-[10px] text-[#7ABBD4] truncate">{def.tagline}</span>
-                      </div>
-                    </div>
-
-                    {isCurrent ? (
-                      <span
-                        className="font-mono text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0"
-                        style={{
-                          backgroundColor: `${def.color}25`,
-                          color: def.color,
-                          borderColor: `${def.color}50`,
-                        }}
-                      >
-                        ACTIVE NOW
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleCommandPosture(def.id)}
-                        disabled={uplinkStep !== "IDLE"}
-                        className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-mono text-[10px] font-semibold transition-colors shrink-0 disabled:opacity-50"
-                      >
-                        Engage Directive
-                      </button>
-                    )}
+        <div className="fixed top-14 right-3 sm:right-6 z-50 pointer-events-none">
+          <DraggablePanel className="pointer-events-auto w-[94vw] sm:w-[520px] max-w-lg">
+            <div className="p-3.5 rounded-2xl bg-[#040C1A]/95 border border-white/[0.12] shadow-[0_24px_64px_rgba(0,0,0,0.92)] backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col">
+              
+              {/* Header with Drag Handle */}
+              <div
+                className="flex items-center justify-between pb-2.5 border-b border-white/[0.08] cursor-grab active:cursor-grabbing select-none"
+                title="Click and drag anywhere on panel to move · Double-click to reset position"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <DotsSixVertical size={16} className="text-white/40 shrink-0" />
+                  <div className="w-6 h-6 rounded-lg bg-[#00A8FF]/20 text-[#00A8FF] flex items-center justify-center shrink-0">
+                    <Radio size={14} weight="bold" />
                   </div>
-
-                  {/* Operational Metrics Strip */}
-                  <div className="grid grid-cols-4 gap-1.5 mt-2 pt-2 border-t border-white/[0.05] font-mono text-[9px]">
-                    <div className="p-1 rounded bg-black/30 flex flex-col">
-                      <span className="text-white/40">POWER</span>
-                      <span className="font-bold text-white mt-0.5">{def.metrics.powerTargetKw} kW</span>
-                    </div>
-                    <div className="p-1 rounded bg-black/30 flex flex-col">
-                      <span className="text-white/40">FUEL</span>
-                      <span className="font-bold text-amber-300 mt-0.5">{def.metrics.fuelRateLh} L/h</span>
-                    </div>
-                    <div className="p-1 rounded bg-black/30 flex flex-col">
-                      <span className="text-white/40">TRACE</span>
-                      <span className="font-bold text-orange-400 mt-0.5">{def.metrics.traceHeatWm} W/m</span>
-                    </div>
-                    <div className="p-1 rounded bg-black/30 flex flex-col">
-                      <span className="text-white/40">DAMPER</span>
-                      <span className="font-bold text-emerald-300 mt-0.5">{def.metrics.intakeDamperPct}%</span>
-                    </div>
+                  <div className="min-w-0">
+                    <h4 className="font-mono text-xs font-bold text-white uppercase tracking-wider truncate">
+                      Station Operational Posture Command
+                    </h4>
+                    <p className="font-mono text-[9px] text-[#7ABBD4] truncate">
+                      Supervisory macro directives uplinked to {station} Remote Operations PLC
+                    </p>
                   </div>
-
-                  {/* Summary Bullets */}
-                  <ul className="mt-2 space-y-0.5 text-[9px] font-mono text-white/70">
-                    {def.actuationSummary.slice(0, 2).map((bullet, idx) => (
-                      <li key={idx} className="flex items-center gap-1.5">
-                        <span className="w-1 h-1 rounded-full shrink-0" style={{ backgroundColor: def.color }} />
-                        <span className="truncate">{bullet}</span>
-                      </li>
-                    ))}
-                  </ul>
                 </div>
-              );
-            })}
-          </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="hidden sm:inline-flex items-center gap-1 font-mono text-[8px] text-white/40 bg-white/5 px-1.5 py-0.5 rounded border border-white/10 uppercase tracking-wider">
+                    Movable
+                  </span>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
 
-          {/* Footer note */}
-          <div className="mt-2.5 pt-2 border-t border-white/[0.08] flex items-center justify-between text-[9px] font-mono text-[#7ABBD4]">
-            <span>Uplink Carrier: GSAT-7A Military / NCPOR Goa Hub</span>
-            <span>Cryptographic SCADA: Level 4 HMAC</span>
-          </div>
+              {/* Satellite Uplink Handshake Status (if active) */}
+              {uplinkStep !== "IDLE" && (
+                <div className="my-2.5 p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/40 flex items-center gap-3 animate-pulse">
+                  <ArrowsClockwise size={16} className="text-[#00E5FF] animate-spin shrink-0" />
+                  <div className="flex flex-col text-left">
+                    <span className="font-mono text-[10px] font-bold text-cyan-200 uppercase tracking-wide">
+                      {uplinkStep === "INTERLOCK" && "Verifying Pre-Command Safety Interlocks..."}
+                      {uplinkStep === "SATELLITE" && "Uplinking Command via GSAT-7A (540ms Latency)..."}
+                      {uplinkStep === "VERIFIED" && "Station RTU Acknowledged: Directive Executed!"}
+                    </span>
+                    <span className="font-mono text-[9px] text-cyan-400/80">
+                      Target: {selectedTarget ? STATION_POSTURES[selectedTarget].label : ""}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Posture Grid */}
+              <div
+                className="grid grid-cols-1 gap-2 pt-2.5 max-h-[60vh] overflow-y-auto pr-1 no-scrollbar no-drag"
+                data-no-drag
+              >
+                {(Object.keys(STATION_POSTURES) as StationOperationalPosture[]).map((postureKey) => {
+                  const def = STATION_POSTURES[postureKey];
+                  const isCurrent = postureKey === currentPosture;
+                  const PostureIcon = def.icon;
+
+                  return (
+                    <div
+                      key={def.id}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        isCurrent
+                          ? "bg-white/[0.08] border-white/30 shadow-md ring-1 ring-white/20"
+                          : "bg-white/[0.02] hover:bg-white/[0.06] border-white/[0.08]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ backgroundColor: `${def.color}25`, color: def.color }}
+                          >
+                            <PostureIcon size={16} weight="bold" />
+                          </div>
+                          <div className="flex flex-col leading-tight min-w-0">
+                            <span className="font-sans text-xs font-bold text-white truncate">
+                              {def.label}
+                            </span>
+                            <span className="text-[10px] text-[#7ABBD4] truncate">{def.tagline}</span>
+                          </div>
+                        </div>
+
+                        {isCurrent ? (
+                          <span
+                            className="font-mono text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0"
+                            style={{
+                              backgroundColor: `${def.color}25`,
+                              color: def.color,
+                              borderColor: `${def.color}50`,
+                            }}
+                          >
+                            ACTIVE NOW
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleCommandPosture(def.id)}
+                            disabled={uplinkStep !== "IDLE"}
+                            className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-mono text-[10px] font-semibold transition-colors shrink-0 disabled:opacity-50"
+                          >
+                            Engage Directive
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Operational Metrics Strip */}
+                      <div className="grid grid-cols-4 gap-1.5 mt-2 pt-2 border-t border-white/[0.05] font-mono text-[9px]">
+                        <div className="p-1 rounded bg-black/30 flex flex-col">
+                          <span className="text-white/40">POWER</span>
+                          <span className="font-bold text-white mt-0.5">{def.metrics.powerTargetKw} kW</span>
+                        </div>
+                        <div className="p-1 rounded bg-black/30 flex flex-col">
+                          <span className="text-white/40">FUEL</span>
+                          <span className="font-bold text-amber-300 mt-0.5">{def.metrics.fuelRateLh} L/h</span>
+                        </div>
+                        <div className="p-1 rounded bg-black/30 flex flex-col">
+                          <span className="text-white/40">TRACE</span>
+                          <span className="font-bold text-orange-400 mt-0.5">{def.metrics.traceHeatWm} W/m</span>
+                        </div>
+                        <div className="p-1 rounded bg-black/30 flex flex-col">
+                          <span className="text-white/40">DAMPER</span>
+                          <span className="font-bold text-emerald-300 mt-0.5">{def.metrics.intakeDamperPct}%</span>
+                        </div>
+                      </div>
+
+                      {/* Summary Bullets */}
+                      <ul className="mt-2 space-y-0.5 text-[9px] font-mono text-white/70">
+                        {def.actuationSummary.slice(0, 2).map((bullet, idx) => (
+                          <li key={idx} className="flex items-center gap-1.5">
+                            <span className="w-1 h-1 rounded-full shrink-0" style={{ backgroundColor: def.color }} />
+                            <span className="truncate">{bullet}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Footer note */}
+              <div className="mt-2.5 pt-2 border-t border-white/[0.08] flex items-center justify-between text-[9px] font-mono text-[#7ABBD4]">
+                <span>Uplink Carrier: GSAT-7A Military / NCPOR Goa Hub</span>
+                <span>Cryptographic SCADA: Level 4 HMAC</span>
+              </div>
+            </div>
+          </DraggablePanel>
         </div>
       )}
     </div>
