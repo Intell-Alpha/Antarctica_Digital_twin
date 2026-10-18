@@ -42,6 +42,7 @@ import { CinematicDroneDirector, CinematicDroneDirectorHandle } from "./Cinemati
 import { PolarOrbitalGlobeView } from "./PolarOrbitalGlobeView";
 import { MissionReportModal } from "./MissionReportModal";
 import { GlobeHemisphereWest, FileText } from "@phosphor-icons/react";
+import { PolarVirtualJoystick, RoamVector } from "./PolarVirtualJoystick";
 
 
 export interface BharatiRoomEntry {
@@ -1201,6 +1202,32 @@ export function BharatiStationTwin({
   const [isAICommanderOpen, setIsAICommanderOpen] = useState<boolean>(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState<boolean>(false);
   const droneDirectorRef = useRef<CinematicDroneDirectorHandle | null>(null);
+
+  // ── SCADA POLAR VIRTUAL JOYSTICK & WASD FREE-ROAM STATE ──
+  const [isJoystickEnabled, setIsJoystickEnabled] = useState<boolean>(false);
+  const navVectorRef = useRef<RoamVector>({
+    x: 0,
+    y: 0,
+    z: 0,
+    mode: "rover",
+    speedMultiplier: 1.0,
+    isActive: false,
+  });
+  const isNavEnabledRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    isNavEnabledRef.current = isJoystickEnabled;
+  }, [isJoystickEnabled]);
+
+  const handleNavVectorChange = useCallback((vector: RoamVector) => {
+    navVectorRef.current = vector;
+    if (vector.isActive && controlsRef.current) {
+      if (controlsRef.current.maxDistance < 100) {
+        controlsRef.current.minDistance = 0.5;
+        controlsRef.current.maxDistance = 600.0;
+      }
+    }
+  }, []);
 
   const cutawayStateRef = useRef<{
     roofTargetOpacity: number;
@@ -2694,6 +2721,49 @@ export function BharatiStationTwin({
         state.l1TargetOpacity
       );
 
+      // Synchronized Free-Roam Vector Translation (Polar Virtual Joystick & WASD)
+      const nav = navVectorRef.current;
+      if (isNavEnabledRef.current && (nav.x !== 0 || nav.y !== 0 || nav.z !== 0)) {
+        const baseSpeed = nav.mode === "drone" ? 42.0 : 18.0;
+        const currentSpeed = baseSpeed * (nav.speedMultiplier || 1.0);
+
+        // Forward vector locked to horizontal ground plane
+        const forward = new THREE.Vector3();
+        camera.getWorldDirection(forward);
+        forward.y = 0;
+        forward.normalize();
+
+        // Right strafe vector perpendicular to forward and camera up
+        const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+
+        // Translate both camera and controls target concurrently
+        const moveDelta = new THREE.Vector3()
+          .addScaledVector(forward, nav.y * currentSpeed * delta)
+          .addScaledVector(right, nav.x * currentSpeed * delta)
+          .addScaledVector(new THREE.Vector3(0, 1, 0), nav.z * currentSpeed * delta);
+
+        camera.position.add(moveDelta);
+        controls.target.add(moveDelta);
+
+        // Floor / ground safety clamping
+        const minElevation = nav.mode === "rover" ? 1.6 : 3.0;
+        if (camera.position.y < minElevation) {
+          const correction = minElevation - camera.position.y;
+          camera.position.y = minElevation;
+          controls.target.y += correction;
+        }
+
+        // Campus boundary safety clamp (750m perimeter)
+        const distSq = camera.position.x * camera.position.x + camera.position.z * camera.position.z;
+        const maxRadius = 750;
+        if (distSq > maxRadius * maxRadius) {
+          const dist = Math.sqrt(distSq);
+          const factor = maxRadius / dist;
+          camera.position.x *= factor;
+          camera.position.z *= factor;
+        }
+      }
+
       controls.update();
 
       // Update Polar Atmosphere & Katabatic Blizzard Engine
@@ -3104,6 +3174,8 @@ export function BharatiStationTwin({
         onToggleBoilerHeating={toggleBoilerHeating}
         currentPosture={currentPosture}
         onSelectPosture={handleSelectPosture}
+        isJoystickActive={isJoystickEnabled}
+        onToggleJoystick={() => setIsJoystickEnabled((prev) => !prev)}
       />
 
       {/* ── FLOATING TOP-DOWN BOILER ROOM HEATING HUD ── */}
@@ -3678,9 +3750,18 @@ export function BharatiStationTwin({
         />
       </div>
 
+      {/* ── SCADA POLAR VIRTUAL JOYSTICK & WASD FREE-ROAM HUD ── */}
+      <PolarVirtualJoystick
+        station="BHARATI"
+        isEnabled={isJoystickEnabled}
+        onToggleEnabled={setIsJoystickEnabled}
+        onVectorChange={handleNavVectorChange}
+        onResetView={resetToOverview}
+      />
+
       {/* ── MINIMAL VIEWPORT HINT (BOTTOM RIGHT) ── */}
       <div className="absolute bottom-4 right-4 z-20 pointer-events-none hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#040D1A]/80 border border-white/10 backdrop-blur-md font-mono text-[10px] text-[#4A7A8E]">
-        <span>Click 3D Mesh to Inspect</span>
+        <span>WASD / Stick: Move</span>
         <span>·</span>
         <span>Drag to Orbit</span>
         <span>·</span>
