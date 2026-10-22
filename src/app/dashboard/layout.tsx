@@ -2,6 +2,7 @@
 
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { MockDataBadge } from "@/components/MockDataBadge";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -13,6 +14,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main className="flex-1 relative overflow-hidden flex flex-col h-screen bg-theme-base">
         {/* TOP HEADER */}
         <DashboardHeader />
+
+        {/* MOCK DATA BADGE - Example placement, can be connected to API state later */}
+        <div className="absolute top-20 right-6 z-50">
+          <MockDataBadge />
+        </div>
 
         {/* BACKGROUND PATTERN */}
         <div

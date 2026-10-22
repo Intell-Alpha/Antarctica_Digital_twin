@@ -8,7 +8,7 @@ const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 /**
  * Robust fetch helper with timeout and automatic error handling
  */
-async function fetchWithTimeout<T>(endpoint: string, options: RequestInit = {}, timeoutMs = 3000): Promise<T | null> {
+async function fetchWithTimeout<T>(endpoint: string, options: RequestInit = {}, timeoutMs = 3000): Promise<{ data: T | null; isFallback: boolean }> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -25,14 +25,14 @@ async function fetchWithTimeout<T>(endpoint: string, options: RequestInit = {}, 
 
     if (!res.ok) {
       console.warn(`[Backend API] HTTP ${res.status} for ${endpoint}`);
-      return null;
+      return { data: null, isFallback: true };
     }
 
-    return (await res.json()) as T;
+    return { data: (await res.json()) as T, isFallback: false };
   } catch (err) {
     clearTimeout(timeoutId);
     // Non-fatal warning — falls back smoothly
-    return null;
+    return { data: null, isFallback: true };
   }
 }
 
@@ -53,7 +53,8 @@ export const api = {
 
   // 4.2 Station Metadata
   async getStationMetadata(station: Station) {
-    const data = await fetchWithTimeout<{ success: boolean; station: any }>(`/api/stations/${station}`);
+    const result = await fetchWithTimeout<{ success: boolean; station: any }>(`/api/stations/${station}`);
+    const data = result.data;
     
     if (data?.success && data.station) {
       const s = data.station;
@@ -67,6 +68,7 @@ export const api = {
         healthScore: 94,
         waterSource: s.waterSource,
         provenance: s.provenance,
+        isFallback: result.isFallback,
       };
     }
 
@@ -77,6 +79,7 @@ export const api = {
       capacity: station === "MAITRI" ? 65 : 47,
       zones: ["Zone 1 Infrastructure", "Zone 2 Magnetic Silence", "Zone 5 ISRO Antenna Field"],
       healthScore: 94,
+      isFallback: true,
     };
   },
 
@@ -163,7 +166,8 @@ export const api = {
 
   // 4.4 Power & Energy Twin
   async getEnergy(station: Station) {
-    const data = await fetchWithTimeout<{ success: boolean; metrics: any; generators: any[] }>(`/api/energy?station=${station}`);
+    const result = await fetchWithTimeout<{ success: boolean; metrics: any; generators: any[] }>(`/api/energy?station=${station}`);
+    const data = result.data;
 
     if (data?.success && data.metrics && data.generators) {
       return {
@@ -179,6 +183,7 @@ export const api = {
           tempC: g.temperatureC ?? g.tempC ?? 80,
           hz: g.freqHz ?? g.hz ?? 50.0,
         })),
+        isFallback: result.isFallback,
       };
     }
 
@@ -193,12 +198,14 @@ export const api = {
         { id: "CHP-02", name: "Surya", status: "RUNNING", outputKw: 64.5, tempC: 81, hz: 50.02 },
         { id: "CHP-03", name: "Aditya", status: "STANDBY", outputKw: 0, tempC: 18, hz: 0.0 },
       ],
+      isFallback: true,
     };
   },
 
   // 4.5 Logistics & Inventory Twin
   async getLogistics(station: Station) {
-    const data = await fetchWithTimeout<{ success: boolean; metrics: any; inventory: any[] }>(`/api/logistics?station=${station}`);
+    const result = await fetchWithTimeout<{ success: boolean; metrics: any; inventory: any[] }>(`/api/logistics?station=${station}`);
+    const data = result.data;
 
     if (data?.success && data.metrics) {
       return {
@@ -207,6 +214,7 @@ export const api = {
         fuelAutonomyDays: data.metrics.fuelAutonomyDays ?? 290,
         resupplyWindow: data.metrics.resupplyWindow || "OPEN",
         inventory: data.inventory || [],
+        isFallback: result.isFallback,
       };
     }
 
@@ -216,6 +224,7 @@ export const api = {
       dailyFuelConsumptionL: 980,
       fuelAutonomyDays: 290,
       resupplyWindow: "OPEN",
+      isFallback: true,
     };
   },
 
@@ -280,7 +289,8 @@ export const api = {
 
   // 4.7 Satellite & Network Twin
   async getNetwork(station: Station) {
-    const data = await fetchWithTimeout<{ success: boolean; uplink: any; priorityQueues?: any[] }>(`/api/network?station=${station}`);
+    const result = await fetchWithTimeout<{ success: boolean; uplink: any; priorityQueues?: any[] }>(`/api/network?station=${station}`);
+    const data = result.data;
 
     if (data?.success && data.uplink) {
       const u = data.uplink;
@@ -297,6 +307,7 @@ export const api = {
           P3: { status: "BUFFERING", size: "450 MB" },
           P4: { status: "PAUSED", size: "12.4 GB" },
         },
+        isFallback: result.isFallback,
       };
     }
 
@@ -312,6 +323,7 @@ export const api = {
         P3: { status: "BUFFERING", size: "450 MB" },
         P4: { status: "PAUSED", size: "12.4 GB" },
       },
+      isFallback: true,
     };
   },
 
