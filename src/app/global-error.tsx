@@ -143,7 +143,7 @@ export default function GlobalError({
                 color: "#7ABBD4",
               }}
             >
-              <div style={{ display: "flex", itemsCenter: "center", gap: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span
                   style={{
                     display: "inline-block",
