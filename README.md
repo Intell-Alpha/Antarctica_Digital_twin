@@ -299,25 +299,17 @@ Some of these guides were written during development and contain absolute local 
 Contributions are welcome. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) for branch naming (`feat/`, `fix/`, `docs/`, ...), Conventional Commit messages, the pull request workflow and CI notes. Use the templates in [`.github/`](.github) for issues and pull requests. Before opening a PR that changes application code, run `npm run lint` and `npm run build` locally.
 
 ---
-
 ## Team and Credits
 
-**Team name:** _To be confirmed by the maintainers. No team name appears in the repository._
+- **Team Name:** Intell-Alpha
+- **Event:** Smart India Hackathon (SIH) 2026
 
-The repository does not contain an official member list. The following are the **commit authors in the git history** (alphabetical by display name); roles and affiliations are not recorded and should be confirmed before the README is finalised for SIH submission:
+<div align="center">
 
-- Abdul Faatih Siddiqui (also appears as `Abfa41`)
-- adithya3010
-- Mansoor Khan
-- MD Khaja Rehan
-- Vishnu / Vishnu Vardhan
+| **Abdul Faatih Siddiqui** | **Adithya** | **Mansoor Khan** | **MD Khaja Rehan** | **Vishnu Vardhan** | **Mobeena** |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| <img src="https://github.com/Abfa41.png" width="90" alt="Abdul Faatih Siddiqui" style="border-radius:50%;"/> <br/> [@Abfa41](https://github.com/Abfa41) | <img src="https://github.com/adithya3010.png" width="90" alt="Adithya" style="border-radius:50%;"/> <br/> [@adithya3010](https://github.com/adithya3010) | <img src="https://github.com/22oo1cso56mansoorkhan-cell.png" width="90" alt="Mansoor Khan" style="border-radius:50%;"/> <br/> [@MansoorKhan](https://github.com/22oo1cso56mansoorkhan-cell) | <img src="https://github.com/Khajarehan.png" width="90" alt="MD Khaja Rehan" style="border-radius:50%;"/> <br/> [@MDKhajaRehan](https://github.com/Khajarehan) | <img src="https://github.com/Vishnuvardhanvemula.png" width="90" alt="Vishnu Vardhan" style="border-radius:50%;"/> <br/> [@VishnuVardhan](https://github.com/Vishnuvardhanvemula) | <img src="https://github.com/mobeena2025-tech.png" width="90" alt="Mobeena" style="border-radius:50%;"/> <br/> [@mobeena2025-tech](https://github.com/mobeena2025-tech) |
 
-Third-party assets: Draco decoders in `public/draco/` are from Google Draco (Apache License 2.0).
+</div>
 
----
-
-## License
-
-**No license has been specified for this project.** The repository has no top-level `LICENSE` file, and `package.json` declares no `license` field. Until the maintainers choose one, do not assume the code may be reused or redistributed.
-
-Bundled third-party components keep their own licenses, for example the Draco decoders in [`public/draco/`](public/draco/README.md) (Apache 2.0).
+> **Third-party assets:** Draco decoders in `public/draco/` are from Google Draco (Apache License 2.0).
