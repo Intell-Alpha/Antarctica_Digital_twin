@@ -1,19 +1,30 @@
 "use client";
 
+import { useState } from "react";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { MockDataBadge } from "@/components/MockDataBadge";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-theme-base text-foreground font-sans flex">
+      {/* MOBILE BACKDROP */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-10 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* SIDEBAR NAVIGATION */}
-      <DashboardSidebar />
+      <DashboardSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 relative overflow-hidden flex flex-col h-screen bg-theme-base">
+      <main className="flex-1 relative overflow-hidden flex flex-col h-screen bg-theme-base md:ml-0">
         {/* TOP HEADER */}
-        <DashboardHeader />
+        <DashboardHeader onMenuClick={() => setIsSidebarOpen(true)} />
 
         {/* MOCK DATA BADGE - Example placement, can be connected to API state later */}
         <div className="absolute top-20 right-6 z-50">

@@ -14,7 +14,8 @@ import {
   WarningCircle,
   CaretLeft,
   Cube,
-  Icon
+  Icon,
+  X
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -38,7 +39,12 @@ export const DASHBOARD_LINKS: NavLinkItem[] = [
   { href: "/dashboard/alerts", label: "Active Alerts", icon: WarningCircle },
 ];
 
-export function DashboardSidebar() {
+export interface DashboardSidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function DashboardSidebar({ isOpen = false, onClose }: DashboardSidebarProps) {
   const pathname = usePathname();
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
   const [latency, setLatency] = useState<number>(0);
@@ -61,7 +67,14 @@ export function DashboardSidebar() {
   }, []);
 
   return (
-    <aside className="w-64 border-r border-theme bg-theme-panel flex flex-col pt-4 pb-4 shrink-0 relative z-20">
+    <aside
+      className={cn(
+        "w-64 border-r border-theme bg-theme-panel flex flex-col pt-4 pb-4 shrink-0 relative z-20",
+        "fixed inset-y-0 left-0 transform transition-transform duration-300 ease-in-out",
+        "md:relative md:transform-none",
+        isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+      )}
+    >
       <div className="px-4 mb-6 flex items-center justify-between">
         <Link
           href="/"
@@ -70,6 +83,14 @@ export function DashboardSidebar() {
           <CaretLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
           Back to Home
         </Link>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="md:hidden p-2 text-muted hover:text-foreground hover:bg-white/[0.08] rounded-lg transition-colors"
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       <div className="px-6 mb-6 flex flex-col">
