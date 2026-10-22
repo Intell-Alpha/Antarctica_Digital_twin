@@ -207,6 +207,11 @@ export function PolarVirtualJoystick({
           e.preventDefault();
         }
 
+        // Prevent duplicate keydown processing if key is already marked pressed
+        if (e.repeat || keysDownRef.current[code]) {
+          return;
+        }
+
         keysDownRef.current[code] = true;
 
         setActiveKeys({

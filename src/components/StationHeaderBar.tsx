@@ -530,7 +530,7 @@ export function StationHeaderBar({
                   ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
                   : "bg-white/[0.03] hover:bg-white/[0.08] text-[#A6C4D6] hover:text-white border-white/[0.08]"
               }`}
-              title="Launch Autonomous 4K Drone Survey (Press D)"
+              title="Launch Autonomous 4K Drone Survey (Press U)"
             >
               <VideoCamera size={14} weight={isDroneActive ? "fill" : "regular"} />
             </button>
