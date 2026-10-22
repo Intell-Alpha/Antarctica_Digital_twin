@@ -41,6 +41,7 @@ import { MissionReportModal } from "./MissionReportModal";
 import { StationAICommander } from "./StationAICommander";
 import { FileText } from "@phosphor-icons/react";
 import { PolarVirtualJoystick, RoamVector } from "./PolarVirtualJoystick";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 export interface RoomEntry {
   id: string;
@@ -625,6 +626,7 @@ export function MaitriStationTwin({
     uActive: { value: 0 },
   });
   const droneDirectorRef = useRef<CinematicDroneDirectorHandle | null>(null);
+  const prefersReducedMotion = useReducedMotion();
 
   // ── SCADA POLAR VIRTUAL JOYSTICK & WASD FREE-ROAM STATE ──
   const [isJoystickEnabled, setIsJoystickEnabled] = useState<boolean>(false);
@@ -1576,6 +1578,22 @@ export function MaitriStationTwin({
     gsap.killTweensOf(camera.position);
     gsap.killTweensOf(controls.target);
 
+    // Skip animations if user prefers reduced motion
+    if (prefersReducedMotion) {
+      camera.position.set(stage.cameraPos[0], stage.cameraPos[1], stage.cameraPos[2]);
+      controls.target.set(stage.targetPos[0], stage.targetPos[1], stage.targetPos[2]);
+      if (stage.fov) {
+        camera.fov = stage.fov;
+        camera.updateProjectionMatrix();
+      }
+      controls.enabled = true;
+      controls.minDistance = 3.0;
+      controls.maxDistance = 500.0;
+      controls.minPolarAngle = 0.05;
+      controls.maxPolarAngle = Math.PI / 2 - 0.01;
+      return;
+    }
+
     gsap.to(camera.position, {
       x: stage.cameraPos[0],
       y: stage.cameraPos[1],
@@ -1705,6 +1723,23 @@ export function MaitriStationTwin({
       gsap.killTweensOf(camera.position);
       gsap.killTweensOf(controls.target);
 
+      // Skip animations if user prefers reduced motion
+      if (prefersReducedMotion) {
+        camera.position.set(sittingEyePos.x, sittingEyePos.y, sittingEyePos.z);
+        controls.target.set(lookTargetPos.x, lookTargetPos.y, lookTargetPos.z);
+        if (room.fov) {
+          camera.fov = room.fov || 72;
+          camera.updateProjectionMatrix();
+        }
+        controls.enabled = true;
+        controls.minDistance = room.minDistance || 0.05;
+        controls.maxDistance = room.maxDistance || 1.8;
+        controls.minPolarAngle = 0.15;
+        controls.maxPolarAngle = Math.PI - 0.15;
+        controls.enablePan = false;
+        return;
+      }
+
       gsap.to(camera.position, {
         x: sittingEyePos.x,
         y: sittingEyePos.y,
@@ -1774,6 +1809,13 @@ export function MaitriStationTwin({
         controls.enabled = false;
         gsap.killTweensOf(camera.position);
         gsap.killTweensOf(controls.target);
+
+        // Skip animations if user prefers reduced motion
+        if (prefersReducedMotion) {
+          camera.position.set(-4.5, 88.0, -35.0);
+          controls.target.set(-4.5, 4.2, -35.0);
+          return;
+        }
 
         gsap.to(camera.position, {
           x: -4.5,
@@ -1922,6 +1964,21 @@ export function MaitriStationTwin({
     controls.enabled = false;
     gsap.killTweensOf(camera.position);
     gsap.killTweensOf(controls.target);
+
+    // Skip animations if user prefers reduced motion
+    if (prefersReducedMotion) {
+      camera.position.set(-90, 60, 120);
+      controls.target.set(0, 3, 0);
+      camera.fov = 65;
+      camera.updateProjectionMatrix();
+      controls.enabled = true;
+      controls.minDistance = 3.0;
+      controls.maxDistance = 500.0;
+      controls.minPolarAngle = 0.05;
+      controls.maxPolarAngle = Math.PI / 2 - 0.01;
+      controls.enablePan = true;
+      return;
+    }
 
     gsap.to(camera.position, {
       x: -90,

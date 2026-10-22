@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import { Station } from "@/lib/api";
 import { polarAudio } from "@/lib/polarAudioEngine";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 interface Waypoint {
   camera: [number, number, number];
@@ -121,6 +122,7 @@ export const CinematicDroneDirector = forwardRef<
   });
 
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
+  const prefersReducedMotion = useReducedMotion();
 
   const waypoints = DRONE_WAYPOINTS[station] || DRONE_WAYPOINTS.BHARATI;
 
@@ -131,6 +133,18 @@ export const CinematicDroneDirector = forwardRef<
     polarAudio.playClickFeedback();
 
     controls.enabled = false;
+
+    // Skip animations if user prefers reduced motion
+    if (prefersReducedMotion) {
+      // Instant jump to first waypoint
+      const firstWp = waypoints[0];
+      camera.position.set(firstWp.camera[0], firstWp.camera[1], firstWp.camera[2]);
+      controls.target.set(firstWp.target[0], firstWp.target[1], firstWp.target[2]);
+      camera.fov = firstWp.fov;
+      camera.updateProjectionMatrix();
+      setCurrentWaypointIdx(0);
+      return;
+    }
 
     // Build GSAP Timeline sequence
     if (timelineRef.current) timelineRef.current.kill();
