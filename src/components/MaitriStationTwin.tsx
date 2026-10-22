@@ -1779,83 +1779,80 @@ export function MaitriStationTwin({
     const camera = cameraRef.current;
     const controls = controlsRef.current;
 
-    setIsBoilerHeatingActive((prev) => {
-      const nextState = !prev;
+    const nextState = !isBoilerHeatingActive;
+    setIsBoilerHeatingActive(nextState);
 
-      if (heatingShaderUniformsRef.current) {
-        heatingShaderUniformsRef.current.uActive.value = nextState ? 1.0 : 0.0;
-      }
-      if (flowCategoryUniformsRef.current) {
-        flowCategoryUniformsRef.current.heattrace.value = nextState ? 1.0 : 0.0;
-        flowCategoryUniformsRef.current.water.value = nextState ? 1.0 : 0.0;
-      }
-      if (heatingPipesGroupRef.current) {
-        heatingPipesGroupRef.current.visible = nextState;
-      }
+    if (heatingShaderUniformsRef.current) {
+      heatingShaderUniformsRef.current.uActive.value = nextState ? 1.0 : 0.0;
+    }
+    if (flowCategoryUniformsRef.current) {
+      flowCategoryUniformsRef.current.heattrace.value = nextState ? 1.0 : 0.0;
+      flowCategoryUniformsRef.current.water.value = nextState ? 1.0 : 0.0;
+    }
+    if (heatingPipesGroupRef.current) {
+      heatingPipesGroupRef.current.visible = nextState;
+    }
 
-      if (nextState) {
-        setActiveTourIndex(null);
-        setActiveRoom(null);
-        setActiveMode("flows");
+    if (nextState) {
+      setActiveTourIndex(null);
+      setActiveRoom(null);
+      setActiveMode("flows");
 
-        // Completely remove roof so all internal heating pipes are fully exposed (never float in air)
-        if (mainRoofRef.current) {
-          mainRoofRef.current.visible = false;
-          mainRoofRef.current.position.set(-0.75, 4.1, 0.06);
-          setRoofLifted(true);
-        }
-
-        // DIRECT TOP-DOWN / OVERHEAD VIEW (Directly above full Maitri building complex at X=-4.5, Z=-35.0)
-        controls.enabled = false;
-        gsap.killTweensOf(camera.position);
-        gsap.killTweensOf(controls.target);
-
-        // Skip animations if user prefers reduced motion
-        if (prefersReducedMotion) {
-          camera.position.set(-4.5, 88.0, -35.0);
-          controls.target.set(-4.5, 4.2, -35.0);
-          return;
-        }
-
-        gsap.to(camera.position, {
-          x: -4.5,
-          y: 88.0,
-          z: -35.0,
-          duration: 1.8,
-          ease: "power3.inOut",
-        });
-
-        gsap.to(controls.target, {
-          x: -4.5,
-          y: 4.2,
-          z: -35.0,
-          duration: 1.8,
-          ease: "power3.inOut",
-          onComplete: () => {
-            controls.enabled = true;
-            controls.minDistance = 10.0;
-            controls.maxDistance = 250.0;
-            controls.enablePan = true;
-          },
-        });
-
-        gsap.to(camera, {
-          fov: 55,
-          duration: 1.5,
-          onUpdate: () => camera.updateProjectionMatrix(),
-        });
-      } else {
-        // Completely restore roof back onto building in its exact rest position
-        if (mainRoofRef.current) {
-          mainRoofRef.current.visible = true;
-          mainRoofRef.current.position.set(-0.75, 4.1, 0.06);
-          setRoofLifted(false);
-        }
+      // Completely remove roof so all internal heating pipes are fully exposed (never float in air)
+      if (mainRoofRef.current) {
+        mainRoofRef.current.visible = false;
+        mainRoofRef.current.position.set(-0.75, 4.1, 0.06);
+        setRoofLifted(true);
       }
 
-      return nextState;
-    });
-  }, []);
+      // DIRECT TOP-DOWN / OVERHEAD VIEW (Directly above full Maitri building complex at X=-4.5, Z=-35.0)
+      controls.enabled = false;
+      gsap.killTweensOf(camera.position);
+      gsap.killTweensOf(controls.target);
+
+      // Skip animations if user prefers reduced motion
+      if (prefersReducedMotion) {
+        camera.position.set(-4.5, 88.0, -35.0);
+        controls.target.set(-4.5, 4.2, -35.0);
+        return;
+      }
+
+      gsap.to(camera.position, {
+        x: -4.5,
+        y: 88.0,
+        z: -35.0,
+        duration: 1.8,
+        ease: "power3.inOut",
+      });
+
+      gsap.to(controls.target, {
+        x: -4.5,
+        y: 4.2,
+        z: -35.0,
+        duration: 1.8,
+        ease: "power3.inOut",
+        onComplete: () => {
+          controls.enabled = true;
+          controls.minDistance = 10.0;
+          controls.maxDistance = 250.0;
+          controls.enablePan = true;
+        },
+      });
+
+      gsap.to(camera, {
+        fov: 55,
+        duration: 1.5,
+        onUpdate: () => camera.updateProjectionMatrix(),
+      });
+    } else {
+      // Completely restore roof back onto building in its exact rest position
+      if (mainRoofRef.current) {
+        mainRoofRef.current.visible = true;
+        mainRoofRef.current.position.set(-0.75, 4.1, 0.06);
+        setRoofLifted(false);
+      }
+    }
+  }, [isBoilerHeatingActive, prefersReducedMotion]);
 
   // ── SELECT FACILITY SYSTEM FROM HARDWARE DOCK & FLY CAMERA ──
   const handleSelectSystem = useCallback(

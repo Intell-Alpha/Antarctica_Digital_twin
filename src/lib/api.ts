@@ -43,9 +43,9 @@ export const api = {
   async checkBackendStatus(): Promise<{ online: boolean; latencyMs: number }> {
     const start = performance.now();
     try {
-      const data = await fetchWithTimeout<{ status: string }>("/", { method: "GET" }, 2000);
+      const result = await fetchWithTimeout<{ status: string }>("/", { method: "GET" }, 2000);
       const latencyMs = Math.round(performance.now() - start);
-      return { online: data?.status === "ONLINE", latencyMs };
+      return { online: result.data?.status === "ONLINE", latencyMs };
     } catch {
       return { online: false, latencyMs: 0 };
     }
@@ -93,10 +93,10 @@ export const api = {
       fetchWithTimeout<{ success: boolean; overallConditionScore: number }>(`/api/infrastructure?station=${station}`),
     ]);
 
-    if (telemetry?.success || energy?.success || logistics?.success) {
-      const fuelAutonomy = logistics?.metrics?.fuelAutonomyDays ?? 212;
-      const energyLoad = energy?.metrics?.loadPercentage ?? 47;
-      const infraScore = infra?.overallConditionScore ?? 84;
+    if (telemetry.data?.success || energy.data?.success || logistics.data?.success) {
+      const fuelAutonomy = logistics.data?.metrics?.fuelAutonomyDays ?? 212;
+      const energyLoad = energy.data?.metrics?.loadPercentage ?? 47;
+      const infraScore = infra.data?.overallConditionScore ?? 84;
 
       return {
         domains: [
@@ -141,12 +141,13 @@ export const api = {
 
   // 4.3 Infrastructure Twin
   async getInfrastructure(station: Station) {
-    const data = await fetchWithTimeout<{ success: boolean; overallConditionScore: number; assets: any[] }>(`/api/infrastructure?station=${station}`);
+    const result = await fetchWithTimeout<{ success: boolean; overallConditionScore: number; assets: any[] }>(`/api/infrastructure?station=${station}`);
+    const data = result.data;
 
     if (data?.success && data.assets) {
       return {
         overallConditionScore: data.overallConditionScore || 88,
-        assets: data.assets.map((asset) => ({
+        assets: data.assets.map((asset: any) => ({
           ...asset,
           condition: asset.conditionState || asset.condition || "NORMAL",
         })),
@@ -230,13 +231,14 @@ export const api = {
 
   // 4.6 Environmental & Science Twin
   async getEnvironment(station: Station) {
-    const data = await fetchWithTimeout<{
+    const result = await fetchWithTimeout<{
       success: boolean;
       telemetry: any;
       liveFeed?: any;
       provenance?: any;
       scientificInstruments?: any[];
     }>(`/api/environment?station=${station}`);
+    const data = result.data;
 
     if (data?.success && data.telemetry) {
       const t = data.telemetry;
@@ -329,10 +331,11 @@ export const api = {
 
   // 4.8 What-If Simulation Engine
   async runSimulation(station: Station, scenarioId: string) {
-    const data = await fetchWithTimeout<{ success: boolean; simulation: any }>("/api/simulation", {
+    const result = await fetchWithTimeout<{ success: boolean; simulation: any }>("/api/simulation", {
       method: "POST",
       body: JSON.stringify({ stationId: station, scenarioId }),
     }, 5000);
+    const data = result.data;
 
     if (data?.success && data.simulation) {
       return {
@@ -385,10 +388,11 @@ export const api = {
     };
     telemetrySnapshot?: any;
   }> {
-    const data = await fetchWithTimeout<any>("/api/commander/query", {
+    const result = await fetchWithTimeout<any>("/api/commander/query", {
       method: "POST",
       body: JSON.stringify({ station, query }),
     }, 4000);
+    const data = result.data;
 
     if (data?.answer) {
       return data;
