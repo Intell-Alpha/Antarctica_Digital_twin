@@ -8,7 +8,7 @@ const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 /**
  * Robust fetch helper with timeout and automatic error handling
  */
-async function fetchWithTimeout<T>(endpoint: string, options: RequestInit = {}, timeoutMs = 3000): Promise<T | null> {
+async function fetchWithTimeout<T>(endpoint: string, options: RequestInit = {}, timeoutMs = 3000): Promise<{ data: T | null; isFallback: boolean }> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -25,14 +25,14 @@ async function fetchWithTimeout<T>(endpoint: string, options: RequestInit = {}, 
 
     if (!res.ok) {
       console.warn(`[Backend API] HTTP ${res.status} for ${endpoint}`);
-      return null;
+      return { data: null, isFallback: true };
     }
 
-    return (await res.json()) as T;
+    return { data: (await res.json()) as T, isFallback: false };
   } catch (err) {
     clearTimeout(timeoutId);
     // Non-fatal warning — falls back smoothly
-    return null;
+    return { data: null, isFallback: true };
   }
 }
 
@@ -43,9 +43,9 @@ export const api = {
   async checkBackendStatus(): Promise<{ online: boolean; latencyMs: number }> {
     const start = performance.now();
     try {
-      const data = await fetchWithTimeout<{ status: string }>("/", { method: "GET" }, 2000);
+      const result = await fetchWithTimeout<{ status: string }>("/", { method: "GET" }, 2000);
       const latencyMs = Math.round(performance.now() - start);
-      return { online: data?.status === "ONLINE", latencyMs };
+      return { online: result.data?.status === "ONLINE", latencyMs };
     } catch {
       return { online: false, latencyMs: 0 };
     }
@@ -53,7 +53,8 @@ export const api = {
 
   // 4.2 Station Metadata
   async getStationMetadata(station: Station) {
-    const data = await fetchWithTimeout<{ success: boolean; station: any }>(`/api/stations/${station}`);
+    const result = await fetchWithTimeout<{ success: boolean; station: any }>(`/api/stations/${station}`);
+    const data = result.data;
     
     if (data?.success && data.station) {
       const s = data.station;
@@ -67,6 +68,7 @@ export const api = {
         healthScore: 94,
         waterSource: s.waterSource,
         provenance: s.provenance,
+        isFallback: result.isFallback,
       };
     }
 
@@ -77,6 +79,7 @@ export const api = {
       capacity: station === "MAITRI" ? 65 : 47,
       zones: ["Zone 1 Infrastructure", "Zone 2 Magnetic Silence", "Zone 5 ISRO Antenna Field"],
       healthScore: 94,
+      isFallback: true,
     };
   },
 
@@ -90,10 +93,10 @@ export const api = {
       fetchWithTimeout<{ success: boolean; overallConditionScore: number }>(`/api/infrastructure?station=${station}`),
     ]);
 
-    if (telemetry?.success || energy?.success || logistics?.success) {
-      const fuelAutonomy = logistics?.metrics?.fuelAutonomyDays ?? 212;
-      const energyLoad = energy?.metrics?.loadPercentage ?? 47;
-      const infraScore = infra?.overallConditionScore ?? 84;
+    if (telemetry.data?.success || energy.data?.success || logistics.data?.success) {
+      const fuelAutonomy = logistics.data?.metrics?.fuelAutonomyDays ?? 212;
+      const energyLoad = energy.data?.metrics?.loadPercentage ?? 47;
+      const infraScore = infra.data?.overallConditionScore ?? 84;
 
       return {
         domains: [
@@ -138,12 +141,13 @@ export const api = {
 
   // 4.3 Infrastructure Twin
   async getInfrastructure(station: Station) {
-    const data = await fetchWithTimeout<{ success: boolean; overallConditionScore: number; assets: any[] }>(`/api/infrastructure?station=${station}`);
+    const result = await fetchWithTimeout<{ success: boolean; overallConditionScore: number; assets: any[] }>(`/api/infrastructure?station=${station}`);
+    const data = result.data;
 
     if (data?.success && data.assets) {
       return {
         overallConditionScore: data.overallConditionScore || 88,
-        assets: data.assets.map((asset) => ({
+        assets: data.assets.map((asset: any) => ({
           ...asset,
           condition: asset.conditionState || asset.condition || "NORMAL",
         })),
@@ -163,7 +167,8 @@ export const api = {
 
   // 4.4 Power & Energy Twin
   async getEnergy(station: Station) {
-    const data = await fetchWithTimeout<{ success: boolean; metrics: any; generators: any[] }>(`/api/energy?station=${station}`);
+    const result = await fetchWithTimeout<{ success: boolean; metrics: any; generators: any[] }>(`/api/energy?station=${station}`);
+    const data = result.data;
 
     if (data?.success && data.metrics && data.generators) {
       return {
@@ -179,6 +184,7 @@ export const api = {
           tempC: g.temperatureC ?? g.tempC ?? 80,
           hz: g.freqHz ?? g.hz ?? 50.0,
         })),
+        isFallback: result.isFallback,
       };
     }
 
@@ -193,12 +199,14 @@ export const api = {
         { id: "CHP-02", name: "Surya", status: "RUNNING", outputKw: 64.5, tempC: 81, hz: 50.02 },
         { id: "CHP-03", name: "Aditya", status: "STANDBY", outputKw: 0, tempC: 18, hz: 0.0 },
       ],
+      isFallback: true,
     };
   },
 
   // 4.5 Logistics & Inventory Twin
   async getLogistics(station: Station) {
-    const data = await fetchWithTimeout<{ success: boolean; metrics: any; inventory: any[] }>(`/api/logistics?station=${station}`);
+    const result = await fetchWithTimeout<{ success: boolean; metrics: any; inventory: any[] }>(`/api/logistics?station=${station}`);
+    const data = result.data;
 
     if (data?.success && data.metrics) {
       return {
@@ -207,6 +215,7 @@ export const api = {
         fuelAutonomyDays: data.metrics.fuelAutonomyDays ?? 290,
         resupplyWindow: data.metrics.resupplyWindow || "OPEN",
         inventory: data.inventory || [],
+        isFallback: result.isFallback,
       };
     }
 
@@ -216,18 +225,20 @@ export const api = {
       dailyFuelConsumptionL: 980,
       fuelAutonomyDays: 290,
       resupplyWindow: "OPEN",
+      isFallback: true,
     };
   },
 
   // 4.6 Environmental & Science Twin
   async getEnvironment(station: Station) {
-    const data = await fetchWithTimeout<{
+    const result = await fetchWithTimeout<{
       success: boolean;
       telemetry: any;
       liveFeed?: any;
       provenance?: any;
       scientificInstruments?: any[];
     }>(`/api/environment?station=${station}`);
+    const data = result.data;
 
     if (data?.success && data.telemetry) {
       const t = data.telemetry;
@@ -280,7 +291,8 @@ export const api = {
 
   // 4.7 Satellite & Network Twin
   async getNetwork(station: Station) {
-    const data = await fetchWithTimeout<{ success: boolean; uplink: any; priorityQueues?: any[] }>(`/api/network?station=${station}`);
+    const result = await fetchWithTimeout<{ success: boolean; uplink: any; priorityQueues?: any[] }>(`/api/network?station=${station}`);
+    const data = result.data;
 
     if (data?.success && data.uplink) {
       const u = data.uplink;
@@ -297,6 +309,7 @@ export const api = {
           P3: { status: "BUFFERING", size: "450 MB" },
           P4: { status: "PAUSED", size: "12.4 GB" },
         },
+        isFallback: result.isFallback,
       };
     }
 
@@ -312,15 +325,17 @@ export const api = {
         P3: { status: "BUFFERING", size: "450 MB" },
         P4: { status: "PAUSED", size: "12.4 GB" },
       },
+      isFallback: true,
     };
   },
 
   // 4.8 What-If Simulation Engine
   async runSimulation(station: Station, scenarioId: string) {
-    const data = await fetchWithTimeout<{ success: boolean; simulation: any }>("/api/simulation", {
+    const result = await fetchWithTimeout<{ success: boolean; simulation: any }>("/api/simulation", {
       method: "POST",
       body: JSON.stringify({ stationId: station, scenarioId }),
     }, 5000);
+    const data = result.data;
 
     if (data?.success && data.simulation) {
       return {
@@ -373,10 +388,11 @@ export const api = {
     };
     telemetrySnapshot?: any;
   }> {
-    const data = await fetchWithTimeout<any>("/api/commander/query", {
+    const result = await fetchWithTimeout<any>("/api/commander/query", {
       method: "POST",
       body: JSON.stringify({ station, query }),
     }, 4000);
+    const data = result.data;
 
     if (data?.answer) {
       return data;

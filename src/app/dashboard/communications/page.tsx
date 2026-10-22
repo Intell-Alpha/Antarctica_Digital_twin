@@ -9,7 +9,7 @@ export default function CommunicationsDashboard() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    api.getNetwork("MAITRI").then(setData);
+    api.getNetwork("BHARATI").then(setData);
   }, []);
 
   if (!data) return <div className="text-[#0DB9D0] font-mono text-sm uppercase tracking-widest animate-pulse">Syncing Edge Node...</div>;

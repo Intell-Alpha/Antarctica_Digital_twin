@@ -9,7 +9,7 @@ export default function LogisticsDashboard() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    api.getLogistics("MAITRI").then(setData);
+    api.getLogistics("BHARATI").then(setData);
   }, []);
 
   if (!data) return <div className="text-[#0DB9D0] font-mono text-sm uppercase tracking-widest animate-pulse">Computing TTCF Horizon...</div>;
