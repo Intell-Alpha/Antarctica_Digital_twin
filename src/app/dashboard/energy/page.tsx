@@ -9,7 +9,7 @@ export default function EnergyDashboard() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    api.getEnergy("MAITRI").then(setData);
+    api.getEnergy("BHARATI").then(setData);
   }, []);
 
   if (!data) return <div className="text-[#0DB9D0] font-mono text-sm uppercase tracking-widest animate-pulse">Establishing Power Grid Link...</div>;
