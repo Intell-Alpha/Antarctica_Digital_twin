@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
-import { LOGISTICS_INVENTORY, StationId } from "../store/digitalTwinStore";
+import { StationId } from "../store/digitalTwinStore";
+import { getLogisticsMetrics } from "../repositories/logisticsRepository";
 
 export const getLogistics = (req: Request, res: Response) => {
   const stationId = (req.query.station as string)?.toUpperCase() as StationId || "BHARATI";
-  const inventory = LOGISTICS_INVENTORY[stationId] || [];
+  const { inventory, fuelAutonomyDays } = getLogisticsMetrics(stationId);
   const fuelReserves = inventory[0]?.currentStockUnits || 0;
   const dailyFuel = inventory[0]?.dailyConsumptionUnits || 1;
-  const fuelAutonomyDays = Math.round(fuelReserves / dailyFuel);
 
   res.json({
     success: true,
