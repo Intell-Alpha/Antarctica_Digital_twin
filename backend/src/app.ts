@@ -55,4 +55,22 @@ app.use("/api/telemetry", telemetryRoutes);
 app.use("/api/synthetic-data", syntheticDataRoutes);
 app.use("/api/commander", commanderRoutes);
 
+// Global Error Handler for JSON parsing and unhandled errors
+app.use((err: any, req: Request, res: Response, next: express.NextFunction) => {
+  if (err instanceof SyntaxError && "body" in err) {
+    return res.status(400).json({
+      error: "Validation failed",
+      details: [
+        {
+          field: "body",
+          message: "Malformed JSON payload: " + err.message,
+        },
+      ],
+    });
+  }
+
+  console.error("[Unhandled Server Error]", err);
+  return res.status(500).json({ error: "Internal server error" });
+});
+
 export default app;
