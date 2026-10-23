@@ -12,10 +12,25 @@ import simulationRoutes from "./routes/simulationRoutes";
 import telemetryRoutes from "./routes/telemetryRoutes";
 import syntheticDataRoutes from "./routes/syntheticDataRoutes";
 import commanderRoutes from "./routes/commanderRoutes";
+import { rateLimiter } from "./middleware/rateLimiter";
 
 const app = express();
 
-app.use(cors({ origin: CONFIG.CORS_ORIGIN }));
+const allowedOrigins = (process.env.CORS_ORIGIN || CONFIG.CORS_ORIGIN || "http://localhost:3000")
+  .split(",")
+  .map((origin) => origin.trim());
+
+// In development, also allow port 3001 if CORS_ORIGIN has not been explicitly customized
+if (!process.env.CORS_ORIGIN && !allowedOrigins.includes("http://localhost:3001")) {
+  allowedOrigins.push("http://localhost:3001");
+}
+
+app.use(
+  cors({
+    origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Request logging middleware
@@ -50,10 +65,10 @@ app.use("/api/energy", energyRoutes);
 app.use("/api/logistics", logisticsRoutes);
 app.use("/api/environment", environmentRoutes);
 app.use("/api/network", networkRoutes);
-app.use("/api/simulation", simulationRoutes);
+app.use("/api/simulation", rateLimiter, simulationRoutes);
 app.use("/api/telemetry", telemetryRoutes);
 app.use("/api/synthetic-data", syntheticDataRoutes);
-app.use("/api/commander", commanderRoutes);
+app.use("/api/commander", rateLimiter, commanderRoutes);
 
 // Global Error Handler for JSON parsing and unhandled errors
 app.use((err: any, req: Request, res: Response, next: express.NextFunction) => {
