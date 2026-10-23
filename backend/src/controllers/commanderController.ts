@@ -1,12 +1,10 @@
 import { Request, Response } from "express";
 import { getStationLiveFeed } from "../services/ncporLiveService";
-import {
-  StationId,
-  ENVIRONMENT_DATA,
-  GENERATORS_DATA,
-  LOGISTICS_INVENTORY,
-  SATELLITE_UPLINK,
-} from "../store/digitalTwinStore";
+import { StationId } from "../store/digitalTwinStore";
+import { getEnvironmentByStation } from "../repositories/environmentRepository";
+import { getGeneratorsByStation } from "../repositories/energyRepository";
+import { getLogisticsByStation } from "../repositories/logisticsRepository";
+import { getNetworkByStation } from "../repositories/networkRepository";
 
 export interface AIActuation {
   action: "FLY_TO_ROOM" | "TRIGGER_SIMULATION" | "TOGGLE_BLIZZARD" | "ACTUATE_LIFELINE" | "STATION_OVERVIEW" | "NONE";
@@ -43,22 +41,23 @@ export const processCommanderQuery = (req: Request, res: Response) => {
 
     // Live or cached environment
     const liveFeed = getStationLiveFeed(station);
-    const staticEnv = ENVIRONMENT_DATA[station] || ENVIRONMENT_DATA.BHARATI;
+    const staticEnv = getEnvironmentByStation(station);
     const tempC = liveFeed?.kpi.tempC ?? staticEnv.tempC;
     const windSpeedKmh = liveFeed?.kpi.windKmh ?? staticEnv.windSpeedKmh;
     const pressureHpa = liveFeed?.kpi.pressureHpa ?? staticEnv.pressureHpa;
     const isLive = !!liveFeed?.isLive;
 
     // Generators & Power
-    const gens = GENERATORS_DATA[station] || [];
+    const gens = getGeneratorsByStation(station);
     const totalPowerKw = gens.reduce((sum, g) => sum + g.currentOutputKw, 0) || (station === "BHARATI" ? 147.0 : 142.0);
 
     // Logistics & Fuel
-    const fuelInv = LOGISTICS_INVENTORY[station]?.[0];
+    const logistics = getLogisticsByStation(station);
+    const fuelInv = logistics[0];
     const fuelDays = fuelInv ? fuelInv.daysRemaining : (station === "BHARATI" ? 290 : 211);
 
     // Satcom
-    const sat = SATELLITE_UPLINK[station] || SATELLITE_UPLINK.BHARATI;
+    const sat = getNetworkByStation(station);
 
     const snapshot = {
       station,

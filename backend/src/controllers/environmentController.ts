@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
-import { ENVIRONMENT_DATA, StationId } from "../store/digitalTwinStore";
+import { StationId } from "../store/digitalTwinStore";
+import { getEnvironmentByStation } from "../repositories/environmentRepository";
 import {
   fetchStationLiveTelemetry,
   syncAllStationsLive,
@@ -8,7 +9,7 @@ import {
 
 export const getEnvironment = (req: Request, res: Response) => {
   const stationId = ((req.query.station as string)?.toUpperCase() as StationId) || "BHARATI";
-  const telemetry = ENVIRONMENT_DATA[stationId];
+  const telemetry = getEnvironmentByStation(stationId);
   const liveFeed = telemetry.liveFeed || getStationLiveFeed(stationId);
 
   res.json({

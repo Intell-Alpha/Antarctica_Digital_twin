@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
-import { SATELLITE_UPLINK, StationId } from "../store/digitalTwinStore";
+import { StationId } from "../store/digitalTwinStore";
+import { getNetworkByStation } from "../repositories/networkRepository";
 
 export const getNetwork = (req: Request, res: Response) => {
   const stationId = (req.query.station as string)?.toUpperCase() as StationId || "BHARATI";
-  const uplink = SATELLITE_UPLINK[stationId];
+  const uplink = getNetworkByStation(stationId);
 
   res.json({
     success: true,
