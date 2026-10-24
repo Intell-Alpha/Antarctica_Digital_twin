@@ -1,16 +1,16 @@
 import { Request, Response } from "express";
-import { STATIONS, StationId } from "../store/digitalTwinStore";
+import { StationId } from "../store/digitalTwinStore";
+import { getAllStationsData, getStationDataById } from "../repositories/stationRepository";
 
 export const getAllStations = (req: Request, res: Response) => {
   res.json({
     success: true,
-    stations: Object.values(STATIONS)
+    stations: getAllStationsData()
   });
 };
 
 export const getStationById = (req: Request, res: Response) => {
-  const id = req.params.id.toUpperCase() as StationId;
-  const station = STATIONS[id];
+  const station = getStationDataById(req.params.id);
   if (!station) {
     return res.status(404).json({ success: false, error: "Station not found" });
   }

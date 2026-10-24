@@ -237,13 +237,14 @@ export const CinematicDroneDirector = forwardRef<
     isActive,
   }));
 
-  // Keyboard shortcut: Press "D" to toggle drone survey
+  // Keyboard shortcut: Press "U" to toggle drone survey
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
-      if (e.key.toLowerCase() === "d" && !e.ctrlKey && !e.metaKey) {
+      if (e.repeat) return;
+      if (e.key.toLowerCase() === "u" && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         if (isActive) {
           stopDroneTour();
@@ -314,7 +315,7 @@ export const CinematicDroneDirector = forwardRef<
           {/* Bottom 2.39:1 Letterbox Bar */}
           <div className="w-full h-12 sm:h-16 bg-black/90 border-t border-white/10 flex items-center justify-between px-6 font-mono text-[10px] text-[#4A7A8E] pointer-events-auto">
             <span>ISRO / NCPOR POLAR MAPPING DRONE 4K GIMBAL</span>
-            <span>PRESS D OR ESCAPE TO RETURN TO ORBIT</span>
+            <span>PRESS U OR ESCAPE TO RETURN TO ORBIT</span>
           </div>
         </div>
       )}
@@ -331,7 +332,7 @@ export const CinematicDroneDirector = forwardRef<
               ? "bg-rose-500/20 border-rose-500/40 text-rose-300"
               : "bg-[#070D18]/90 hover:bg-white/10 border-white/[0.12] text-[#7ABBD4] hover:text-white"
           } ${className}`}
-          title="Start Autonomous 4K Drone Aerial Survey (Press D)"
+          title="Start Autonomous 4K Drone Aerial Survey (Press U)"
         >
           <VideoCamera size={15} weight={isActive ? "fill" : "regular"} />
         </button>
