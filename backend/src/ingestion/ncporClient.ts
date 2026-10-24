@@ -4,6 +4,7 @@ import {
   ENVIRONMENT_DATA,
   NcporSeriesPoint
 } from "../store/digitalTwinStore";
+import { logger } from "../utils/logger";
 
 // TLS Agent configured to tolerate certificate domain alias (e.g. *.ncpor.res.in vs data.ncaor.gov.in)
 const tlsAgent = new https.Agent({

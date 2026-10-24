@@ -8,6 +8,7 @@ import {
   fetchStationLiveTelemetry,
   ParsedStationLiveResult
 } from "./ncporClient";
+import { logger } from "../utils/logger";
 
 export type CircuitBreakerState = "CLOSED" | "OPEN" | "HALF_OPEN";
 
@@ -59,7 +60,7 @@ export async function syncAllStationsLive(): Promise<{
   }
 
   activeSyncPromise = (async () => {
-    console.log(`[NCPOR Ingestor] Synchronizing live AWS feeds for BHARATI & MAITRI...`);
+    logger.info("[NCPOR Ingestor] Synchronizing live AWS feeds for BHARATI & MAITRI...");
 
     const [bharatiRes, maitriRes] = await Promise.allSettled([
       fetchStationLiveTelemetry("BHARATI"),
@@ -73,11 +74,11 @@ export async function syncAllStationsLive(): Promise<{
       const val = bharatiRes.value;
       liveCache.BHARATI = val;
       updateStationStore("BHARATI", val);
-      console.log(
-        `  🇦🇶 [BHARATI] Synced Live: ${val.kpi.tempC}°C | Wind: ${val.kpi.windKmh} km/h (${val.kpi.windKnots} kts) | Baro: ${val.kpi.pressureHpa} hPa`
+      logger.info(
+        `🇦🇶 [BHARATI] Synced Live: ${val.kpi.tempC}°C | Wind: ${val.kpi.windKmh} km/h (${val.kpi.windKnots} kts) | Baro: ${val.kpi.pressureHpa} hPa`
       );
     } else {
-      console.warn(`  ⚠️ [BHARATI] Live sync warning:`, bharatiRes.reason?.message);
+      logger.warn(`⚠️ [BHARATI] Live sync warning:`, bharatiRes.reason?.message);
     }
 
     if (maitriRes.status === "fulfilled") {
@@ -85,11 +86,11 @@ export async function syncAllStationsLive(): Promise<{
       const val = maitriRes.value;
       liveCache.MAITRI = val;
       updateStationStore("MAITRI", val);
-      console.log(
-        `  🇦🇶 [MAITRI] Synced Live: ${val.kpi.tempC}°C | Wind: ${val.kpi.windKmh} km/h (${val.kpi.windKnots} kts) | Baro: ${val.kpi.pressureHpa} hPa`
+      logger.info(
+        `🇦🇶 [MAITRI] Synced Live: ${val.kpi.tempC}°C | Wind: ${val.kpi.windKmh} km/h (${val.kpi.windKnots} kts) | Baro: ${val.kpi.pressureHpa} hPa`
       );
     } else {
-      console.warn(`  ⚠️ [MAITRI] Live sync warning:`, maitriRes.reason?.message);
+      logger.warn(`⚠️ [MAITRI] Live sync warning:`, maitriRes.reason?.message);
     }
 
     // If both failed, throw error to trigger backoff / circuit breaker logic
@@ -164,7 +165,7 @@ async function runIngestionCycle(): Promise<void> {
     }
     // Transition to HALF_OPEN to probe connection
     circuitBreakerState = "HALF_OPEN";
-    console.log(`[NCPOR Ingestor] Circuit breaker entering HALF_OPEN probe state.`);
+    logger.info("[NCPOR Ingestor] Circuit breaker entering HALF_OPEN probe state.");
   }
 
   try {
@@ -172,7 +173,7 @@ async function runIngestionCycle(): Promise<void> {
 
     // Success path: reset failures and restore closed circuit
     if (consecutiveFailures > 0 || circuitBreakerState !== "CLOSED") {
-      console.log(`[NCPOR Ingestor] Ingestion succeeded. Resetting failure counter (was ${consecutiveFailures}). Circuit breaker CLOSED.`);
+      logger.info(`[NCPOR Ingestor] Ingestion succeeded. Resetting failure counter (was ${consecutiveFailures}). Circuit breaker CLOSED.`);
     }
     consecutiveFailures = 0;
     circuitBreakerState = "CLOSED";
@@ -182,18 +183,18 @@ async function runIngestionCycle(): Promise<void> {
     scheduleNextRun(configuredIntervalMs);
   } catch (err: any) {
     consecutiveFailures++;
-    console.warn(`[NCPOR Ingestor] Ingestion failure #${consecutiveFailures}: ${err.message}`);
+    logger.warn(`[NCPOR Ingestor] Ingestion failure #${consecutiveFailures}: ${err.message}`);
 
     if (consecutiveFailures >= CIRCUIT_BREAKER_MAX_FAILURES) {
       circuitBreakerState = "OPEN";
       circuitBreakerOpenUntil = Date.now() + CIRCUIT_BREAKER_PAUSE_MS;
-      console.error(
+      logger.error(
         `🚨 [NCPOR Ingestor] Circuit breaker TRIPPED (OPEN): ${consecutiveFailures} consecutive failures. Pausing polling for 5 minutes.`
       );
       scheduleNextRun(CIRCUIT_BREAKER_PAUSE_MS);
     } else {
       const backoffMs = calculateBackoffMs(consecutiveFailures);
-      console.log(
+      logger.info(
         `⏳ [NCPOR Ingestor] Retrying in ${backoffMs / 1000}s (exponential backoff failure #${consecutiveFailures})...`
       );
       scheduleNextRun(backoffMs);
@@ -215,7 +216,7 @@ function scheduleNextRun(delayMs: number): void {
   nextScheduledTime = Date.now() + delayMs;
   pollingTimer = setTimeout(() => {
     runIngestionCycle().catch((e) => {
-      console.error("[NCPOR Ingestor] Unexpected cycle error:", e);
+      logger.error("[NCPOR Ingestor] Unexpected cycle error:", e);
     });
   }, delayMs);
 }
@@ -226,12 +227,12 @@ function scheduleNextRun(delayMs: number): void {
  */
 export function startNcporIngestor(intervalMinutes = 10): void {
   if (!CONFIG.POLLER_ENABLED) {
-    console.log(`⏸️ [NCPOR Ingestor] POLLER_ENABLED is false. Ingestion polling is disabled.`);
+    logger.info("⏸️ [NCPOR Ingestor] POLLER_ENABLED is false. Ingestion polling is disabled.");
     return;
   }
 
   if (isRunning) {
-    console.log(`[NCPOR Ingestor] Ingestion poller is already running.`);
+    logger.info("[NCPOR Ingestor] Ingestion poller is already running.");
     return;
   }
 
@@ -241,11 +242,11 @@ export function startNcporIngestor(intervalMinutes = 10): void {
   circuitBreakerState = "CLOSED";
   circuitBreakerOpenUntil = null;
 
-  console.log(`📡 [NCPOR Ingestor] Starting hardened ingestion (interval: ${intervalMinutes} min, max backoff: 60s, breaker: 5 fails/5 min).`);
+  logger.info(`📡 [NCPOR Ingestor] Starting hardened ingestion (interval: ${intervalMinutes} min, max backoff: 60s, breaker: 5 fails/5 min).`);
 
   // Run immediate first cycle
   runIngestionCycle().catch((err) => {
-    console.warn("[NCPOR Ingestor] Initial run caught error:", err.message);
+    logger.warn("[NCPOR Ingestor] Initial run caught error:", err.message);
   });
 }
 
@@ -259,7 +260,7 @@ export function stopNcporIngestor(): void {
   }
   isRunning = false;
   nextScheduledTime = null;
-  console.log(`🛑 [NCPOR Ingestor] Telemetry ingestion stopped gracefully.`);
+  logger.info("🛑 [NCPOR Ingestor] Telemetry ingestion stopped gracefully.");
 }
 
 /**

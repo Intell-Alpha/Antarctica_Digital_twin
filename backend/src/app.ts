@@ -13,6 +13,9 @@ import telemetryRoutes from "./routes/telemetryRoutes";
 import syntheticDataRoutes from "./routes/syntheticDataRoutes";
 import commanderRoutes from "./routes/commanderRoutes";
 import { rateLimiter } from "./middleware/rateLimiter";
+import { requestId } from "./middleware/requestId";
+import { requestLogger } from "./middleware/requestLogger";
+import { logger } from "./utils/logger";
 
 const app = express();
 
@@ -33,11 +36,11 @@ app.use(
 );
 app.use(express.json());
 
+// Request ID middleware
+app.use(requestId);
+
 // Request logging middleware
-app.use((req: Request, res: Response, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-  next();
-});
+app.use(requestLogger);
 
 // Health check route
 app.get('/health', (req: Request, res: Response) => {
@@ -84,7 +87,7 @@ app.use((err: any, req: Request, res: Response, next: express.NextFunction) => {
     });
   }
 
-  console.error("[Unhandled Server Error]", err);
+  logger.error({ err, reqId: req.id }, "[Unhandled Server Error]");
   return res.status(500).json({ error: "Internal server error" });
 });
 
