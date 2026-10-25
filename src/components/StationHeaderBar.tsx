@@ -36,6 +36,7 @@ import { polarAudio } from "@/lib/polarAudioEngine";
 import { PolarAtmosphereSystem, PolarSeason } from "./PolarAtmosphereSystem";
 import { StationOperationalPostureBar, StationOperationalPosture } from "./StationOperationalPostureBar";
 import { ThemeSwitcher } from "./ThemeSwitcher";
+import { useNetwork } from "@/context/NetworkContext";
 
 interface StationHeaderBarProps {
   station: Station;
@@ -90,6 +91,8 @@ export function StationHeaderBar({
   isJoystickActive = false,
   onToggleJoystick,
 }: StationHeaderBarProps) {
+  const { isOnline, latencyMs, isUsingCachedData } = useNetwork();
+
   // Live Vitals State
   const [vitals, setVitals] = useState({
     tempC: station === "BHARATI" ? -13.6 : -9.8,
@@ -143,11 +146,11 @@ export function StationHeaderBar({
           api.getNetwork(station),
         ]);
         setVitals({
-          tempC: env.tempC,
-          windKmh: env.windSpeedKmh,
-          powerKw: energy.currentOutputKw,
-          satLatencyMs: net.latencyMs,
-          isLive: env.isLiveNcpor ?? true,
+          tempC: env.tempC ?? (station === "BHARATI" ? -12.76 : -8.64),
+          windKmh: env.windSpeedKmh ?? 30.0,
+          powerKw: energy.currentOutputKw ?? 147.0,
+          satLatencyMs: net.latencyMs ?? 58,
+          isLive: env.isLiveNcpor ?? (!env.isFallback),
         });
       } catch (e) {
         // Fallback gracefully
@@ -350,10 +353,21 @@ export function StationHeaderBar({
             <span className="text-white font-semibold">{vitals.powerKw} kW</span>
           </div>
 
-          {/* Satcom */}
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00D4A0]" />
-            <span className="text-[#7ABBD4]">GSAT {vitals.satLatencyMs}ms</span>
+          {/* Satcom / Uplink Status */}
+          <div
+            className="flex items-center gap-1.5"
+            title={isOnline && !isUsingCachedData ? "Live Satellite Telemetry Uplink Active" : "Autonomous Local Polar Cache Active"}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isOnline && !isUsingCachedData
+                  ? "bg-[#00D4A0] shadow-[0_0_6px_#00D4A0] animate-pulse"
+                  : "bg-[#D49020] shadow-[0_0_6px_#D49020]"
+              }`}
+            />
+            <span className={isOnline && !isUsingCachedData ? "text-[#7ABBD4]" : "text-[#D49020]"}>
+              {isOnline && !isUsingCachedData ? `GSAT ${vitals.satLatencyMs || 58}ms` : "OFFLINE CACHE"}
+            </span>
           </div>
         </div>
 

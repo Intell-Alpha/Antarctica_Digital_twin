@@ -4,6 +4,7 @@ import { useState } from "react";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { MockDataBadge } from "@/components/MockDataBadge";
+import { OfflineBanner } from "@/components/OfflineBanner";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -26,8 +27,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* TOP HEADER */}
         <DashboardHeader onMenuClick={() => setIsSidebarOpen(true)} />
 
-        {/* MOCK DATA BADGE - Example placement, can be connected to API state later */}
-        <div className="absolute top-20 right-6 z-50">
+        {/* PROMINENT OFFLINE / AUTONOMOUS CACHE BANNER */}
+        <OfflineBanner />
+
+        {/* DYNAMIC TELEMETRY / OFFLINE STATUS BADGE */}
+        <div className="absolute top-20 right-6 z-30">
           <MockDataBadge />
         </div>
 
