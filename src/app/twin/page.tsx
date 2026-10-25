@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { MaitriStationTwin } from "@/components/MaitriStationTwin";
 import { BharatiStationTwin } from "@/components/BharatiStationTwin";
+import { WebGLErrorBoundary } from "@/components/WebGLErrorBoundary";
 
 function TwinPageContent() {
   const searchParams = useSearchParams();
@@ -21,12 +22,16 @@ function TwinPageContent() {
 
   return (
     <div className="h-screen w-screen bg-theme-base text-foreground font-sans flex flex-col relative overflow-hidden select-none">
-      {/* ── FULL-BLEED 3D VIEWPORT ── */}
+      {/* ── FULL-BLEED 3D VIEWPORT WITH WEBGL FALLBACK BOUNDARY ── */}
       <main className="w-full h-full flex-1 relative overflow-hidden">
         {activeStation === "maitri" ? (
-          <MaitriStationTwin key="maitri" className="w-full h-full min-h-screen rounded-none border-0 shadow-none" />
+          <WebGLErrorBoundary key="maitri" station="MAITRI">
+            <MaitriStationTwin className="w-full h-full min-h-screen rounded-none border-0 shadow-none" />
+          </WebGLErrorBoundary>
         ) : (
-          <BharatiStationTwin key="bharati" className="w-full h-full min-h-screen rounded-none border-0 shadow-none" />
+          <WebGLErrorBoundary key="bharati" station="BHARATI">
+            <BharatiStationTwin className="w-full h-full min-h-screen rounded-none border-0 shadow-none" />
+          </WebGLErrorBoundary>
         )}
       </main>
     </div>
