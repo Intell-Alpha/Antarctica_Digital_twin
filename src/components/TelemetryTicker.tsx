@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "@/lib/api";
 
-export function TelemetryTicker() {
+interface TelemetryTickerProps {
+  delay?: number;
+  duration?: number;
+}
+
+export function TelemetryTicker({ delay = 0.9, duration = 0.45 }: TelemetryTickerProps) {
   const [maitriData, setMaitriData] = useState<any>(null);
   const [bharatiData, setBharatiData] = useState<any>(null);
   const [latency, setLatency] = useState(0);
@@ -38,7 +43,7 @@ export function TelemetryTicker() {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 1, delay: 1.5 }}
+      transition={{ duration, delay }}
       className="absolute bottom-0 left-0 right-0 border-t border-[#0DB9D0]/20 bg-[#03060E]/40 backdrop-blur-xl z-20 flex overflow-x-auto no-scrollbar shadow-[0_-10px_40px_rgba(0,0,0,0.5)]"
     >
       <div className="flex items-center justify-between h-12 px-6 sm:px-10 lg:px-16 w-full max-w-7xl mx-auto font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-[#4A7A8E] whitespace-nowrap gap-8">
