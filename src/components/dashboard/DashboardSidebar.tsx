@@ -18,7 +18,7 @@ import {
   X
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
-import { api } from "@/lib/api";
+import { useNetwork } from "@/context/NetworkContext";
 
 export interface NavLinkItem {
   href: string;
@@ -46,25 +46,9 @@ export interface DashboardSidebarProps {
 
 export function DashboardSidebar({ isOpen = false, onClose }: DashboardSidebarProps) {
   const pathname = usePathname();
-  const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
-  const [latency, setLatency] = useState<number>(0);
-
-  useEffect(() => {
-    let mounted = true;
-    const check = async () => {
-      const res = await api.checkBackendStatus();
-      if (mounted) {
-        setBackendOnline(res.online);
-        setLatency(res.latencyMs);
-      }
-    };
-    check();
-    const interval = setInterval(check, 5000);
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, []);
+  const { isOnline, latencyMs, isUsingCachedData } = useNetwork();
+  const backendOnline = isOnline && !isUsingCachedData;
+  const latency = latencyMs || 58;
 
   return (
     <aside

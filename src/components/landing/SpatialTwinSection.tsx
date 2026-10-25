@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight, Compass } from "@phosphor-icons/react";
 import { MaitriStationTwin } from "@/components/MaitriStationTwin";
 import { BharatiStationTwin } from "@/components/BharatiStationTwin";
+import { WebGLErrorBoundary } from "@/components/WebGLErrorBoundary";
 import { SectionLabel } from "./LandingShared";
 
 export function SpatialTwinSection() {
@@ -62,13 +63,17 @@ export function SpatialTwinSection() {
         </div>
       </div>
 
-      {/* ── THE 3D TWIN VIEWPORT CONTAINER ── */}
+      {/* ── THE 3D TWIN VIEWPORT CONTAINER WITH WEBGL FALLBACK BOUNDARY ── */}
       <div className="bezel-shell p-1.5 rounded-[2.5rem] bg-gradient-to-b from-[#0DB9D0]/20 via-[#04101E]/60 to-transparent shadow-[0_30px_100px_rgba(0,0,0,0.9)]">
         <div className="bezel-core rounded-[calc(2.5rem-0.375rem)] overflow-hidden bg-[#03060E] border border-white/10">
           {selectedTwin === "maitri" ? (
-            <MaitriStationTwin key="maitri-home" className="w-full h-[720px] sm:h-[800px]" enableFullscreenButton={true} />
+            <WebGLErrorBoundary key="maitri-home" station="MAITRI">
+              <MaitriStationTwin className="w-full h-[720px] sm:h-[800px]" enableFullscreenButton={true} />
+            </WebGLErrorBoundary>
           ) : (
-            <BharatiStationTwin key="bharati-home" className="w-full h-[720px] sm:h-[800px]" enableFullscreenButton={true} />
+            <WebGLErrorBoundary key="bharati-home" station="BHARATI">
+              <BharatiStationTwin className="w-full h-[720px] sm:h-[800px]" enableFullscreenButton={true} />
+            </WebGLErrorBoundary>
           )}
         </div>
       </div>

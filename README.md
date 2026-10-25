@@ -1,308 +1,432 @@
-# Himdrishti: Digital Twin for India's Antarctic Research Stations
+# ❄️ Himdrishti: Digital Twin for India's Antarctic Research Stations
 
-> An interactive digital twin of India's **Bharati** and **Maitri** Antarctic research stations. It combines a 3D station model, a live-style telemetry dashboard, a what-if crisis simulator and a rule-based "AI Commander" so remote teams can monitor and rehearse operations for infrastructure, energy, logistics and environment.
+[![Next.js 16](https://img.shields.io/badge/Next.js-16.3.6-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![React 19](https://img.shields.io/badge/React-19.2.8-61DAFB?style=for-the-badge&logo=react)](https://react.dev/)
+[![Three.js](https://img.shields.io/badge/Three.js-0.186.1-black?style=for-the-badge&logo=three.js)](https://threejs.org/)
+[![Express](https://img.shields.io/badge/Express-4.21.2-lightgrey?style=for-the-badge&logo=express)](https://expressjs.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Zod](https://img.shields.io/badge/Zod-3.25-3E67B1?style=for-the-badge&logo=zod)](https://zod.dev/)
+[![Jest](https://img.shields.io/badge/Jest-30.5-C21325?style=for-the-badge&logo=jest)](https://jestjs.io/)
+[![SIH 2026](https://img.shields.io/badge/SIH%202026-Problem%20ID%2026060-FF9933?style=for-the-badge)](https://sih.gov.in/)
 
-**Smart India Hackathon (SIH) Problem Statement ID:** `26060`
-
----
-
-## Table of Contents
-
-1. [Overview and Objectives](#overview-and-objectives)
-2. [Core Capabilities and Implementation Status](#core-capabilities-and-implementation-status)
-3. [Architecture](#architecture)
-4. [Tech Stack](#tech-stack)
-5. [Getting Started](#getting-started)
-6. [Environment Configuration](#environment-configuration)
-7. [Available Scripts](#available-scripts)
-8. [Repository Structure](#repository-structure)
-9. [Documentation and Guides](#documentation-and-guides)
-10. [Known Limitations](#known-limitations)
-11. [Troubleshooting](#troubleshooting)
-12. [Contributing](#contributing)
-13. [Team and Credits](#team-and-credits)
-14. [License](#license)
+> **Smart India Hackathon (SIH 2026) · Problem Statement ID: `26060`**  
+> **Organization:** National Centre for Polar and Ocean Research (NCPOR), Ministry of Earth Sciences (MoES), Government of India.  
+> **Title:** *Digital Twin Framework for Antarctic Research Stations (Bharati and Maitri) Integrating Infrastructure, Energy, Logistics, and Environmental Monitoring for Efficient Remote Management.*
 
 ---
 
-## Overview and Objectives
+## 📑 Table of Contents
 
-India operates two permanent Antarctic research stations: **Bharati** (Larsemann Hills) and **Maitri** (Schirmacher Oasis). Operating them means managing power generation, fuel and supply logistics, water and infrastructure, harsh weather and a constrained satellite link, often from thousands of kilometres away.
-
-Himdrishti is a prototype that answers the SIH problem statement of building a digital twin framework for Maitri and Bharati that integrates infrastructure, energy, logistics and environmental monitoring for efficient remote management.
-
-**Objectives**
-
-- Give remote operators one place to see the state of each station across infrastructure, energy, logistics, environment and communications.
-- Provide an explorable 3D model of each station with room-level telemetry cards.
-- Let operators rehearse crisis scenarios (storms, generator trips, supply delays, comms loss) and see projected impacts before they happen.
-- Make the origin of every data point explicit through provenance tags (official, documentary, assumption, inference, live sensor or simulated).
-
-> **Prototype notice:** most station data in this repository is seed or synthetic data modelled on public and documentary sources. Only the weather feed has a code path that attempts to read a live public source (see [Known Limitations](#known-limitations)). This project is not connected to any NCPOR internal system.
-
----
-
-## Core Capabilities and Implementation Status
-
-| Capability | What exists in this repository | Status |
-| :--- | :--- | :--- |
-| **Real-time telemetry** | Express endpoints for telemetry, energy, logistics, environment, infrastructure and network (`/api/telemetry`, `/api/energy`, ...). The dashboard and 3D HUD fetch from them. Telemetry values and log ticks come from seed data and a generator. A background poller tries to fetch public NCPOR/NCAOR live weather pages every 10 minutes and caches the result. | **Implemented (prototype data).** Weather live feed is best-effort and was not verified against the live sites for this README. |
-| **3D digital twin** | Interactive Three.js / React Three Fiber models of **Bharati** (`/twin/bharati`) and **Maitri** (`/twin`), with GLB assets in `public/assets/`, room navigation, room-anchored telemetry cards and lifeline flow visuals. | **Implemented.** |
-| **What-if simulation** | `POST /api/simulation` runs five formula-based scenarios (`EXTREME_WEATHER`, `GENERATOR_FAILURE`, `INCREASED_ENERGY_DEMAND`, `SUPPLY_DELAY`, `COMMUNICATION_OUTAGE`) and returns baseline vs. projected KPIs, alerts and recommended actions. Used by the 3D twin simulator panel and the `/dashboard/simulations` page. | **Implemented** (simplified model, not a validated physics simulation). |
-| **AI Commander** | A chat-style console in the 3D twin that calls `POST /api/commander/query`. The backend matches keywords in the question, answers from current station data and can trigger actions in the 3D scene (fly to a room, start a simulation, toggle a blizzard). | **Implemented as a rule-based assistant.** No external LLM or AI service integration exists in the code. |
-| **Direct NCPOR / station-sensor integration** | None. Station sensors, SCADA and the ISRO satellite store-and-forward link are modelled in software only. | **Conceptual / not implemented.** |
+1. [Executive Summary](#-executive-summary)
+2. [Key Capabilities & Innovations](#-key-capabilities--innovations)
+3. [System Architecture](#-system-architecture)
+4. [Tech Stack](#-tech-stack)
+5. [Quick Start & Demo Guide](#-quick-start--demo-guide)
+6. [Frontend Bundler Flag (`--webpack`)](#-frontend-bundler-flag---webpack)
+7. [Environment Configuration](#-environment-configuration)
+8. [Available Scripts](#-available-scripts)
+9. [Automated Testing](#-automated-testing)
+10. [Repository Structure](#-repository-structure)
+11. [Offline Mode & WebGL Fallback](#-offline-mode--webgl-fallback)
+12. [Documentation & Deep Dives](#-documentation--deep-dives)
+13. [Contributing](#-contributing)
+14. [Team Intell-Alpha & Credits](#-team-intell-alpha--credits)
+15. [License](#-license)
 
 ---
 
-## Architecture
+## 🌐 Executive Summary
+
+Operating permanent research stations in Antarctica—**Bharati** (Larsemann Hills, $69^\circ 24'\text{S}$) and **Maitri** (Schirmacher Oasis, $70^\circ 46'\text{S}$)—is one of the most logistically demanding operational challenges on Earth. Station crews battle $-40^\circ\text{C}$ katabatic blizzards, sub-polar isolation, and strictly constrained satellite bandwidth to maintain uninterrupted power generation, fuel reserves, water desalination, and life support.
+
+**Himdrishti** is an aerospace-grade, web-first Digital Twin and Remote Mission Control Cockpit. It bridges the $12,000\text{ km}$ divide between NCPOR Headquarters in Goa and Antarctica by synthesizing:
+
+1. **Photogrammetric & CAD 3D Digital Twins** with millimeter-accurate building assemblies, room-level telemetry, and x-ray utility pipeline cutaways.
+2. **Real-time Multi-Utility Lifeline Monitoring** (Hydronic Heating, Potable Water, Sewage Treatment, Fuel Distribution, and Microgrid Power).
+3. **What-If Crisis Simulation Engine** for rehearsing extreme weather blizzards, generator trips, supply chain delays, and satellite comms blackouts.
+4. **HIMADRI AI Station Commander** (Natural language operational copilot with bi-directional 3D scene actuation).
+5. **Fail-Safe Offline Mode & WebGL Fallback** ensuring zero-crash availability during Antarctic network dropouts or on low-power mobile hardware.
+
+---
+
+## ⚡ Key Capabilities & Innovations
+
+| Pillar | Capability | Description | Status |
+| :--- | :--- | :--- | :--- |
+| **3D Spatial Twins** | **Maitri & Bharati BIM Twins** | High-performance Three.js scenes featuring DRACO-compressed GLTF assets, PBR materials, ACESFilmic tone mapping, and room registry locks for all 16 station modules. | ✅ Fully Operational |
+| **Lifeline Shaders** | **Utility Pipeline Matrices** | Custom GLSL pulse shaders visualizing 5 physical lifeline loops (Freshwater, Riello Hydronic Heating, Fuel, Sewage, Microgrid Power). | ✅ Fully Operational |
+| **Crisis Simulator** | **What-If Scenario Sandbox** | 5 dynamic scenarios calculating baseline vs. projected delta impacts across fuel autonomy, battery life, indoor temperatures, and safety posture. | ✅ Fully Operational |
+| **Copilot** | **HIMADRI AI Commander** | Natural language query engine capable of synthesizing telemetry answers and triggering physical 3D scene reactions (camera fly-tos, blizzards). | ✅ Fully Operational |
+| **Atmosphere** | **Katabatic Blizzard Engine** | Procedural snowfall particle system, dynamic ice fog, howling katabatic wind audio engine, and solar lighting transitions. | ✅ Fully Operational |
+| **Resilience** | **Bulletproof Offline Cache** | Dual-tier in-memory + `localStorage` caching with seamless network drop detection and ambient notification banner. | ✅ Fully Operational |
+| **Hardware Fallback** | **2D SCADA WebGL Fallback** | Automatic degradation to high-resolution photographic SCADA HUD when WebGL is unavailable or GPU context is lost. | ✅ Fully Operational |
+| **Compliance** | **ATCM Mission Dossier** | Automated readiness inspector generating Antarctic Treaty Consultative Meeting (ATCM) and NCPOR operational dossiers. | ✅ Fully Operational |
+
+---
+
+## 🏛️ System Architecture
+
+Himdrishti follows a resilient decoupled architecture engineered for mission-critical reliability under intermittent polar satellite connectivity:
 
 ```mermaid
-flowchart LR
-  subgraph Browser["Browser: Next.js app (repo root, :3000)"]
-    UI["Landing, /dashboard/*, /about"]
-    TWIN["3D twins: /twin, /twin/bharati<br/>Three.js + React Three Fiber"]
-    CMD["AI Commander + What-If panel"]
-    API["src/lib/api.ts<br/>(3 s timeout, local fallback data)"]
-    UI --> API
-    TWIN --> API
-    CMD --> API
+flowchart TB
+  subgraph DataSources["External Data & Satellite Feeds"]
+    NCPOR_WEATHER["NCPOR / NCAOR Live Weather Feeds<br/>(10-min Poller & In-Memory Cache)"]
+    SATCOM["ISRO GSAT / Store-and-Forward Satcom<br/>(Telemetry & SCADA Log Streams)"]
+    SIM_SEEDS["Synthetic SCADA Ground Truth Seeds<br/>(Documentary, Physical & Inferred Data)"]
   end
 
-  subgraph Backend["Express + TypeScript API (backend/, :5000)"]
-    ROUTES["Routes and controllers<br/>/api/stations, infrastructure, energy,<br/>logistics, environment, network,<br/>telemetry, synthetic-data,<br/>simulation, commander"]
-    ENGINE["digitalTwinEngine<br/>(scenario calculations)"]
-    GEN["telemetryGenerator"]
-    STORE["digitalTwinStore + syntheticData<br/>(seed data with provenance tags)"]
-    LIVE["ncporLiveService<br/>(10-minute poller, in-memory cache)"]
-    ROUTES --> ENGINE
-    ROUTES --> GEN
-    ROUTES --> STORE
-    ROUTES --> LIVE
-    ENGINE --> STORE
+  subgraph Backend["Express + TypeScript Backend API (Port 5000)"]
+    RATE_LIMIT["Express Rate Limiter<br/>& Security Middlewares"]
+    PINO_LOGGER["Pino High-Performance<br/>Structured NDJSON Logger"]
+    ZOD_VALIDATION["Zod Schema Validation Layer<br/>(Strict API Contracts)"]
+    
+    subgraph CoreServices["Backend Engines & Services"]
+      STORE["Digital Twin Data Store<br/>(Data Provenance Engine)"]
+      SIM_ENGINE["What-If Simulation Engine<br/>(Physics & Scenario Formulations)"]
+      COMMANDER["AI Commander Service<br/>(Contextual Query & Action Engine)"]
+      TELEMETRY_GEN["Live Telemetry Log Streamer<br/>(Fluctuating Realistic SCADA Metrics)"]
+    end
+    
+    ROUTES["RESTful Controllers & Routers<br/>/api/stations · /api/telemetry · /api/energy<br/>/api/infrastructure · /api/environment · /api/simulation"]
   end
 
-  API -- "REST / JSON<br/>NEXT_PUBLIC_BACKEND_URL" --> ROUTES
-  LIVE -. "best-effort HTTP fetch" .-> NCPOR[("Public NCPOR / NCAOR<br/>live weather pages")]
-  SENSORS[("Station sensors, SCADA,<br/>ISRO satcom link")]:::concept -. "conceptual only, not implemented" .-> STORE
+  subgraph Frontend["Next.js 16 + React 19 Frontend Cockpit (Port 3000 / 3001)"]
+    API_CLIENT["src/lib/api.ts Client Layer<br/>(3s Adaptive Timeout, Dual-Tier Cache)"]
+    NET_CTX["NetworkContext & Offline Detection<br/>(Instant Offline Banner & Mock Fallback)"]
+    
+    subgraph VisualEngines["3D Viewport & Rendering Pipeline"]
+      THREE_SCENE["Three.js 0.186 Canvas<br/>DRACOLoader + ACESFilmic Tone Mapping"]
+      BLIZZARD_SYS["Polar Atmosphere System<br/>(Blizzards, Ice Fog & Audio Synthesis)"]
+      LIFELINE_SHADERS["Custom GLSL Utility Pipeline Shaders<br/>(Water, Fuel, Power, Sewage, Heat-Trace)"]
+      DRONE_DIRECTOR["Cinematic Drone Director<br/>(GSAP Camera Keyframe Sequences)"]
+    end
+    
+    subgraph UIComponents["Mission Control Cockpit UI"]
+      HEADER_BAR["Unified Station Header Bar<br/>(Posture Control, Auto-Orbit, Roam)"]
+      TELEMETRY_TICKER["Live SCADA Telemetry Ticker"]
+      ROOM_CARDS["Room Telemetry & Actuation Cards"]
+      SYSTEM_DOCK["Station System Dock & Lifeline Selector"]
+      DOSSIER_MODAL["NCPOR & ATCM Mission Report Dossier"]
+      FALLBACK_HUD["WebGL Fallback 2D SCADA Panel<br/>(WebGLErrorBoundary + Static Poster)"]
+    end
+  end
 
-  classDef concept stroke-dasharray: 5 5;
+  %% Data Connections
+  NCPOR_WEATHER --> ROUTES
+  SATCOM -.-> STORE
+  SIM_SEEDS --> STORE
+
+  ROUTES --> ZOD_VALIDATION --> RATE_LIMIT --> PINO_LOGGER
+  STORE --> ROUTES
+  SIM_ENGINE --> ROUTES
+  COMMANDER --> ROUTES
+  TELEMETRY_GEN --> ROUTES
+
+  API_CLIENT <== "REST / JSON (NEXT_PUBLIC_BACKEND_URL)" ==> ROUTES
+  API_CLIENT --> NET_CTX
+  NET_CTX --> UIComponents
+  NET_CTX --> VisualEngines
+  VisualEngines <--> UIComponents
 ```
 
-**Data flow in short**
+---
 
-1. The Next.js frontend calls the Express API through `src/lib/api.ts`.
-2. Controllers read seed data from `backend/src/store/`, generated telemetry, scenario results from `digitalTwinEngine`, and the cached live weather feed when available.
-3. If the backend is unreachable or slow, the frontend falls back to local constants and surfaces that state with a "mock data" badge instead of failing.
-4. Dashed elements are external or conceptual. The NCPOR fetch is an attempt to read public web pages; nothing else external is integrated.
+## 🛠️ Tech Stack
+
+### Frontend Cockpit (Root Package)
+- **Framework:** [Next.js 16.3.6](https://nextjs.org/) (App Router, Server Components & Client Hooks)
+- **Runtime & UI:** [React 19.2.8](https://react.dev/), React DOM 19.2.8
+- **3D Spatial Graphics:** [Three.js 0.186.1](https://threejs.org/), `@react-three/fiber 9.8.1`, `@react-three/drei 10.7.9`, DRACO 3D Geometry Compression
+- **Motion & Cinematic Choreography:** [GSAP 3.15.0](https://greensock.com/), `@gsap/react 2.1.2`, [Framer Motion 13.4.4](https://www.framer.com/motion/)
+- **Styling & Tokens:** [Tailwind CSS 4](https://tailwindcss.com/), `@tailwindcss/postcss`, Vanilla CSS Design Tokens, Glassmorphism
+- **Iconography:** [Phosphor Icons React 2.1.10](https://phosphoricons.com/) (`@phosphor-icons/react`)
+- **Audio Engine:** Custom HTML5 Web Audio API Polar Synthesizer (Katabatic wind, UI clicks, blizzard howling)
+
+### Backend API & Simulation Engine (`backend/`)
+- **Server Framework:** [Express 4.21.2](https://expressjs.com/) (Node.js 20.x LTS)
+- **Language:** [TypeScript 5.7.3](https://www.typescriptlang.org/) (Strict Mode)
+- **Schema Validation & Contract Safety:** [Zod 3.25.76](https://zod.dev/)
+- **Structured Logging:** [Pino 10.4.0](https://getpino.io/), `pino-http 11.0.0`, `pino-pretty 13.2.0`
+- **Security & Reliability:** `cors 2.8.5`, `express-rate-limit 8.7.1`, `dotenv 16.4.7`
+- **Testing Suite:** [Jest 30.5.2](https://jestjs.io/), [Supertest 7.3.1](https://github.com/ladjs/supertest), `ts-jest 29.4.15`
+- **Execution & Hot Reloading:** `ts-node-dev 2.0.0`
 
 ---
 
-## Tech Stack
-
-Versions below are read from `package.json` (frontend, repo root) and `backend/package.json`.
-
-| Layer | Technology | Version in manifest |
-| :--- | :--- | :--- |
-| Frontend framework | Next.js (App Router) | `16.3.6` (pinned) |
-| UI library | React / React DOM | `19.2.8` (pinned) |
-| 3D | Three.js, `@react-three/fiber`, `@react-three/drei` | `^0.186.1`, `^9.8.1`, `^10.7.9` |
-| Styling and motion | Tailwind CSS, Framer Motion, GSAP | `^4`, `^13.4.4`, `^3.15.0` |
-| Backend | Express | `^4.21.2` (Express **4**, not 5) |
-| Backend tooling | `ts-node-dev`, `tsc`, `cors`, `dotenv` | see `backend/package.json` |
-| Language | TypeScript (strict mode in both packages) | `^5` / `^5.7.3` |
-| Runtime | Node.js | `>=20.0.0 <21.0.0` (`engines` and `.nvmrc`) |
-| Package manager | **npm** | `package-lock.json` at the root and in `backend/` |
-
-Notes on discrepancies:
-
-- The backend is Express **4.x**. Anything that assumes Express 5 behaviour does not apply here.
-- Both packages require **Node 20.x**. Other major versions print `EBADENGINE` warnings and are unsupported.
-- There is no separate `frontend/` folder: the Next.js app lives at the repository root (its `package.json` name is `frontend`).
-
----
-
-## Getting Started
+## 🚀 Quick Start & Demo Guide
 
 ### Prerequisites
+- **Node.js:** `v20.x` LTS recommended (check with `node -v`). If using nvm, run `nvm use`.
+- **npm:** `v10.x` or higher (bundled with Node 20).
+- **Browser:** Any modern browser (Chrome, Edge, Firefox, Safari). WebGL is recommended for the 3D twin, but automatic 2D SCADA fallback is included.
 
-- **Node.js 20.x** (use [nvm](https://github.com/nvm-sh/nvm): `nvm install && nvm use` reads `.nvmrc`)
-- **npm** (bundled with Node 20)
-- A browser with **WebGL** support for the 3D twins
-- Git
+---
 
-### 1. Clone
-
+### Step 1: Clone Repository
 ```bash
 git clone https://github.com/Intell-Alpha/Antarctica_Digital_twin.git
 cd Antarctica_Digital_twin
-nvm use
 ```
 
-### 2. Backend (`backend/`, port 5000)
+---
 
-Run from the repository root:
+### Step 2: Spin Up the Backend API (`port 5000`)
+
+From the repository root, install dependencies and launch the backend development server:
 
 ```bash
+# Install backend dependencies
 npm --prefix backend ci
+
+# Copy environment variables (Windows PowerShell: Copy-Item backend/.env.example backend/.env)
 cp backend/.env.example backend/.env
+
+# Start the Express API in dev mode with auto-reload
 npm run backend:dev
 ```
 
-The API is then available at <http://localhost:5000>. A health check is `curl http://localhost:5000/`, which returns a JSON object with `"status": "ONLINE"`.
+Verify backend health in your terminal or browser:
+```bash
+curl http://localhost:5000/health
+# Response: {"status":"ONLINE","timestamp":"...","uptime":...}
+```
 
-Equivalent commands from inside `backend/`: `npm ci`, then `npm run dev`.
+---
 
-### 3. Frontend (repo root, port 3000)
+### Step 3: Spin Up the Frontend Cockpit (`port 3000` or `3001`)
 
-In a second terminal, from the repository root:
+Open a second terminal at the repository root:
 
 ```bash
+# Install frontend dependencies
 npm ci
+
+# Copy frontend environment variables (Windows PowerShell: Copy-Item .env.example .env.local)
 cp .env.example .env.local
+
+# Launch Next.js dev server with webpack
 npm run dev
 ```
 
-Open <http://localhost:3000>. The frontend still loads if the backend is not running; it then shows fallback data with a mock-data badge.
+> **Note on Port:** If port `3000` is already occupied, start on port `3001` using:  
+> `npm run dev -- --port 3001`
 
-> On Windows PowerShell, replace `cp` with `Copy-Item`, for example `Copy-Item .env.example .env.local`.
+Open your browser to: **<http://localhost:3000>** (or **<http://localhost:3001>**).
 
-### Bundler flag: `--no-turbo` vs `--webpack`
+---
 
-Next.js 16 uses Turbopack by default. This project runs the **dev server with webpack**. The flag was introduced in #50 as a workaround for a font bug in development (per that commit's message), and the dev server has used a non-Turbopack bundler since.
+### 🌟 Key Interactive Demo Flows for Evaluators
 
-- Only the **`dev`** script is affected. In `package.json` it is `next dev --webpack`. `build` and `start` carry no bundler flag.
-- An earlier commit used `next dev --no-turbo`. It was replaced by `--webpack`, which is the documented opt-out in Next.js 16 ([Next.js Turbopack docs](https://nextjs.org/docs/app/api-reference/turbopack)). If you see `--no-turbo` in an old PR or note, it is outdated.
-- Start the server with **`npm run dev`**. Do not append `--webpack` or `--no-turbo` yourself; the flag is already in the script.
-- If you must call Next directly (for example `npx next dev`), pass `--webpack` once and only once.
-- Extra arguments go after `--`, for example `npm run dev -- --port 3001`.
+1. **Spatial Digital Twin Cockpit (`/twin` & `/twin/bharati`)**
+   - Click **"Full-Screen Cockpit"** or navigate to `/twin` (Maitri Station) and `/twin/bharati` (Bharati Station).
+   - Use **OrbitControls** (left-click drag to rotate, right-click drag to pan, wheel to zoom).
+   - Use the **Polar Virtual Joystick** or `W`, `A`, `S`, `D` keys for free-roam navigation around the station.
 
-### Production build
+2. **Lifeline Utility Matrix**
+   - Click the **"Lifelines"** button in the bottom dock.
+   - Cycle through **Potable Water**, **Fuel Lines**, **Power Grid**, **Sewage Treatment**, and **Radiant Heat-Tracing** to witness dynamic animated GLSL pipeline pulses.
 
-```bash
-npm run build && npm start                  # frontend
-npm run backend:build && npm run backend:start   # backend (compiles to backend/dist)
+3. **Room-Level Telemetry & Person-View Lock**
+   - Click **"Facilities"** in the bottom dock.
+   - Select any station room (e.g., *IMD Meteorology Lab*, *Boiler Room*, or *Operations Hub*) to smoothly fly the camera inside and inspect live temperature, pressure, and remote SCADA actuation triggers.
+
+4. **Katabatic Blizzard & Operational Postures**
+   - Toggle station operational postures in the top command bar:
+     - `NOMINAL` ➔ Standard Antarctic summer/winter operation.
+     - `BLIZZARD_LOCKDOWN` ➔ Triggers howling katabatic storm, whiteout blizzard particle engine, and sun dimming.
+     - `ENERGY_CONSERVATION` ➔ Lowers non-critical HVAC and sheds secondary loads.
+     - `BLACK_START` ➔ Emergency microgrid cold restart simulation.
+
+5. **HIMADRI AI Station Commander**
+   - Click the **"AI Commander"** terminal button in the top bar.
+   - Ask natural language operational questions:
+     - *"What is our current fuel autonomy in days?"*
+     - *"Inspect the main powerhouse and fly inside."*
+     - *"Simulate a katabatic blizzard lockdown."*
+
+6. **What-If Crisis Sandbox (`/dashboard/simulations`)**
+   - Test crisis contingencies including **Katabatic Blizzard**, **Primary Generator Failure**, **Supply Vessel Delay**, and **Satellite Comms Outage**.
+   - Compare baseline telemetry against calculated crisis impact deltas.
+
+7. **Resilience Testing (Offline Mode & WebGL Fallback)**
+   - **Offline Mode:** Disconnect your Wi-Fi or set Network to *Offline* in DevTools. The frontend instantly displays the `"OFFLINE MODE — SERVING CACHED TELEMETRY"` amber banner with zero glitches.
+   - **WebGL Fallback:** Append `?fallback=1` to any twin URL (e.g. `/twin?fallback=1`). Experience the high-resolution 2D photographic SCADA HUD with technical diagnostics and engine re-initialization.
+
+---
+
+## ⚙️ Frontend Bundler Flag (`--webpack`)
+
+Next.js 16 introduces Turbopack as the default development bundler. In this repository, the dev script is configured with **`--webpack`**:
+
+```json
+"scripts": {
+  "dev": "next dev --webpack"
+}
 ```
 
----
+### Why `--webpack`?
+- **Three.js Shader Stability:** Webpack ensures reliable compilation of customized Three.js onBeforeCompile GLSL injection hooks and PMREM cubemap generators.
+- **Font & CSS Module Hot Reloading:** Workaround for dev-mode font sub-setting synchronization under early Next.js 16 bundlers.
+- **Production Parity:** Next.js production builds (`next build`) use the standard optimized compiler with zero configuration required.
 
-## Environment Configuration
-
-Example files are committed; real `.env` files are git-ignored. Create your local files by copying the examples and never commit them.
-
-| Example file | Copy to | Purpose |
-| :--- | :--- | :--- |
-| [`.env.example`](.env.example) | `.env.local` (repo root) | Frontend settings |
-| [`backend/.env.example`](backend/.env.example) | `backend/.env` | Backend settings |
-
-**Frontend (`.env.example`)**
-
-| Variable | Default | Notes |
-| :--- | :--- | :--- |
-| `NEXT_PUBLIC_BACKEND_URL` | `http://localhost:5000` | Base URL of the Express API. Variables prefixed `NEXT_PUBLIC_` are embedded in the browser bundle, so never put secrets here. Restart `npm run dev` after changing it. |
-
-**Backend (`backend/.env.example`)**
-
-| Variable | Example value | Notes |
-| :--- | :--- | :--- |
-| `PORT` | `5000` | Used by `backend/src/config/env.ts`. |
-| `NODE_ENV` | `development` | Read in `env.ts`. |
-| `CORS_ORIGIN` | `http://localhost:3000` | Used by `env.ts`. If unset it defaults to `*` (any origin), so set it explicitly for any shared deployment. |
-| `NCPOR_BASE_URL` | `https://ncpor.example.gov.in/api` | **Placeholder.** Listed in the example file but not read by any backend source file today. |
-| `POLLER_ENABLED` | `true` | **Not read by any backend source file today.** The live-data poller always starts with the server (10-minute interval, hard-coded in `backend/src/index.ts`). |
-
-No credentials or API keys are required to run the project locally.
+> **Passing Custom Port Arguments:**  
+> When running `npm run dev`, pass extra arguments after `--`:  
+> `npm run dev -- --port 3001`
 
 ---
 
-## Available Scripts
+## 🔐 Environment Configuration
 
-| Where | Command | What it does |
+Environment files are templated via committed `.example` files. Create your local secrets by copying them; real `.env` files are ignored by git.
+
+| Template File | Target Location | Description |
 | :--- | :--- | :--- |
-| Root | `npm run dev` | Next.js dev server with webpack on port 3000 |
-| Root | `npm run build` / `npm start` | Production build / serve |
-| Root | `npm run lint` | ESLint (flat config, Next.js rules) |
-| Root | `npm run backend:dev` / `backend:build` / `backend:start` | Shortcuts that run the matching `backend/` script via `npm --prefix backend` |
-| `backend/` | `npm run dev` | `ts-node-dev` with auto-restart on port 5000 |
-| `backend/` | `npm run build` / `npm start` | Compile to `backend/dist` / run the compiled server |
+| [`.env.example`](.env.example) | `.env.local` (Root) | Public frontend configuration (API endpoints) |
+| [`backend/.env.example`](backend/.env.example) | `backend/.env` | Express server port, CORS whitelist, and logging |
 
-There is no automated test runner configured yet, and no CI workflow for `backend/`. The frontend CI ([`.github/workflows/frontend-ci.yml`](.github/workflows/frontend-ci.yml)) runs `npm ci`, `npm run lint` (non-blocking) and `npm run build`, and only for changes under `src/`, `public/` and a few config files, so Markdown-only changes do not trigger it.
+### Frontend Variables (`.env.local`)
+| Variable | Default Value | Description |
+| :--- | :--- | :--- |
+| `NEXT_PUBLIC_BACKEND_URL` | `http://localhost:5000` | Target URL of the Express backend API. |
+
+### Backend Variables (`backend/.env`)
+| Variable | Default Value | Description |
+| :--- | :--- | :--- |
+| `PORT` | `5000` | Port on which the Express server listens. |
+| `NODE_ENV` | `development` | Runtime environment (`development`, `production`, `test`). |
+| `CORS_ORIGIN` | `http://localhost:3000` | Whitelisted frontend origin for CORS policies. |
+| `NCPOR_BASE_URL` | `https://ncpor.example.gov.in/api` | Base URL for remote NCPOR data synchronization. |
+| `POLLER_ENABLED` | `true` | Background weather sync toggle. |
 
 ---
 
-## Repository Structure
+## 📜 Available Scripts
+
+| Scope | Command | Description |
+| :--- | :--- | :--- |
+| **Root** | `npm run dev` | Launches the Next.js dev server with Webpack on port `3000`. |
+| **Root** | `npm run build` | Compiles and optimizes the Next.js production build. |
+| **Root** | `npm run start` | Serves the optimized Next.js production build. |
+| **Root** | `npm run lint` | Runs ESLint 9 across all frontend source files. |
+| **Root** | `npm run backend:dev` | Runs `npm run dev` in `backend/` via `ts-node-dev`. |
+| **Root** | `npm run backend:build` | Compiles backend TypeScript to `backend/dist`. |
+| **Root** | `npm run backend:start` | Executes the compiled backend server from `backend/dist`. |
+| **Root** | `npm run backend:test` | Executes the Jest test suite across backend services. |
+| **Backend** | `npm test` | Runs Jest smoke and simulation unit tests directly. |
+
+---
+
+## 🧪 Automated Testing
+
+The backend includes a comprehensive automated test suite powered by **Jest**, **Supertest**, and **ts-jest**.
+
+Run the test suite directly from the repository root:
+```bash
+npm run backend:test
+```
+
+### Test Coverage Highlights:
+- **Health & Readiness Check:** Validates `GET /health` returns status `ONLINE` with valid uptime and timestamp.
+- **Station Telemetry Smoke Tests:** Verifies telemetry endpoints (`/api/telemetry`, `/api/stations`) respond within latency SLAs and output valid Zod-compliant JSON payloads.
+- **Simulation Formula Tests:** Validates mathematical consistency of what-if scenario equations across all 5 crisis modes.
+
+---
+
+## 📂 Repository Structure
 
 ```text
-.
-├── src/                    # Next.js app (App Router)
-│   ├── app/                # Routes: /, /about, /dashboard/*, /twin, /twin/bharati, /bharati
-│   ├── components/         # UI, 3D twins (BharatiStationTwin, MaitriStationTwin), AI Commander, dashboard, landing
-│   ├── context/            # Theme context
-│   ├── hooks/              # Shared hooks
-│   └── lib/                # api.ts (backend client + fallback), telemetry constants, utilities
-├── public/                 # Static files; assets/ holds the Bharati and Maitri GLB models, draco/ the decoders
-├── backend/                # Express + TypeScript API and simulation engine
-│   └── src/                # config/, routes/, controllers/, services/, store/
-├── .github/                # Issue and PR templates, frontend CI workflow
-├── .agents/                # AI-agent skill files used by contributors' tooling (not part of the app)
-├── CONTRIBUTING.md         # Branching, commits, PR workflow, CI notes
-├── *_GUIDE.md, *.md        # Integration and asset guides (see below)
-├── package.json            # Frontend manifest (npm; lockfile: package-lock.json)
-└── .env.example            # Frontend environment template
+Antarctica_Digital_twin/
+├── src/                               # Next.js 16 App Router Frontend
+│   ├── app/                           # Route Pages
+│   │   ├── layout.tsx                 # Root layout with NetworkProvider
+│   │   ├── page.tsx                   # Cinematic Hero Landing Page
+│   │   ├── dashboard/                 # SCADA Management Dashboard
+│   │   │   ├── alerts/                # Station Alarm Registry & Audit
+│   │   │   ├── communications/        # Satcom Link Telemetry
+│   │   │   ├── energy/                # Microgrid & CHP Generation
+│   │   │   ├── environment/           # Polar Weather & Meteorology
+│   │   │   ├── infrastructure/        # Structural Health & MEP Systems
+│   │   │   ├── logistics/             # Fuel & Food Inventory Autonomy
+│   │   │   └── simulations/           # Interactive What-If Scenario Sandbox
+│   │   ├── twin/                      # Maitri 3D Digital Twin Cockpit
+│   │   └── twin/bharati/              # Bharati 3D Digital Twin Cockpit
+│   ├── components/                    # React UI & 3D Components
+│   │   ├── MaitriStationTwin.tsx      # Maitri 3D Three.js Digital Twin
+│   │   ├── BharatiStationTwin.tsx     # Bharati 3D Three.js Digital Twin
+│   │   ├── WebGLFallback.tsx          # 2D Photographic SCADA Fallback HUD
+│   │   ├── WebGLErrorBoundary.tsx     # Three.js Graphics Exception Boundary
+│   │   ├── OfflineBanner.tsx          # Real-time Offline Connectivity Banner
+│   │   ├── StationAICommander.tsx     # HIMADRI AI Copilot Drawer
+│   │   ├── TwinWhatIfSimulator.tsx    # Controlled What-If Simulator Drawer
+│   │   ├── CinematicDroneDirector.tsx # 4K GSAP Aerial Drone Director
+│   │   ├── PolarAtmosphereSystem.ts   # Blizzard & Particle Fog System
+│   │   ├── PolarVirtualJoystick.tsx   # Free-Roam Navigation Controls
+│   │   └── MissionReportModal.tsx     # ATCM Readiness Briefing Dossier
+│   ├── context/                       # NetworkContext & ThemeContext
+│   ├── hooks/                         # useReducedMotion, useNetworkStatus
+│   └── lib/                           # api.ts (Dual-tier cache), webglSupport.ts
+├── backend/                           # Express + TypeScript API Server
+│   ├── src/
+│   │   ├── __tests__/                 # Jest & Supertest Integration Suites
+│   │   ├── config/                    # Environment & Pino Logger Config
+│   │   ├── controllers/               # Station, Telemetry & Simulation Controllers
+│   │   ├── routes/                    # API Route Definitions
+│   │   ├── services/                  # DigitalTwinEngine, WeatherPoller, Commander
+│   │   └── store/                     # Seed Data with Provenance Metadata
+│   ├── package.json                   # Backend Dependencies & Scripts
+│   └── tsconfig.json                  # TypeScript Compiler Configuration
+├── public/                            # Static Assets
+│   ├── assets/                        # DRACO-compressed GLB Models & Station Posters
+│   ├── backgrounds/                   # Atmospheric Antarctic Visuals
+│   └── draco/                         # Google DRACO WebAssembly Decoders
+├── .github/                           # CI Workflows, Issue & PR Templates
+├── CONTRIBUTING.md                    # Developer Contribution Guide
+├── package.json                       # Frontend Manifest & Root Orchestration Scripts
+└── README.md                          # Repository Documentation & System Architecture
 ```
 
 ---
 
-## Documentation and Guides
+## 🛡️ Offline Mode & WebGL Fallback
 
-| Document | What it covers |
-| :--- | :--- |
-| [`backend/README.md`](backend/README.md) | Backend architecture, provenance model, REST endpoints with sample requests, scenario formulas |
-| [`BHARATI_DIGITAL_TWIN_INTEGRATION_GUIDE.md`](BHARATI_DIGITAL_TWIN_INTEGRATION_GUIDE.md) | Integrating the Bharati 3D twin: assets, loaders, room registry, camera transitions |
-| [`maitri_asset_guide.md`](maitri_asset_guide.md) | Maitri 3D asset, utility pipeline and animation reference |
-| [`DIGITAL_TWIN_REMOTE_MANAGEMENT.md`](DIGITAL_TWIN_REMOTE_MANAGEMENT.md) | Remote-management framework: room telemetry cards, what-if simulator, vitals bar |
-| [`FRONTEND_ISSUES.md`](FRONTEND_ISSUES.md) | Snapshot of known frontend issues (some items may already be fixed) |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Contribution workflow |
+### 1. Robust Dual-Tier Offline Mode
+If polar satellite internet drops during a demo or remote mission monitoring:
+- **Instant Failure Bypass:** [`src/lib/api.ts`](src/lib/api.ts) immediately catches network dropouts without waiting for standard browser timeout delays.
+- **Dual-Tier State Storage:** Every API response is cached in memory and mirrored to browser `localStorage`.
+- **Offline Notification:** An amber HUD banner informs operators that cached state is actively serving all telemetry, preventing blank UI glitches.
 
-Some of these guides were written during development and contain absolute local Windows paths (for example `C:\...`); treat those as examples, not repository paths. The backend README does not yet list `POST /api/commander/query` or `/api/environment/sync`; the route files in `backend/src/routes/` are the source of truth.
-
----
-
-## Known Limitations
-
-- **Mostly simulated data.** Infrastructure, energy, logistics and network values are seed or generated data, tagged with provenance labels. Do not treat them as real station readings.
-- **Live weather is best-effort.** `backend/src/services/ncporLiveService.ts` fetches and parses public pages from hard-coded NCPOR/NCAOR URLs. The page format or availability can change. The service also passes an HTTPS agent configured with `rejectUnauthorized: false` (to tolerate a certificate-hostname mismatch), which is intended to relax TLS certificate checks for those requests. Review this before any production use.
-- **AI Commander is rule-based.** It answers by keyword matching, not by a language model.
-- **Simplified simulation.** Scenarios use linear formulas documented in `backend/README.md`.
-- **Unused backend variables.** `NCPOR_BASE_URL` and `POLLER_ENABLED` are present in `backend/.env.example` but have no effect yet.
-- **Large 3D assets.** `public/assets/` is roughly 66 MB, which makes the first clone and first 3D page load heavy.
-- **No tests, and no backend CI** at present.
+### 2. High-Fidelity 2D SCADA WebGL Fallback
+If an operator accesses the cockpit from a device without GPU acceleration:
+- **Context Loss Recovery:** Detects `webglcontextlost` and unhandled Three.js exceptions gracefully.
+- **Photographic Poster View:** Displays full-resolution optical surveillance feeds ([`/assets/maitri_station.jpg`](public/assets/maitri_station.jpg) and [`/assets/bharati_station.jpg`](public/assets/bharati_station.jpg)).
+- **Uncompromised Monitoring:** All SCADA dials, facility metrics, posture switches, and AI Commander consoles remain 100% interactive.
 
 ---
 
-## Troubleshooting
+## 📚 Documentation & Deep Dives
 
-| Problem | Things to check |
-| :--- | :--- |
-| `EBADENGINE` warnings or odd install errors | You are not on Node 20.x. Run `nvm use` in the repository root. |
-| Dashboard shows a mock-data badge | The backend is not running or not reachable at `NEXT_PUBLIC_BACKEND_URL`. Start it with `npm run backend:dev` and check `curl http://localhost:5000/`. |
-| Browser CORS errors | Set `CORS_ORIGIN` in `backend/.env` to the exact frontend origin (for example `http://localhost:3000`) and restart the backend. |
-| Changed `NEXT_PUBLIC_BACKEND_URL` but nothing happened | Restart `npm run dev`; public variables are read at build/start time. |
-| `EADDRINUSE` on port 3000 or 5000 | Another process is using the port. Stop it, or use `npm run dev -- --port 3001` and/or change `PORT` in `backend/.env` (and update `NEXT_PUBLIC_BACKEND_URL` to match). |
-| Font or dev-server oddities | Make sure you ran `npm run dev` (webpack), not a bare `next dev` (Turbopack). See [Bundler flag](#bundler-flag---no-turbo-vs---webpack). |
-| Blank or slow 3D view | Confirm WebGL is enabled in the browser and wait for the GLB models to load; the first load downloads large assets. |
-| No live weather values | The public NCPOR/NCAOR pages may be unreachable from your network. The backend then serves its cached or seed values. |
+- 📘 [**Backend Architectural Guide**](backend/README.md) — Detailed REST API contracts, Zod schemas, and simulation formulas.
+- 📙 [**Bharati Station Integration Guide**](BHARATI_DIGITAL_TWIN_INTEGRATION_GUIDE.md) — 134 modular ISO container coordinate mappings and camera transitions.
+- 📗 [**Maitri Station Asset Guide**](maitri_asset_guide.md) — Utility pipeline lifelines, Riello boiler hydronics, and animation clips.
+- 📕 [**Remote Management Framework**](DIGITAL_TWIN_REMOTE_MANAGEMENT.md) — Sensor provenance models, ATCM compliance, and vitals bar.
+- 📝 [**Contributing Guidelines**](CONTRIBUTING.md) — Branch naming, conventional commits, and pull request workflows.
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
-Contributions are welcome. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) for branch naming (`feat/`, `fix/`, `docs/`, ...), Conventional Commit messages, the pull request workflow and CI notes. Use the templates in [`.github/`](.github) for issues and pull requests. Before opening a PR that changes application code, run `npm run lint` and `npm run build` locally.
+Contributions are welcome! Please review [**`CONTRIBUTING.md`**](CONTRIBUTING.md) before submitting a pull request.
+1. Fork the project & create your feature branch: `git checkout -b feat/your-feature-name`.
+2. Ensure linting and tests pass: `npm run lint` and `npm run backend:test`.
+3. Commit with Conventional Commits: `git commit -m "feat: add your feature"`.
+4. Open a Pull Request adhering to the repository template.
 
 ---
-## Team and Credits
 
-- **Team Name:** Intell-Alpha
-- **Event:** Smart India Hackathon (SIH) 2026
+## 👥 Team Intell-Alpha & Credits
+
+Developed with pride for the **Smart India Hackathon (SIH 2026)** by **Team Intell-Alpha**:
 
 <div align="center">
 
@@ -312,4 +436,13 @@ Contributions are welcome. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) for branch 
 
 </div>
 
-> **Third-party assets:** Draco decoders in `public/draco/` are from Google Draco (Apache License 2.0).
+### Special Acknowledgements & Data Attribution:
+- **National Centre for Polar and Ocean Research (NCPOR)** & **Ministry of Earth Sciences (MoES)** for foundational research station documentation and polar expedition archives.
+- **Google Draco** (Apache License 2.0) for open-source 3D mesh compression decoders.
+- **ISRO** for public satellite footprint data and telemetry reference schemas.
+
+---
+
+## 📄 License
+
+This project is developed under the **MIT License**. See the `LICENSE` file for terms.

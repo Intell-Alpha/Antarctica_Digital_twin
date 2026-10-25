@@ -12,7 +12,8 @@
     "lint": "eslint",
     "backend:dev": "npm --prefix backend run dev",
     "backend:build": "npm --prefix backend run build",
-    "backend:start": "npm --prefix backend run start"
+    "backend:start": "npm --prefix backend run start",
+    "backend:test": "npm --prefix backend run test"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

@@ -41,8 +41,9 @@ import { StationAICommander } from "./StationAICommander";
 import { CinematicDroneDirector, CinematicDroneDirectorHandle } from "./CinematicDroneDirector";
 import { PolarOrbitalGlobeView } from "./PolarOrbitalGlobeView";
 import { MissionReportModal } from "./MissionReportModal";
-import { GlobeHemisphereWest, FileText } from "@phosphor-icons/react";
 import { PolarVirtualJoystick, RoamVector } from "./PolarVirtualJoystick";
+import { checkWebGLSupport } from "@/lib/webglSupport";
+import { WebGLFallback } from "./WebGLFallback";
 
 
 export interface BharatiRoomEntry {
@@ -1278,6 +1279,8 @@ export function BharatiStationTwin({
   // UI State
   const [loading, setLoading] = useState(true);
   const [loadProgress, setLoadProgress] = useState(0);
+  const [webglError, setWebglError] = useState<string | null>(null);
+  const [webglRetryKey, setWebglRetryKey] = useState(0);
   const [activeMode, setActiveMode] = useState<"overview" | "flows" | "rooms" | "cutaways">("overview");
   const [cutawayViewMode, setCutawayViewMode] = useState<CutawayViewMode>("exterior");
   const [activeTourIndex, setActiveTourIndex] = useState<number | null>(null);
@@ -1874,6 +1877,15 @@ export function BharatiStationTwin({
     const width = container.clientWidth || window.innerWidth;
     const height = container.clientHeight || 700;
 
+    // 0. Verify WebGL hardware acceleration & driver support
+    const diag = checkWebGLSupport();
+    if (!diag.supported) {
+      console.warn("[Bharati 3D Twin] WebGL unsupported:", diag.reason);
+      setWebglError(diag.reason || "WebGL hardware acceleration is unsupported on this device.");
+      setLoading(false);
+      return;
+    }
+
     // 1. Scene with Larsemann Hills Atmosphere
     const scene = new THREE.Scene();
     const polarSkyColor = new THREE.Color("#6b9bc3");
@@ -1887,10 +1899,19 @@ export function BharatiStationTwin({
     cameraRef.current = camera;
 
     // 3. Renderer with ACESFilmic Tone Mapping and Color Space Calibration
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      powerPreference: "high-performance",
-    });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference: "high-performance",
+      });
+    } catch (err: any) {
+      console.error("[Bharati 3D Twin] Failed to create WebGLRenderer:", err);
+      setWebglError(err?.message || "Failed to initialize WebGL rendering context.");
+      setLoading(false);
+      return;
+    }
+
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1902,6 +1923,24 @@ export function BharatiStationTwin({
     container.innerHTML = "";
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
+
+    // 3b. WebGL Context Loss & Recovery Observers
+    const canvasEl = renderer.domElement;
+    const handleContextLost = (e: Event) => {
+      e.preventDefault();
+      console.warn("[Bharati 3D Twin] WebGL context lost!");
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      setWebglError("GPU WebGL context was lost by the browser (GPU reset or memory pressure).");
+    };
+
+    const handleContextRestored = () => {
+      console.info("[Bharati 3D Twin] WebGL context restored. Re-attempting 3D engine startup.");
+      setWebglError(null);
+      setWebglRetryKey((k) => k + 1);
+    };
+
+    canvasEl.addEventListener("webglcontextlost", handleContextLost, false);
+    canvasEl.addEventListener("webglcontextrestored", handleContextRestored, false);
 
     // 4. Natural Polar Environment Map (PMREM) for PBR Reflections
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -2792,13 +2831,15 @@ export function BharatiStationTwin({
       container.removeEventListener("mousedown", handlePointerDown);
       container.removeEventListener("click", handleClick);
       window.removeEventListener("resize", handleResize);
+      canvasEl.removeEventListener("webglcontextlost", handleContextLost);
+      canvasEl.removeEventListener("webglcontextrestored", handleContextRestored);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       if (atmosphereRef.current) atmosphereRef.current.dispose();
       renderer.dispose();
       pmremGenerator.dispose();
       dracoLoader.dispose();
     };
-  }, [lockInsideRoom]);
+  }, [lockInsideRoom, webglRetryKey]);
 
   // ── TRIGGER ELEVATED LIFELINE TOUR STAGE WITH CINEMATIC X-RAY GHOST CUTAWAY ──
   const goToStage = useCallback(
@@ -3105,11 +3146,24 @@ export function BharatiStationTwin({
 
   return (
     <div className={`relative overflow-hidden w-full h-full bg-[#03060E] ${className}`}>
-      {/* ── 3D WEBGL CANVAS ── */}
-      <div ref={containerRef} className="w-full h-full cursor-grab active:cursor-grabbing select-none" />
+      {/* ── 3D WEBGL CANVAS OR 2D PHOTOGRAPHIC SCADA FALLBACK ── */}
+      {webglError ? (
+        <WebGLFallback
+          station="BHARATI"
+          error={webglError}
+          onRetry={() => {
+            setLoading(true);
+            setWebglError(null);
+            setWebglRetryKey((k) => k + 1);
+          }}
+          onOpenAICommander={() => setIsAICommanderOpen(true)}
+        />
+      ) : (
+        <div ref={containerRef} className="w-full h-full cursor-grab active:cursor-grabbing select-none" />
+      )}
 
       {/* ── RAYCAST HOVER FLOATING TOOLTIP ── */}
-      {hoveredFacility && !activeRoom && (
+      {hoveredFacility && !activeRoom && !webglError && (
         <div
           className="absolute z-40 pointer-events-none -translate-x-1/2 -translate-y-full mb-3 px-3 py-1.5 rounded-xl bg-[#040D1A]/95 border border-[#00A8FF]/50 backdrop-blur-md shadow-[0_10px_25px_rgba(0,168,255,0.3)] transition-all animate-in fade-in zoom-in-95 duration-150"
           style={{ left: hoveredFacility.x, top: hoveredFacility.y }}
@@ -3130,8 +3184,8 @@ export function BharatiStationTwin({
         </div>
       )}
 
-      {/* ── HIGH-TECH MINIMAL LOADING OVERLAY ── */}
-      {loading && (
+      {/* ── HIGH-TECH MINIMAL LOADING OVERLAY (Only when 3D is active and loading) ── */}
+      {loading && !webglError && (
         <div className="absolute inset-0 z-50 bg-[#03060E]/95 backdrop-blur-2xl flex flex-col items-center justify-center gap-6 p-6">
           <div className="relative w-16 h-16">
             <div className="absolute inset-0 rounded-full border border-[#00A8FF]/20 animate-ping" />
